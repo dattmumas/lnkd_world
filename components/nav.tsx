@@ -17,10 +17,22 @@ export default function Nav() {
       </Link>
       <nav className="flex gap-4 md:gap-6 items-center">
         <Link
-          href="https://blog.lnkd.world"
+          href="/writing"
           className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
         >
-          Blog
+          Writing
+        </Link>
+        <Link
+          href="/reading"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        >
+          Reading
+        </Link>
+        <Link
+          href="/bookmarks"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        >
+          Bookmarks
         </Link>
         <Link
           href="/resources"

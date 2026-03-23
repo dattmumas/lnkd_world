@@ -29,4 +29,46 @@ export default defineSchema({
     content: v.string(),
     published: v.boolean(),
   }),
+
+  posts: defineTable({
+    title: v.string(),
+    slug: v.string(),
+    description: v.string(),
+    content: v.string(),
+    tags: v.array(v.string()),
+    published: v.boolean(),
+    gated: v.optional(v.boolean()),
+    publishedAt: v.optional(v.string()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"]),
+
+  readings: defineTable({
+    title: v.string(),
+    slug: v.string(),
+    author: v.string(),
+    type: v.string(),
+    rating: v.optional(v.number()),
+    content: v.string(),
+    tags: v.array(v.string()),
+    published: v.boolean(),
+    gated: v.optional(v.boolean()),
+    publishedAt: v.optional(v.string()),
+    url: v.optional(v.string()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"]),
+
+  bookmarks: defineTable({
+    title: v.string(),
+    slug: v.string(),
+    url: v.string(),
+    description: v.string(),
+    tags: v.array(v.string()),
+    published: v.boolean(),
+    gated: v.optional(v.boolean()),
+    publishedAt: v.optional(v.string()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"]),
 });

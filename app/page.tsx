@@ -1,6 +1,8 @@
 import Nav from "@/components/nav";
 import Hero from "@/components/hero";
 import WritingSection from "@/components/writing-section";
+import ReadingSection from "@/components/reading-section";
+import BookmarksSection from "@/components/bookmarks-section";
 import ProjectList from "@/components/project-list";
 import Footer from "@/components/footer";
 
@@ -11,6 +13,8 @@ export default function Home() {
       <main className="flex-1 py-12 md:py-16">
         <Hero />
         <WritingSection />
+        <ReadingSection />
+        <BookmarksSection />
         <ProjectList />
       </main>
       <Footer />

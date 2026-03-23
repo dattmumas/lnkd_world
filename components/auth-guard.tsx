@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import SignInForm from "@/components/sign-in-form";
+import Link from "next/link";
 
 type Role = "admin" | "subscriber";
 
@@ -60,6 +61,12 @@ export default function AuthGuard({
       </AuthLoading>
       <Unauthenticated>
         <div className="max-w-sm mx-auto px-6 py-16">
+          <Link
+            href="/"
+            className="block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-6 text-center"
+          >
+            &larr; Back to home
+          </Link>
           <h1 className="text-2xl font-semibold mb-6 text-center">Sign In</h1>
           <SignInForm />
         </div>

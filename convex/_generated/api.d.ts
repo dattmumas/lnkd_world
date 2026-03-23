@@ -9,8 +9,11 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as bookmarks from "../bookmarks.js";
 import type * as http from "../http.js";
+import type * as posts from "../posts.js";
 import type * as projects from "../projects.js";
+import type * as readings from "../readings.js";
 import type * as resources from "../resources.js";
 import type * as seed from "../seed.js";
 import type * as users from "../users.js";
@@ -23,8 +26,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  bookmarks: typeof bookmarks;
   http: typeof http;
+  posts: typeof posts;
   projects: typeof projects;
+  readings: typeof readings;
   resources: typeof resources;
   seed: typeof seed;
   users: typeof users;

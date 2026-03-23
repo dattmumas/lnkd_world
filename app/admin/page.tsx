@@ -22,6 +22,30 @@ export default function AdminDashboard() {
       <ul className="space-y-4">
         <li>
           <Link
+            href="/admin/posts"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Manage Posts
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/admin/readings"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Manage Readings
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/admin/bookmarks"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Manage Bookmarks
+          </Link>
+        </li>
+        <li>
+          <Link
             href="/admin/projects"
             className="text-[var(--color-accent)] hover:underline underline-offset-4"
           >

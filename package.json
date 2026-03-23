@@ -9,15 +9,19 @@
     "preview": "npx opennextjs-cloudflare preview",
     "deploy": "npx opennextjs-cloudflare deploy",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync": "npx tsx scripts/sync.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
     "@convex-dev/auth": "^0.0.91",
     "convex": "^1.32.0",
+    "gray-matter": "^4.0.3",
     "next": "^16.1.6",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.17.1",
@@ -29,6 +33,7 @@
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "wrangler": "^4.72.0"
   }
