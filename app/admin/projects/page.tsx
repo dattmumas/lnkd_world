@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import Nav from "@/components/nav";
 
-function LinkForm({
+function ProjectForm({
   initial,
   onSubmit,
   onCancel,
@@ -68,7 +68,7 @@ function LinkForm({
           type="submit"
           className="bg-[var(--color-accent)] text-white rounded px-4 py-2 text-sm hover:bg-[var(--color-accent-hover)] transition-colors"
         >
-          {initial ? "Save" : "Add Link"}
+          {initial ? "Save" : "Add Project"}
         </button>
         {onCancel && (
           <button
@@ -84,46 +84,46 @@ function LinkForm({
   );
 }
 
-export default function ManageLinks() {
-  const links = useQuery(api.links.list);
-  const createLink = useMutation(api.links.create);
-  const updateLink = useMutation(api.links.update);
-  const removeLink = useMutation(api.links.remove);
-  const [editingId, setEditingId] = useState<Id<"links"> | null>(null);
+export default function ManageProjects() {
+  const projects = useQuery(api.projects.list);
+  const createProject = useMutation(api.projects.create);
+  const updateProject = useMutation(api.projects.update);
+  const removeProject = useMutation(api.projects.remove);
+  const [editingId, setEditingId] = useState<Id<"projects"> | null>(null);
 
   return (
     <main className="max-w-2xl mx-auto px-6 py-16 md:py-24">
       <Nav />
-      <h1 className="text-3xl font-semibold mb-8 mt-8">Manage Links</h1>
+      <h1 className="text-3xl font-semibold mb-8 mt-8">Manage Projects</h1>
 
       <div className="mb-8">
-        <h2 className="text-lg font-medium mb-3">Add New Link</h2>
-        <LinkForm
+        <h2 className="text-lg font-medium mb-3">Add New Project</h2>
+        <ProjectForm
           onSubmit={(data) => {
-            void createLink(data);
+            void createProject(data);
           }}
         />
       </div>
 
-      <h2 className="text-lg font-medium mb-3">Current Links</h2>
-      {links === undefined ? (
+      <h2 className="text-lg font-medium mb-3">Current Projects</h2>
+      {projects === undefined ? (
         <p className="text-[var(--color-text-secondary)]">Loading...</p>
-      ) : links.length === 0 ? (
-        <p className="text-[var(--color-text-secondary)]">No links yet. Add one above.</p>
+      ) : projects.length === 0 ? (
+        <p className="text-[var(--color-text-secondary)]">No projects yet. Add one above.</p>
       ) : (
         <ul className="space-y-4">
-          {links.map((link) => (
-            <li key={link._id} className="border border-[var(--color-border)] rounded p-4">
-              {editingId === link._id ? (
-                <LinkForm
+          {projects.map((project) => (
+            <li key={project._id} className="border border-[var(--color-border)] rounded p-4">
+              {editingId === project._id ? (
+                <ProjectForm
                   initial={{
-                    title: link.title,
-                    description: link.description,
-                    href: link.href,
-                    order: link.order,
+                    title: project.title,
+                    description: project.description,
+                    href: project.href,
+                    order: project.order,
                   }}
                   onSubmit={(data) => {
-                    void updateLink({ id: link._id, ...data });
+                    void updateProject({ id: project._id, ...data });
                     setEditingId(null);
                   }}
                   onCancel={() => setEditingId(null)}
@@ -131,23 +131,23 @@ export default function ManageLinks() {
               ) : (
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">{link.title}</p>
+                    <p className="font-medium">{project.title}</p>
                     <p className="text-sm text-[var(--color-text-secondary)]">
-                      {link.description}
+                      {project.description}
                     </p>
                     <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                      {link.href} &middot; order: {link.order}
+                      {project.href} &middot; order: {project.order}
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0 ml-4">
                     <button
-                      onClick={() => setEditingId(link._id)}
+                      onClick={() => setEditingId(project._id)}
                       className="text-sm text-[var(--color-accent)] hover:underline"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => void removeLink({ id: link._id })}
+                      onClick={() => void removeProject({ id: project._id })}
                       className="text-sm text-red-600 hover:underline"
                     >
                       Delete

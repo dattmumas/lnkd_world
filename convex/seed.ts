@@ -1,17 +1,17 @@
 import { mutation } from "./_generated/server";
 
-export const seedLinks = mutation({
+export const seedProjects = mutation({
   handler: async (ctx) => {
-    const existing = await ctx.db.query("links").collect();
+    const existing = await ctx.db.query("projects").collect();
     if (existing.length > 0) return "Already seeded";
 
-    await ctx.db.insert("links", {
-      title: "Blog",
-      description: "Writing on tech, building, and thinking out loud",
-      href: "https://blog.lnkd.world",
+    await ctx.db.insert("projects", {
+      title: "LNKD",
+      description: "Personal site built with Next.js, Convex, and Cloudflare Workers",
+      href: "https://lnkd.world",
       order: 1,
     });
 
-    return "Seeded initial links";
+    return "Seeded initial projects";
   },
 });

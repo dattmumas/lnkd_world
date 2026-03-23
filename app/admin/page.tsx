@@ -22,10 +22,10 @@ export default function AdminDashboard() {
       <ul className="space-y-4">
         <li>
           <Link
-            href="/admin/links"
+            href="/admin/projects"
             className="text-[var(--color-accent)] hover:underline underline-offset-4"
           >
-            Manage Links
+            Manage Projects
           </Link>
         </li>
         <li>
