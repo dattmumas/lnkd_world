@@ -34,15 +34,20 @@ Personal site focused on philosophy and politics. Branding is **LNKD**.
 | `/admin/links` | Admin | CRUD for homepage links |
 | `/admin/resources` | Admin | CRUD for subscriber resources |
 
+## Package Manager
+
+**pnpm only.** Never use npm. All commands use `pnpm` (not `npm run`).
+
 ## Commands
 
 ```bash
-npm run dev          # Local dev server (Turbopack)
-npm run build        # Next.js production build
-npm run build:worker # Build for Cloudflare Workers
-npm run preview      # Local preview with Wrangler
-npm run deploy       # Deploy to Cloudflare Workers
-npm run lint         # ESLint
+pnpm dev             # Local dev server (Turbopack)
+pnpm build           # Next.js production build
+pnpm build:worker    # Build for Cloudflare Workers
+pnpm preview         # Local preview with Wrangler
+pnpm deploy          # Deploy to Cloudflare Workers
+pnpm lint            # ESLint
+pnpm sync            # Sync Obsidian vault to Convex
 ```
 
 ## Key Files
