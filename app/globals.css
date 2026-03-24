@@ -53,3 +53,26 @@ h1, h2, h3, h4, h5, h6 {
   text-decoration: none;
   margin-left: 0.25rem;
 }
+
+/* Now section — tighter, more intimate markdown */
+.now-content p {
+  margin-bottom: 0.5rem;
+}
+
+.now-content p:last-child {
+  margin-bottom: 0;
+}
+
+.now-content ul, .now-content ol {
+  margin-bottom: 0.5rem;
+}
+
+.now-content h2, .now-content h3 {
+  font-size: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-family: var(--font-lora), Georgia, serif;
+}

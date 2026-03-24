@@ -153,6 +153,26 @@ function report(label: string, stats: { total: number; created: number; updated:
   console.log(`  ${label}: ${parts.join(", ")}`);
 }
 
+async function syncNow(vaultDir: string) {
+  const nowFile = join(vaultDir, "now.md");
+  if (!existsSync(nowFile)) return null;
+
+  const raw = readFileSync(nowFile, "utf-8");
+  const { content } = matter(raw);
+
+  try {
+    const result = await client.mutation(api.now.upsert, {
+      secret: SYNC_SECRET!,
+      content: content.trim(),
+      updatedAt: new Date().toISOString().split("T")[0],
+    });
+    return result.action;
+  } catch (e) {
+    console.error("  Error syncing now:", e);
+    return "error";
+  }
+}
+
 async function main() {
   console.log(`Syncing from ${vaultPath}...\n`);
 
@@ -160,18 +180,22 @@ async function main() {
   const readingsDir = join(vaultPath, "readings");
   const bookmarksDir = join(vaultPath, "bookmarks");
 
-  const [posts, readings, bookmarks] = await Promise.all([
+  const [posts, readings, bookmarks, nowResult] = await Promise.all([
     syncPosts(postsDir),
     syncReadings(readingsDir),
     syncBookmarks(bookmarksDir),
+    syncNow(vaultPath),
   ]);
 
   console.log("");
   report("Posts", posts);
   report("Readings", readings);
   report("Bookmarks", bookmarks);
+  if (nowResult) {
+    console.log(`  Now: ${nowResult}`);
+  }
 
-  const totalErrors = posts.errors + readings.errors + bookmarks.errors;
+  const totalErrors = posts.errors + readings.errors + bookmarks.errors + (nowResult === "error" ? 1 : 0);
   if (totalErrors > 0) {
     console.log(`\n${totalErrors} error(s) occurred.`);
     process.exit(1);

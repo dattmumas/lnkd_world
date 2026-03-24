@@ -59,6 +59,11 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_published", ["published"]),
 
+  now: defineTable({
+    content: v.string(),
+    updatedAt: v.string(),
+  }),
+
   bookmarks: defineTable({
     title: v.string(),
     slug: v.string(),

@@ -1,5 +1,6 @@
 import Nav from "@/components/nav";
 import Hero from "@/components/hero";
+import NowSection from "@/components/now-section";
 import WritingSection from "@/components/writing-section";
 import ReadingSection from "@/components/reading-section";
 import BookmarksSection from "@/components/bookmarks-section";
@@ -12,6 +13,7 @@ export default function Home() {
       <Nav />
       <main className="flex-1 py-12 md:py-16">
         <Hero />
+        <NowSection />
         <WritingSection />
         <ReadingSection />
         <BookmarksSection />
