@@ -172,26 +172,24 @@ export default function HeroGraph() {
           const isHovered = hoveredNode === node.id;
           const isConnected = connectedNodes.has(node.id);
           const dimmed = hoveredNode && !isConnected;
+          const hitR = Math.max(r * 2.5, 16); // generous hit area
 
           return (
-            <motion.g
+            <g
               key={node.id}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{
-                scale: isHovered ? 1.3 : 1,
-                opacity: dimmed ? 0.2 : 1,
-              }}
-              transition={{
-                scale: { type: "spring", stiffness: 300, damping: 20 },
-                opacity: { duration: 0.2 },
-                delay: i * 0.03,
-              }}
-              style={{ originX: `${node.x}px`, originY: `${node.y}px` }}
               onMouseEnter={() => !isMobile && setHoveredNode(node.id)}
               onMouseLeave={() => !isMobile && setHoveredNode(null)}
               onClick={() => handleNodeClick(node)}
               className="cursor-pointer"
             >
+              {/* Invisible hit area — stable, no animation */}
+              <circle
+                cx={node.x}
+                cy={node.y}
+                r={hitR}
+                fill="transparent"
+              />
+
               {/* Pulse ring for most recent */}
               {node.id === mostRecent && !isHovered && (
                 <motion.circle
@@ -213,12 +211,21 @@ export default function HeroGraph() {
                 />
               )}
 
-              <circle
+              {/* Visible node circle — radius animates on hover */}
+              <motion.circle
                 cx={node.x}
                 cy={node.y}
-                r={r}
                 fill={NODE_COLORS[node.type]}
-                opacity={0.85}
+                initial={{ r: 0, opacity: 0 }}
+                animate={{
+                  r: isHovered ? r * 1.4 : r,
+                  opacity: dimmed ? 0.2 : 0.85,
+                }}
+                transition={{
+                  r: { type: "spring", stiffness: 400, damping: 25 },
+                  opacity: { duration: 0.2 },
+                  delay: i * 0.03,
+                }}
               />
 
               {/* Title tooltip on hover */}
@@ -237,7 +244,7 @@ export default function HeroGraph() {
                   {node.title.length > 30 ? node.title.slice(0, 28) + "…" : node.title}
                 </motion.text>
               )}
-            </motion.g>
+            </g>
           );
         })}
       </svg>
