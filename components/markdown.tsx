@@ -2,11 +2,70 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
+import rehypeRaw from "rehype-raw";
+
+/**
+ * Preprocess Obsidian-specific syntax into standard markdown/HTML
+ * before passing to react-markdown.
+ */
+function preprocessObsidian(md: string): string {
+  let result = md;
+
+  // ==highlights== → <mark>highlights</mark>
+  result = result.replace(/==(.*?)==/g, "<mark>$1</mark>");
+
+  // [[wikilinks]] → **wikilinks** (no routing target, just bold)
+  // [[wikilinks|display text]] → **display text**
+  result = result.replace(
+    /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g,
+    (_, target, display) => `**${display ?? target}**`
+  );
+
+  // Obsidian callouts: > [!type] Title → styled blockquote
+  // Converts to HTML so rehype-raw can render it
+  result = result.replace(
+    /^(>)\s*\[!(\w+)\]\s*(.*?)$\n?((?:^>.*$\n?)*)/gm,
+    (_, _gt, type, title, body) => {
+      const cleanBody = body
+        .replace(/^>\s?/gm, "")
+        .trim();
+      const icon = calloutIcon(type.toLowerCase());
+      return `<div class="callout callout-${type.toLowerCase()}">\n<p class="callout-title">${icon} ${title || type}</p>\n\n${cleanBody}\n</div>\n`;
+    }
+  );
+
+  return result;
+}
+
+function calloutIcon(type: string): string {
+  const icons: Record<string, string> = {
+    note: "📝",
+    tip: "💡",
+    important: "❗",
+    warning: "⚠️",
+    caution: "🔥",
+    info: "ℹ️",
+    example: "📋",
+    quote: "💬",
+    question: "❓",
+    success: "✅",
+    failure: "❌",
+    bug: "🐛",
+    abstract: "📄",
+  };
+  return icons[type] ?? "📌";
+}
 
 export default function Markdown({ content }: { content: string }) {
+  const processed = preprocessObsidian(content);
+
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]}
       components={{
         h1: ({ children }) => (
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mt-8 mb-3">
@@ -49,10 +108,10 @@ export default function Markdown({ content }: { content: string }) {
           <li className="leading-relaxed">{children}</li>
         ),
         code: ({ className, children }) => {
-          const isBlock = className?.includes("language-");
+          const isBlock = className?.includes("language-") || className?.includes("hljs");
           if (isBlock) {
             return (
-              <code className="block bg-[var(--color-border)]/50 rounded p-4 text-sm overflow-x-auto mb-4 font-mono">
+              <code className={`block bg-[var(--color-border)]/50 rounded p-4 text-sm overflow-x-auto mb-4 font-mono ${className ?? ""}`}>
                 {children}
               </code>
             );
@@ -65,6 +124,23 @@ export default function Markdown({ content }: { content: string }) {
         },
         pre: ({ children }) => <pre className="mb-4">{children}</pre>,
         hr: () => <hr className="border-[var(--color-border)] my-8" />,
+        mark: ({ children }) => (
+          <mark className="bg-yellow-200/60 px-0.5 rounded">{children}</mark>
+        ),
+        sup: ({ children }) => (
+          <sup className="text-xs">{children}</sup>
+        ),
+        section: ({ children, className }) => {
+          // Footnotes section from remark-gfm
+          if (className === "footnotes") {
+            return (
+              <section className="mt-8 pt-4 border-t border-[var(--color-border)] text-sm text-[var(--color-text-secondary)]">
+                {children}
+              </section>
+            );
+          }
+          return <section>{children}</section>;
+        },
         table: ({ children }) => (
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-sm border-collapse">{children}</table>
@@ -84,9 +160,22 @@ export default function Markdown({ content }: { content: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={alt ?? ""} className="rounded max-w-full my-4" />
         ),
+        details: ({ children }) => (
+          <details className="mb-4 border border-[var(--color-border)] rounded p-3">
+            {children}
+          </details>
+        ),
+        summary: ({ children }) => (
+          <summary className="cursor-pointer font-semibold">{children}</summary>
+        ),
+        kbd: ({ children }) => (
+          <kbd className="bg-[var(--color-border)]/50 border border-[var(--color-border)] rounded px-1.5 py-0.5 text-xs font-mono">
+            {children}
+          </kbd>
+        ),
       }}
     >
-      {content}
+      {processed}
     </ReactMarkdown>
   );
 }
