@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { Unauthenticated } from "convex/react";
@@ -15,6 +16,30 @@ export default function PostPage() {
   const params = useParams();
   const slug = params.slug as string;
   const post = useQuery(api.posts.getBySlug, { slug });
+
+  // Dynamic page title and meta
+  useEffect(() => {
+    if (post) {
+      document.title = `${post.title} — LNKD`;
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute("content", post.description || `${post.title} on LNKD`);
+
+      // OG tags
+      const setMeta = (property: string, content: string) => {
+        let el = document.querySelector(`meta[property="${property}"]`);
+        if (!el) {
+          el = document.createElement("meta");
+          el.setAttribute("property", property);
+          document.head.appendChild(el);
+        }
+        el.setAttribute("content", content);
+      };
+      setMeta("og:title", post.title);
+      setMeta("og:description", post.description || `${post.title} on LNKD`);
+      setMeta("og:url", `https://lnkd.world/writing/${slug}`);
+      setMeta("og:type", "article");
+    }
+  }, [post, slug]);
 
   return (
     <div className="min-h-screen flex flex-col max-w-2xl mx-auto px-6">

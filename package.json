@@ -10,7 +10,9 @@
     "deploy": "npx opennextjs-cloudflare deploy",
     "start": "next start",
     "lint": "next lint",
-    "sync": "npx tsx scripts/sync.ts"
+    "sync": "npx tsx scripts/sync.ts",
+    "sync:watch": "npx tsx scripts/watch.ts",
+    "sync:readwise": "npx tsx scripts/readwise-sync.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
