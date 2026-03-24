@@ -28,10 +28,10 @@ export default function WritingSection() {
 
   return (
     <Section title="Writing" viewAllHref="/writing">
-      <ul className="space-y-3">
+      <ul className="space-y-5">
         {latest.map((post) => (
           <li key={post._id}>
-            <Link href={`/writing/${post.slug}`} className="group block py-1">
+            <Link href={`/writing/${post.slug}`} className="group block">
               <span className="text-[var(--color-accent)] group-hover:underline underline-offset-4 decoration-1 font-medium">
                 {post.title}
               </span>

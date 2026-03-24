@@ -15,20 +15,19 @@ export default function Home() {
       <main className="flex-1 py-12 md:py-16">
         <Hero />
 
+        <NowSection />
+
         {/* Two-column layout: content left, sidebar right on wide desktop */}
-        <div className="xl:grid xl:grid-cols-[1fr_270px] xl:gap-0">
-          <div className="min-w-0 xl:pr-8">
-            <NowSection />
-            <div className="mt-8">
-              <WritingSection />
-              <ReadingSection />
-              <BookmarksSection />
-              <ProjectList />
-            </div>
+        <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-16">
+          <div className="min-w-0">
+            <WritingSection />
+            <ReadingSection />
+            <BookmarksSection />
+            <ProjectList />
           </div>
 
           {/* Sidebar: below content on mobile/tablet, right column on xl+ */}
-          <div className="mt-12 xl:mt-0 xl:border-l xl:border-[var(--color-border)] xl:pl-8">
+          <div className="mt-16 xl:mt-0 xl:border-l xl:border-[var(--color-border)] xl:pl-10">
             <div className="xl:sticky xl:top-8">
               <Sidebar />
             </div>

@@ -35,7 +35,7 @@ export default function NowSection() {
     : null;
 
   return (
-    <section className="mb-14">
+    <section className="mb-20">
       <div className="relative">
         {/* Accent line */}
         <div className="absolute -left-3 top-0 bottom-0 w-px bg-gradient-to-b from-[var(--color-accent)] via-[var(--color-accent)]/40 to-transparent" />

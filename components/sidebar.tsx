@@ -22,7 +22,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="space-y-8">
+    <aside className="space-y-10">
       <ActivityHeatmap dates={stats.dates} />
 
       {/* Content counts */}
@@ -57,8 +57,6 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-
-      <div className="border-t border-[var(--color-border)]" />
 
       <ReadingStats stats={stats.readingStats} />
     </aside>

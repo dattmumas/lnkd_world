@@ -8,7 +8,7 @@ const HeroGraph = dynamic(() => import("@/components/hero-graph"), {
 
 export default function Hero() {
   return (
-    <section className="mb-16">
+    <section className="mb-20">
       <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-3">
         Matthew Dumas
       </h1>
