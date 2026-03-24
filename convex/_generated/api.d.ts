@@ -10,6 +10,8 @@
 
 import type * as auth from "../auth.js";
 import type * as bookmarks from "../bookmarks.js";
+import type * as graph from "../graph.js";
+import type * as graphLayout from "../graphLayout.js";
 import type * as http from "../http.js";
 import type * as now from "../now.js";
 import type * as posts from "../posts.js";
@@ -19,6 +21,7 @@ import type * as resources from "../resources.js";
 import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
+import type * as versions from "../versions.js";
 
 import type {
   ApiFromModules,
@@ -29,6 +32,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   bookmarks: typeof bookmarks;
+  graph: typeof graph;
+  graphLayout: typeof graphLayout;
   http: typeof http;
   now: typeof now;
   posts: typeof posts;
@@ -38,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   stats: typeof stats;
   users: typeof users;
+  versions: typeof versions;
 }>;
 
 /**

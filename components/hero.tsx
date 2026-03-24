@@ -1,3 +1,11 @@
+"use client";
+
+import dynamic from "next/dynamic";
+
+const HeroGraph = dynamic(() => import("@/components/hero-graph"), {
+  ssr: false,
+});
+
 export default function Hero() {
   return (
     <section className="mb-16">
@@ -7,7 +15,7 @@ export default function Hero() {
       <p className="text-[var(--color-text-secondary)] leading-relaxed max-w-lg mb-5">
         Writing about philosophy, politics, and the ideas that shape how we live.
       </p>
-      <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+      <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm mb-8">
         <a
           href="mailto:mattdumas3@gmail.com"
           className="text-[var(--color-accent)] hover:underline underline-offset-4"
@@ -39,6 +47,9 @@ export default function Hero() {
           LinkedIn
         </a>
       </div>
+
+      {/* Knowledge Graph */}
+      <HeroGraph />
     </section>
   );
 }

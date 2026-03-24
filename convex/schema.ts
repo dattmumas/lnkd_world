@@ -39,6 +39,11 @@ export default defineSchema({
     published: v.boolean(),
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    wikilinksRaw: v.optional(v.array(v.string())),
+    wikilinksResolved: v.optional(v.array(v.string())),
+    wikilinksBroken: v.optional(v.array(v.string())),
+    backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
     .index("by_published", ["published"]),
@@ -55,6 +60,11 @@ export default defineSchema({
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
     url: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    wikilinksRaw: v.optional(v.array(v.string())),
+    wikilinksResolved: v.optional(v.array(v.string())),
+    wikilinksBroken: v.optional(v.array(v.string())),
+    backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
     .index("by_published", ["published"]),
@@ -73,7 +83,36 @@ export default defineSchema({
     published: v.boolean(),
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    wikilinksRaw: v.optional(v.array(v.string())),
+    wikilinksResolved: v.optional(v.array(v.string())),
+    wikilinksBroken: v.optional(v.array(v.string())),
+    backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
     .index("by_published", ["published"]),
+
+  versions: defineTable({
+    slug: v.string(),
+    contentType: v.union(v.literal("post"), v.literal("reading"), v.literal("bookmark")),
+    contentHash: v.string(),
+    content: v.string(),
+    title: v.string(),
+    changeType: v.optional(v.union(
+      v.literal("edit"), v.literal("restructure"), v.literal("expand"), v.literal("restore")
+    )),
+    createdAt: v.string(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_slug_and_type", ["slug", "contentType"]),
+
+  graphLayout: defineTable({
+    layoutHash: v.string(),
+    nodes: v.array(v.object({
+      slug: v.string(),
+      x: v.number(),
+      y: v.number(),
+    })),
+    createdAt: v.string(),
+  }),
 });

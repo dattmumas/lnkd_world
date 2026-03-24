@@ -16,6 +16,7 @@ export default function PostPage() {
   const params = useParams();
   const slug = params.slug as string;
   const post = useQuery(api.posts.getBySlug, { slug });
+  const backlinks = useQuery(api.graph.backlinksForSlug, { slug });
 
   // Dynamic page title and meta
   useEffect(() => {
@@ -91,6 +92,12 @@ export default function PostPage() {
               {post.gated && (
                 <span className="text-xs">Subscribers only</span>
               )}
+              <Link
+                href={`/writing/${slug}/history`}
+                className="hover:text-[var(--color-accent)]"
+              >
+                History
+              </Link>
             </div>
 
             {post.tags.length > 0 && (
@@ -116,6 +123,26 @@ export default function PostPage() {
             ) : (
               <div className="border-t border-[var(--color-border)] pt-8">
                 <Markdown content={post.content} />
+              </div>
+            )}
+
+            {/* Backlinks */}
+            {backlinks && backlinks.length > 0 && (
+              <div className="mt-12 pt-6 border-t border-[var(--color-border)]">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-3">
+                  Referenced by
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {backlinks.map((bl) => (
+                    <Link
+                      key={bl}
+                      href={`/writing/${bl}`}
+                      className="text-sm text-[var(--color-accent)] hover:underline underline-offset-4"
+                    >
+                      {bl}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </article>

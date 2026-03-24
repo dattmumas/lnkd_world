@@ -104,6 +104,27 @@ export const remove = mutation({
   },
 });
 
+export const setBacklinks = mutation({
+  args: {
+    secret: v.string(),
+    slug: v.string(),
+    backlinks: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const syncSecret = process.env.SYNC_SECRET;
+    if (!syncSecret || args.secret !== syncSecret) {
+      throw new Error("Unauthorized: invalid sync secret");
+    }
+    const existing = await ctx.db
+      .query("readings")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { backlinks: args.backlinks });
+    }
+  },
+});
+
 export const upsertBySlug = mutation({
   args: {
     secret: v.string(),
@@ -118,6 +139,9 @@ export const upsertBySlug = mutation({
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
     url: v.optional(v.string()),
+    wikilinksRaw: v.optional(v.array(v.string())),
+    wikilinksResolved: v.optional(v.array(v.string())),
+    wikilinksBroken: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const syncSecret = process.env.SYNC_SECRET;

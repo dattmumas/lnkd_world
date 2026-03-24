@@ -17,11 +17,17 @@ function preprocessObsidian(md: string): string {
   // ==highlights== → <mark>highlights</mark>
   result = result.replace(/==(.*?)==/g, "<mark>$1</mark>");
 
-  // [[wikilinks]] → **wikilinks** (no routing target, just bold)
-  // [[wikilinks|display text]] → **display text**
+  // [[wikilinks]] → navigable links to /writing/slug
+  // [[wikilinks|display text]] → [display text](/writing/slug)
   result = result.replace(
     /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g,
-    (_, target, display) => `**${display ?? target}**`
+    (_, target, display) => {
+      const slug = target
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      return `[${display ?? target}](/writing/${slug})`;
+    }
   );
 
   // Multi-column markdown: ```multicol ... ``` → side-by-side columns

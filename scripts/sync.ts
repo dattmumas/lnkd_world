@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+import { createHash } from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 import matter from "gray-matter";
@@ -9,6 +10,7 @@ config({ path: ".env.local" });
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const SYNC_SECRET = process.env.SYNC_SECRET;
+const DRY_RUN = process.argv.includes("--dry-run");
 
 if (!CONVEX_URL) {
   console.error("Missing NEXT_PUBLIC_CONVEX_URL in environment");
@@ -21,12 +23,13 @@ if (!SYNC_SECRET) {
 
 const client = new ConvexHttpClient(CONVEX_URL);
 
-const vaultPath = process.argv[2];
+const vaultPath = process.argv.filter((a) => !a.startsWith("--"))[2];
 if (!vaultPath) {
-  console.error("Usage: npx tsx scripts/sync.ts <vault-path>");
-  console.error("Example: npx tsx scripts/sync.ts ~/Obsidian/publish");
+  console.error("Usage: npx tsx scripts/sync.ts <vault-path> [--dry-run]");
   process.exit(1);
 }
+
+// ─── Utilities ───────────────────────────────────────────────
 
 function slugFromFilename(filename: string): string {
   return basename(filename, ".md")
@@ -35,10 +38,73 @@ function slugFromFilename(filename: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function readMarkdownFiles(dir: string) {
+function contentHash(content: string): string {
+  return createHash("sha256").update(content).digest("hex").slice(0, 32);
+}
+
+function extractWikilinksRaw(content: string): string[] {
+  const matches = content.matchAll(/\[\[([^\]|]+?)(?:\|[^\]]+?)?\]\]/g);
+  return [...new Set(Array.from(matches, (m) => m[1].trim()))];
+}
+
+// ─── Slug Registry (handles ambiguity) ──────────────────────
+
+interface FileEntry {
+  slug: string;
+  title: string;
+  content: string;
+  frontmatter: Record<string, unknown>;
+  contentType: "post" | "reading" | "bookmark";
+}
+
+function buildSlugRegistry(allFiles: FileEntry[]): Map<string, string[]> {
+  const registry = new Map<string, string[]>();
+  const add = (key: string, slug: string) => {
+    const existing = registry.get(key) ?? [];
+    if (!existing.includes(slug)) existing.push(slug);
+    registry.set(key, existing);
+  };
+  for (const f of allFiles) {
+    add(f.slug, f.slug);
+    add(f.title.toLowerCase().trim(), f.slug);
+    add(f.title.toLowerCase().replace(/\s+/g, "-"), f.slug);
+  }
+  return registry;
+}
+
+function resolveWikilinks(
+  raw: string[],
+  registry: Map<string, string[]>
+): { resolved: string[]; broken: string[] } {
+  const resolved: string[] = [];
+  const broken: string[] = [];
+  for (const target of raw) {
+    const slug = target
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const normalized = target.toLowerCase().trim();
+    const matches = registry.get(slug) ?? registry.get(normalized) ?? [];
+    if (matches.length === 1) {
+      resolved.push(matches[0]);
+    } else if (matches.length > 1) {
+      broken.push(target);
+      console.warn(`  [ambiguous] [[${target}]] → ${matches.join(", ")}`);
+    } else {
+      broken.push(target);
+      console.warn(`  [broken] [[${target}]] → no match`);
+    }
+  }
+  return { resolved, broken };
+}
+
+// ─── Read Files ─────────────────────────────────────────────
+
+function readMarkdownFiles(dir: string): { slug: string; frontmatter: Record<string, unknown>; content: string }[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => f.endsWith(".md"))
+    .sort() // deterministic ordering
     .map((f) => {
       const raw = readFileSync(join(dir, f), "utf-8");
       const { data, content } = matter(raw);
@@ -46,111 +112,157 @@ function readMarkdownFiles(dir: string) {
     });
 }
 
-async function syncPosts(dir: string) {
-  const files = readMarkdownFiles(dir);
-  let created = 0,
-    updated = 0,
-    errors = 0;
+// ─── Sync Functions ─────────────────────────────────────────
 
-  for (const file of files) {
+interface SyncStats {
+  total: number;
+  created: number;
+  updated: number;
+  versions: number;
+  errors: number;
+}
+
+async function syncContent(
+  allFiles: FileEntry[],
+  registry: Map<string, string[]>
+): Promise<{ stats: Record<string, SyncStats>; forwardLinks: Map<string, string[]>; brokenCount: number }> {
+  const stats: Record<string, SyncStats> = {
+    posts: { total: 0, created: 0, updated: 0, versions: 0, errors: 0 },
+    readings: { total: 0, created: 0, updated: 0, versions: 0, errors: 0 },
+    bookmarks: { total: 0, created: 0, updated: 0, versions: 0, errors: 0 },
+  };
+
+  const forwardLinks = new Map<string, string[]>();
+  let brokenCount = 0;
+
+  for (const file of allFiles) {
+    const s = stats[file.contentType + "s"];
+    s.total++;
+
+    const raw = extractWikilinksRaw(file.content);
+    const { resolved, broken } = resolveWikilinks(raw, registry);
+    forwardLinks.set(file.slug, resolved);
+    brokenCount += broken.length;
+
+    if (DRY_RUN) {
+      console.log(`  [dry-run] ${file.contentType}: ${file.slug} (${raw.length} links, ${broken.length} broken)`);
+      continue;
+    }
+
     try {
-      const result = await client.mutation(api.posts.upsertBySlug, {
+      const commonArgs = {
         secret: SYNC_SECRET!,
         slug: file.slug,
-        title: file.frontmatter.title ?? file.slug,
-        description: file.frontmatter.description ?? "",
+        title: (file.frontmatter.title as string) ?? file.slug,
         content: file.content.trim(),
-        tags: file.frontmatter.tags ?? [],
-        published: file.frontmatter.published ?? false,
-        gated: file.frontmatter.gated ?? undefined,
+        tags: (file.frontmatter.tags as string[]) ?? [],
+        published: (file.frontmatter.published as boolean) ?? false,
+        gated: (file.frontmatter.gated as boolean) ?? undefined,
         publishedAt: file.frontmatter.publishedAt
           ? String(file.frontmatter.publishedAt)
           : undefined,
-      });
-      if (result.action === "created") created++;
-      else updated++;
-    } catch (e) {
-      errors++;
-      console.error(`  Error syncing post ${file.slug}:`, e);
-    }
-  }
+        wikilinksRaw: raw,
+        wikilinksResolved: resolved,
+        wikilinksBroken: broken.length > 0 ? broken : undefined,
+      };
 
-  return { total: files.length, created, updated, errors };
-}
+      let result;
+      if (file.contentType === "post") {
+        result = await client.mutation(api.posts.upsertBySlug, {
+          ...commonArgs,
+          description: (file.frontmatter.description as string) ?? "",
+        });
+      } else if (file.contentType === "reading") {
+        result = await client.mutation(api.readings.upsertBySlug, {
+          ...commonArgs,
+          author: (file.frontmatter.author as string) ?? "Unknown",
+          type: (file.frontmatter.type as string) ?? "book",
+          rating: (file.frontmatter.rating as number) ?? undefined,
+          url: (file.frontmatter.url as string) ?? undefined,
+        });
+      } else {
+        const { content: _content, ...bookmarkArgs } = commonArgs;
+        result = await client.mutation(api.bookmarks.upsertBySlug, {
+          ...bookmarkArgs,
+          url: (file.frontmatter.url as string) ?? "",
+          description: file.content.trim() || (file.frontmatter.description as string) || "",
+        });
+      }
 
-async function syncReadings(dir: string) {
-  const files = readMarkdownFiles(dir);
-  let created = 0,
-    updated = 0,
-    errors = 0;
+      if (result.action === "created") s.created++;
+      else s.updated++;
 
-  for (const file of files) {
-    try {
-      const result = await client.mutation(api.readings.upsertBySlug, {
+      // Create version
+      const hash = contentHash(file.content.trim());
+      const vResult = await client.mutation(api.versions.createVersion, {
         secret: SYNC_SECRET!,
         slug: file.slug,
-        title: file.frontmatter.title ?? file.slug,
-        author: file.frontmatter.author ?? "Unknown",
-        type: file.frontmatter.type ?? "book",
-        rating: file.frontmatter.rating ?? undefined,
+        contentType: file.contentType,
+        contentHash: hash,
         content: file.content.trim(),
-        tags: file.frontmatter.tags ?? [],
-        published: file.frontmatter.published ?? false,
-        gated: file.frontmatter.gated ?? undefined,
-        publishedAt: file.frontmatter.publishedAt
-          ? String(file.frontmatter.publishedAt)
-          : undefined,
-        url: file.frontmatter.url ?? undefined,
+        title: (file.frontmatter.title as string) ?? file.slug,
+        changeType: "edit",
+        createdAt: new Date().toISOString(),
       });
-      if (result.action === "created") created++;
-      else updated++;
+      if (vResult.action === "created") s.versions++;
     } catch (e) {
-      errors++;
-      console.error(`  Error syncing reading ${file.slug}:`, e);
+      s.errors++;
+      console.error(`  Error syncing ${file.contentType} ${file.slug}:`, e);
     }
   }
 
-  return { total: files.length, created, updated, errors };
+  return { stats, forwardLinks, brokenCount };
 }
 
-async function syncBookmarks(dir: string) {
-  const files = readMarkdownFiles(dir);
-  let created = 0,
-    updated = 0,
-    errors = 0;
+async function computeBacklinks(forwardLinks: Map<string, string[]>): Promise<Map<string, string[]>> {
+  const backlinks = new Map<string, string[]>();
+  for (const [source, targets] of forwardLinks) {
+    for (const target of targets) {
+      const existing = backlinks.get(target) ?? [];
+      if (!existing.includes(source)) existing.push(source);
+      backlinks.set(target, existing);
+    }
+  }
+  return backlinks;
+}
 
-  for (const file of files) {
+async function syncBacklinks(
+  allFiles: FileEntry[],
+  backlinks: Map<string, string[]>
+) {
+  if (DRY_RUN) {
+    for (const [slug, links] of backlinks) {
+      if (links.length > 0) console.log(`  [dry-run] backlinks: ${slug} ← ${links.join(", ")}`);
+    }
+    return;
+  }
+
+  for (const file of allFiles) {
+    const bl = backlinks.get(file.slug) ?? [];
     try {
-      const result = await client.mutation(api.bookmarks.upsertBySlug, {
-        secret: SYNC_SECRET!,
-        slug: file.slug,
-        title: file.frontmatter.title ?? file.slug,
-        url: file.frontmatter.url ?? "",
-        description: file.content.trim() || file.frontmatter.description || "",
-        tags: file.frontmatter.tags ?? [],
-        published: file.frontmatter.published ?? false,
-        gated: file.frontmatter.gated ?? undefined,
-        publishedAt: file.frontmatter.publishedAt
-          ? String(file.frontmatter.publishedAt)
-          : undefined,
-      });
-      if (result.action === "created") created++;
-      else updated++;
+      if (file.contentType === "post") {
+        await client.mutation(api.posts.setBacklinks, {
+          secret: SYNC_SECRET!,
+          slug: file.slug,
+          backlinks: bl,
+        });
+      } else if (file.contentType === "reading") {
+        await client.mutation(api.readings.setBacklinks, {
+          secret: SYNC_SECRET!,
+          slug: file.slug,
+          backlinks: bl,
+        });
+      } else {
+        await client.mutation(api.bookmarks.setBacklinks, {
+          secret: SYNC_SECRET!,
+          slug: file.slug,
+          backlinks: bl,
+        });
+      }
     } catch (e) {
-      errors++;
-      console.error(`  Error syncing bookmark ${file.slug}:`, e);
+      console.error(`  Error setting backlinks for ${file.slug}:`, e);
     }
   }
-
-  return { total: files.length, created, updated, errors };
-}
-
-function report(label: string, stats: { total: number; created: number; updated: number; errors: number }) {
-  const parts = [`${stats.total} files`];
-  if (stats.created) parts.push(`${stats.created} created`);
-  if (stats.updated) parts.push(`${stats.updated} updated`);
-  if (stats.errors) parts.push(`${stats.errors} errors`);
-  console.log(`  ${label}: ${parts.join(", ")}`);
 }
 
 async function syncNow(vaultDir: string) {
@@ -159,6 +271,11 @@ async function syncNow(vaultDir: string) {
 
   const raw = readFileSync(nowFile, "utf-8");
   const { content } = matter(raw);
+
+  if (DRY_RUN) {
+    console.log(`  [dry-run] now.md (${content.trim().length} chars)`);
+    return "dry-run";
+  }
 
   try {
     const result = await client.mutation(api.now.upsert, {
@@ -173,29 +290,56 @@ async function syncNow(vaultDir: string) {
   }
 }
 
+// ─── Main ───────────────────────────────────────────────────
+
 async function main() {
+  if (DRY_RUN) console.log("[DRY RUN MODE]\n");
   console.log(`Syncing from ${vaultPath}...\n`);
 
+  // Read all files (sorted for determinism)
   const postsDir = join(vaultPath, "posts");
   const readingsDir = join(vaultPath, "readings");
   const bookmarksDir = join(vaultPath, "bookmarks");
 
-  const [posts, readings, bookmarks, nowResult] = await Promise.all([
-    syncPosts(postsDir),
-    syncReadings(readingsDir),
-    syncBookmarks(bookmarksDir),
-    syncNow(vaultPath),
-  ]);
+  const allFiles: FileEntry[] = [
+    ...readMarkdownFiles(postsDir).map((f) => ({
+      ...f, title: (f.frontmatter.title as string) ?? f.slug, contentType: "post" as const,
+    })),
+    ...readMarkdownFiles(readingsDir).map((f) => ({
+      ...f, title: (f.frontmatter.title as string) ?? f.slug, contentType: "reading" as const,
+    })),
+    ...readMarkdownFiles(bookmarksDir).map((f) => ({
+      ...f, title: (f.frontmatter.title as string) ?? f.slug, contentType: "bookmark" as const,
+    })),
+  ];
 
+  // Build registry + sync content
+  const registry = buildSlugRegistry(allFiles);
+  const { stats, forwardLinks, brokenCount } = await syncContent(allFiles, registry);
+
+  // Compute + sync backlinks
+  const backlinks = await computeBacklinks(forwardLinks);
+  console.log("\n  Computing backlinks...");
+  await syncBacklinks(allFiles, backlinks);
+
+  // Sync now.md
+  const nowResult = await syncNow(vaultPath);
+
+  // Report
   console.log("");
-  report("Posts", posts);
-  report("Readings", readings);
-  report("Bookmarks", bookmarks);
-  if (nowResult) {
-    console.log(`  Now: ${nowResult}`);
+  for (const [label, s] of Object.entries(stats)) {
+    const parts = [`${s.total} files`];
+    if (s.created) parts.push(`${s.created} created`);
+    if (s.updated) parts.push(`${s.updated} updated`);
+    if (s.versions) parts.push(`${s.versions} new versions`);
+    if (s.errors) parts.push(`${s.errors} errors`);
+    console.log(`  ${label.charAt(0).toUpperCase() + label.slice(1)}: ${parts.join(", ")}`);
   }
+  if (nowResult) console.log(`  Now: ${nowResult}`);
+  if (brokenCount > 0) console.log(`\n  ${brokenCount} broken/ambiguous wikilink(s)`);
 
-  const totalErrors = posts.errors + readings.errors + bookmarks.errors + (nowResult === "error" ? 1 : 0);
+  const totalErrors = Object.values(stats).reduce((sum, s) => sum + s.errors, 0)
+    + (nowResult === "error" ? 1 : 0);
   if (totalErrors > 0) {
     console.log(`\n${totalErrors} error(s) occurred.`);
     process.exit(1);
