@@ -205,7 +205,7 @@ export default function ManageReadings() {
   const [editingId, setEditingId] = useState<Id<"readings"> | null>(null);
 
   return (
-    <main className="max-w-2xl mx-auto px-6 py-16 md:py-24">
+    <main className="max-w-3xl mx-auto px-6 py-16 md:py-24">
       <Nav />
       <h1 className="text-3xl font-semibold mb-8 mt-8">Manage Readings</h1>
 
