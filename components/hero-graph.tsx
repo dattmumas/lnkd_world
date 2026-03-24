@@ -46,6 +46,7 @@ export default function HeroGraph() {
   const router = useRouter();
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [tappedNode, setTappedNode] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   const { nodes, edges, svgWidth, svgHeight } = useMemo(() => {
@@ -127,8 +128,16 @@ export default function HeroGraph() {
   // Most recent node gets a pulse
   const mostRecent = nodes[0]?.id;
 
+  const hoveredData = hoveredNode ? nodeMap.get(hoveredNode) : null;
+
   return (
-    <div className="w-full overflow-hidden">
+    <div
+      className="w-full overflow-hidden relative"
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }}
+    >
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="w-full"
@@ -228,26 +237,27 @@ export default function HeroGraph() {
                 }}
               />
 
-              {/* Title tooltip on hover */}
-              {isHovered && (
-                <motion.text
-                  x={node.x}
-                  y={node.y + r + 14}
-                  textAnchor="middle"
-                  className="fill-[var(--color-text)]"
-                  fontSize={isMobile ? 10 : 11}
-                  fontFamily="var(--font-lora), Georgia, serif"
-                  initial={{ opacity: 0, y: node.y + r + 8 }}
-                  animate={{ opacity: 1, y: node.y + r + 14 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  {node.title.length > 30 ? node.title.slice(0, 28) + "…" : node.title}
-                </motion.text>
-              )}
+              {/* Tooltip rendered as HTML overlay below */}
             </g>
           );
         })}
       </svg>
+
+      {/* Tooltip — HTML overlay near cursor */}
+      {hoveredData && mousePos && (
+        <motion.div
+          className="absolute pointer-events-none px-2.5 py-1 rounded bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium whitespace-nowrap z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.1 }}
+          style={{
+            left: mousePos.x + 12,
+            top: mousePos.y - 8,
+          }}
+        >
+          {hoveredData.title}
+        </motion.div>
+      )}
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-[var(--color-text-secondary)]">
