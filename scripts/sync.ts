@@ -1,8 +1,11 @@
+import { config } from "dotenv";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 import matter from "gray-matter";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { join, basename } from "path";
+
+config({ path: ".env.local" });
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const SYNC_SECRET = process.env.SYNC_SECRET;
