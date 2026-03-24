@@ -8,6 +8,7 @@ import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import Markdown from "@/components/markdown";
 import { Tags } from "@/components/tag-list";
+import { readingTime } from "@/lib/reading-time";
 import Link from "next/link";
 
 export default function PostPage() {
@@ -49,20 +50,21 @@ export default function PostPage() {
               {post.title}
             </h1>
 
-            <div className="flex items-center gap-4 mb-2">
+            <div className="flex items-center gap-4 mb-2 text-sm text-[var(--color-text-secondary)]">
               {post.publishedAt && (
-                <p className="text-sm text-[var(--color-text-secondary)]">
+                <time>
                   {new Date(post.publishedAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
                   })}
-                </p>
+                </time>
+              )}
+              {post.content && (
+                <span>{readingTime(post.content)} min read</span>
               )}
               {post.gated && (
-                <span className="text-xs text-[var(--color-text-secondary)]">
-                  Subscribers only
-                </span>
+                <span className="text-xs">Subscribers only</span>
               )}
             </div>
 

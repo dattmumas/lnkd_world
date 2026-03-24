@@ -48,6 +48,18 @@ h1, h2, h3, h4, h5, h6 {
 .callout-question { border-left-color: #8b5cf6; }
 .callout-quote, .callout-abstract { border-left-color: var(--color-text-secondary); }
 
+/* Multi-column layout */
+.multicol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 1rem 0;
+}
+
+.multicol-column {
+  min-width: 0;
+}
+
 /* Footnote back-references */
 .footnotes a[href^="#fnref"] {
   text-decoration: none;

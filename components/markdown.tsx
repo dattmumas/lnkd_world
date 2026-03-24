@@ -24,6 +24,19 @@ function preprocessObsidian(md: string): string {
     (_, target, display) => `**${display ?? target}**`
   );
 
+  // Multi-column markdown: ```multicol ... ``` → side-by-side columns
+  // Columns separated by --- on its own line
+  result = result.replace(
+    /```multicol\n([\s\S]*?)```/g,
+    (_, inner) => {
+      const cols = inner.split(/^---$/m).map((c: string) => c.trim());
+      const colDivs = cols
+        .map((c: string) => `<div class="multicol-column">\n\n${c}\n\n</div>`)
+        .join("\n");
+      return `<div class="multicol">\n${colDivs}\n</div>`;
+    }
+  );
+
   // Obsidian callouts: > [!type] Title → styled blockquote
   // Converts to HTML so rehype-raw can render it
   result = result.replace(
