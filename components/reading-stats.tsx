@@ -63,8 +63,8 @@ export default function ReadingStats({ stats }: { stats: ReadingStatsData }) {
               const width = maxRating > 0 ? (count / maxRating) * 100 : 0;
               return (
                 <div key={rating} className="flex items-center gap-2">
-                  <span className="text-xs w-8 text-right text-[var(--color-text-secondary)]">
-                    {"★".repeat(rating)}
+                  <span className="text-[10px] w-6 text-right text-[var(--color-text-secondary)] shrink-0">
+                    {rating}★
                   </span>
                   <div className="flex-1 h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
                     <div

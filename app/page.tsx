@@ -14,20 +14,24 @@ export default function Home() {
       <Nav />
       <main className="flex-1 py-12 md:py-16">
         <Hero />
-        <NowSection />
 
-        {/* Two-column layout: content left, stats right on desktop */}
-        <div className="lg:grid lg:grid-cols-[1fr_280px] lg:gap-12 mt-8">
-          <div>
-            <WritingSection />
-            <ReadingSection />
-            <BookmarksSection />
-            <ProjectList />
+        {/* Two-column layout: content left, sidebar right on wide desktop */}
+        <div className="xl:grid xl:grid-cols-[1fr_270px] xl:gap-0">
+          <div className="min-w-0 xl:pr-8">
+            <NowSection />
+            <div className="mt-8">
+              <WritingSection />
+              <ReadingSection />
+              <BookmarksSection />
+              <ProjectList />
+            </div>
           </div>
 
-          {/* Sidebar: below content on mobile, right column on desktop */}
-          <div className="mt-12 lg:mt-0 lg:sticky lg:top-8 lg:self-start">
-            <Sidebar />
+          {/* Sidebar: below content on mobile/tablet, right column on xl+ */}
+          <div className="mt-12 xl:mt-0 xl:border-l xl:border-[var(--color-border)] xl:pl-8">
+            <div className="xl:sticky xl:top-8">
+              <Sidebar />
+            </div>
           </div>
         </div>
       </main>

@@ -15,28 +15,28 @@ export default function Nav() {
       >
         LNKD
       </Link>
-      <nav className="flex gap-4 md:gap-6 items-center">
+      <nav className="flex gap-3 md:gap-6 items-center overflow-x-auto">
         <Link
           href="/writing"
-          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0"
         >
           Writing
         </Link>
         <Link
           href="/reading"
-          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0"
         >
           Reading
         </Link>
         <Link
           href="/bookmarks"
-          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0 hidden sm:block"
         >
           Bookmarks
         </Link>
         <Link
           href="/resources"
-          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0 hidden sm:block"
         >
           Resources
         </Link>

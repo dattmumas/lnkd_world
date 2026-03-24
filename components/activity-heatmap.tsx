@@ -23,9 +23,9 @@ function getIntensity(words: number): string {
 export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
   const { weeks, monthLabels, totalWords } = useMemo(() => {
     const today = new Date();
-    // Start from ~52 weeks ago on a Sunday
+    // Show ~22 weeks (5 months) to fit sidebar width
     const start = new Date(today);
-    start.setDate(start.getDate() - 364 - start.getDay());
+    start.setDate(start.getDate() - 154 - start.getDay());
 
     // Build a word count map per day
     const wordMap = new Map<string, number>();
@@ -68,10 +68,10 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
   const formattedWords = totalWords >= 1000
     ? `${(totalWords / 1000).toFixed(1)}k`
     : `${totalWords}`;
-  const cellSize = 11;
+  const cellSize = 9;
   const cellGap = 2;
-  const labelWidth = 28;
-  const topPad = 16;
+  const labelWidth = 24;
+  const topPad = 14;
   const svgWidth = labelWidth + weeks.length * (cellSize + cellGap);
   const svgHeight = topPad + 7 * (cellSize + cellGap);
 
@@ -99,9 +99,9 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
             <text
               key={i}
               x={labelWidth + m.col * (cellSize + cellGap)}
-              y={10}
+              y={9}
               className="fill-[var(--color-text-secondary)]"
-              fontSize={9}
+              fontSize={8}
               fontFamily="var(--font-lora), Georgia, serif"
             >
               {m.label}
@@ -115,7 +115,7 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
               x={0}
               y={topPad + i * (cellSize + cellGap) + cellSize - 1}
               className="fill-[var(--color-text-secondary)]"
-              fontSize={9}
+              fontSize={8}
               fontFamily="var(--font-lora), Georgia, serif"
             >
               {d}
@@ -149,20 +149,20 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-1.5 mt-2 justify-end">
-        <span className="text-[9px] text-[var(--color-text-secondary)]">Less</span>
+      <div className="flex items-center gap-1 mt-2 justify-end">
+        <span className="text-[8px] text-[var(--color-text-secondary)]">Less</span>
         {[0, 1, 2, 3, 5].map((n) => (
           <div
             key={n}
             className="rounded-sm"
             style={{
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               backgroundColor: getIntensity(n),
             }}
           />
         ))}
-        <span className="text-[9px] text-[var(--color-text-secondary)]">More</span>
+        <span className="text-[8px] text-[var(--color-text-secondary)]">More</span>
       </div>
     </div>
   );
