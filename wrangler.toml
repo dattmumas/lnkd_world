@@ -11,4 +11,4 @@ routes = [
 ]
 
 [vars]
-NEXT_PUBLIC_CONVEX_URL = "https://perfect-ox-364.convex.cloud"
+NEXT_PUBLIC_CONVEX_URL = "https://steady-butterfly-270.convex.cloud"
