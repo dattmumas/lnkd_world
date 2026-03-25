@@ -1,0 +1,10 @@
+{
+  "id": "lnkd-sync",
+  "name": "LNKD Sync",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Live sync Obsidian vault content to lnkd.world via Convex",
+  "author": "Matthew Dumas",
+  "authorUrl": "https://lnkd.world",
+  "isDesktopOnly": false
+}

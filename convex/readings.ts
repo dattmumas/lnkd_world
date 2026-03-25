@@ -104,6 +104,25 @@ export const remove = mutation({
   },
 });
 
+export const deleteBySlug = mutation({
+  args: { secret: v.string(), slug: v.string() },
+  handler: async (ctx, args) => {
+    const syncSecret = process.env.SYNC_SECRET;
+    if (!syncSecret || args.secret !== syncSecret) {
+      throw new Error("Unauthorized: invalid sync secret");
+    }
+    const existing = await ctx.db
+      .query("readings")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      return { action: "deleted" as const };
+    }
+    return { action: "not_found" as const };
+  },
+});
+
 export const setBacklinks = mutation({
   args: {
     secret: v.string(),

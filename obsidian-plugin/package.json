@@ -1,0 +1,18 @@
+{
+  "name": "lnkd-sync",
+  "version": "1.0.0",
+  "description": "Live sync Obsidian vault to lnkd.world",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "install-plugin": "mkdir -p /Users/matthewdumas/Desktop/Core/lnkd/.obsidian/plugins/lnkd-sync && cp main.js manifest.json styles.css /Users/matthewdumas/Desktop/Core/lnkd/.obsidian/plugins/lnkd-sync/"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "typescript": "^5.9.0"
+  }
+}

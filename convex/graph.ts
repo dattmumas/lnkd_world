@@ -1,4 +1,4 @@
-import { query } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 export const nodes = query({
@@ -123,5 +123,57 @@ export const backlinksForSlug = query({
     if (bookmark) return bookmark.backlinks ?? [];
 
     return [];
+  },
+});
+
+export const recomputeBacklinks = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    const syncSecret = process.env.SYNC_SECRET;
+    if (!syncSecret || args.secret !== syncSecret) {
+      throw new Error("Unauthorized: invalid sync secret");
+    }
+
+    // Collect all content with their forward links
+    const [posts, readings, bookmarks] = await Promise.all([
+      ctx.db.query("posts").collect(),
+      ctx.db.query("readings").collect(),
+      ctx.db.query("bookmarks").collect(),
+    ]);
+
+    // Build forward link map: slug → outgoing slugs
+    const forwardLinks = new Map<string, string[]>();
+    const allDocs: Array<{ _id: string; slug: string; table: "posts" | "readings" | "bookmarks" }> = [];
+
+    for (const p of posts) {
+      forwardLinks.set(p.slug, p.wikilinksResolved ?? []);
+      allDocs.push({ _id: p._id as string, slug: p.slug, table: "posts" });
+    }
+    for (const r of readings) {
+      forwardLinks.set(r.slug, r.wikilinksResolved ?? []);
+      allDocs.push({ _id: r._id as string, slug: r.slug, table: "readings" });
+    }
+    for (const b of bookmarks) {
+      forwardLinks.set(b.slug, b.wikilinksResolved ?? []);
+      allDocs.push({ _id: b._id as string, slug: b.slug, table: "bookmarks" });
+    }
+
+    // Invert: compute backlinks
+    const backlinks = new Map<string, string[]>();
+    for (const [source, targets] of forwardLinks) {
+      for (const target of targets) {
+        const existing = backlinks.get(target) ?? [];
+        if (!existing.includes(source)) existing.push(source);
+        backlinks.set(target, existing);
+      }
+    }
+
+    // Patch each document with its computed backlinks
+    for (const doc of allDocs) {
+      const bl = backlinks.get(doc.slug) ?? [];
+      await ctx.db.patch(doc._id as any, { backlinks: bl });
+    }
+
+    return { updated: allDocs.length };
   },
 });
