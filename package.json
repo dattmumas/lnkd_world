@@ -14,7 +14,7 @@
     "sync:watch": "npx tsx scripts/watch.ts",
     "sync:readwise": "npx tsx scripts/readwise-sync.ts",
     "graph:layout": "npx tsx scripts/compute-layout.ts",
-    "ship": "find .open-next -type d -name node_modules -exec rm -rf {} + 2>/dev/null; rm -rf .open-next && pnpm build:worker && pnpm deploy"
+    "ship": "find .open-next -type d -name node_modules -exec rm -rf {} + 2>/dev/null; rm -rf .open-next && pnpm build:worker && pnpm run deploy"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
