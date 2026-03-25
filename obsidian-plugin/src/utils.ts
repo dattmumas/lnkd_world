@@ -5,6 +5,7 @@ export function slugFromPath(filePath: string): string {
   const name = filePath.split("/").pop()?.replace(/\.md$/, "") ?? "";
   return name
     .toLowerCase()
+    .replace(/['']/g, "") // strip apostrophes before hyphenation
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
@@ -18,6 +19,11 @@ export function contentHash(content: string, title: string, tags: string[]): str
 
 export function parseFrontmatter(raw: string): { data: Record<string, unknown>; content: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  // Handle empty frontmatter: ---\n---
+  if (!match) {
+    const emptyMatch = raw.match(/^---\r?\n---\r?\n?([\s\S]*)$/);
+    if (emptyMatch) return { data: {}, content: emptyMatch[1] };
+  }
   if (!match) return { data: {}, content: raw };
 
   const yamlBlock = match[1];

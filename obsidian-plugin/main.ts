@@ -2,12 +2,14 @@ import { Notice, Plugin, TFile, TAbstractFile } from "obsidian";
 import { LnkdSyncSettings, DEFAULT_SETTINGS, LnkdSyncSettingTab } from "./src/settings";
 import { ConvexSyncer } from "./src/syncer";
 import { SyncQueue } from "./src/queue";
+import { SyncLog } from "./src/sync-log";
 import { extractWikilinks } from "./src/wikilinks";
 import { slugFromPath, parseFrontmatter, getContentType, ContentType } from "./src/utils";
 
 export default class LnkdSyncPlugin extends Plugin {
   settings: LnkdSyncSettings = DEFAULT_SETTINGS;
   syncer!: ConvexSyncer;
+  syncLog!: SyncLog;
   queue!: SyncQueue;
   statusBarEl!: HTMLElement;
 
@@ -20,6 +22,7 @@ export default class LnkdSyncPlugin extends Plugin {
 
     this.syncer = new ConvexSyncer(this.settings.convexUrl, this.settings.syncSecret);
     this.queue = new SyncQueue(this.settings.maxConcurrent);
+    this.syncLog = new SyncLog((await this.loadData())?.syncLog ?? []);
     this.statusBarEl = this.addStatusBarItem();
     this.setStatus("idle");
 
@@ -73,6 +76,12 @@ export default class LnkdSyncPlugin extends Plugin {
       callback: () => this.retryFailed(),
     });
 
+    this.addCommand({
+      id: "view-sync-log",
+      name: "View sync log",
+      callback: () => this.showSyncLog(),
+    });
+
     // Settings tab
     this.addSettingTab(new LnkdSyncSettingTab(this.app, this));
 
@@ -85,12 +94,26 @@ export default class LnkdSyncPlugin extends Plugin {
   }
 
   async onunload() {
-    // Persist failed sync queue
+    // Persist failed sync queue + sync log
+    const data = (await this.loadData()) ?? {};
     if (this.syncer.failedQueue.length > 0) {
-      const data = (await this.loadData()) ?? {};
       data.failedQueue = this.syncer.failedQueue;
-      await this.saveData(data);
     }
+    data.syncLog = this.syncLog.toJSON();
+    await this.saveData(data);
+  }
+
+  private showSyncLog() {
+    const recent = this.syncLog.getRecent(30);
+    if (recent.length === 0) {
+      new Notice("LNKD: No sync activity yet");
+      return;
+    }
+
+    const lines = recent.map((e) => this.syncLog.formatEntry(e));
+    const errors = this.syncLog.errorCount;
+    const header = errors > 0 ? `${errors} error(s) in last hour\n\n` : "";
+    new Notice(header + lines.join("\n"), 15000);
   }
 
   // ─── Settings ──────────────────────────────────────
@@ -184,10 +207,25 @@ export default class LnkdSyncPlugin extends Plugin {
       const tags = (frontmatter.tags as string[]) ?? [];
       await this.syncer.createVersion(slug, type, content, title, tags);
 
+      this.syncLog.add({
+        file: file.path,
+        action: "synced",
+        contentType: type,
+        slug,
+      });
       this.setStatus("synced");
       return true;
     } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.syncLog.add({
+        file: file.path,
+        action: "error",
+        contentType: type ?? "unknown",
+        slug: slugFromPath(file.path),
+        error: errorMsg,
+      });
       this.setStatus("error");
+      new Notice(`LNKD sync failed: ${file.name}\n${errorMsg.slice(0, 100)}`, 8000);
       console.error(`LNKD: sync failed for ${file.path}:`, e);
       return false;
     }

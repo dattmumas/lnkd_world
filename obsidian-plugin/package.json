@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
+    "test": "node --import tsx --test tests/*.test.ts",
     "install-plugin": "mkdir -p /Users/matthewdumas/Desktop/Core/lnkd/.obsidian/plugins/lnkd-sync && cp main.js manifest.json styles.css /Users/matthewdumas/Desktop/Core/lnkd/.obsidian/plugins/lnkd-sync/"
   },
   "devDependencies": {
@@ -13,6 +14,7 @@
     "builtin-modules": "^4.0.0",
     "esbuild": "^0.25.0",
     "obsidian": "latest",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.0"
   }
 }
