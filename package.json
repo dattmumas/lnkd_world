@@ -11,9 +11,11 @@
     "start": "next start",
     "lint": "next lint",
     "sync": "npx tsx scripts/sync.ts",
+    "sync:prod": "npx tsx scripts/sync.ts --prod",
     "sync:watch": "npx tsx scripts/watch.ts",
     "sync:readwise": "npx tsx scripts/readwise-sync.ts",
     "graph:layout": "npx tsx scripts/compute-layout.ts",
+    "graph:layout:prod": "npx tsx scripts/compute-layout.ts --prod",
     "ship": "find .open-next -type d -name node_modules -exec rm -rf {} + 2>/dev/null; rm -rf .open-next && pnpm build:worker && pnpm run deploy"
   },
   "dependencies": {

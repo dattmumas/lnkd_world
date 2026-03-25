@@ -8,12 +8,15 @@ import { join, basename } from "path";
 
 config({ path: ".env.local" });
 
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
-const SYNC_SECRET = process.env.SYNC_SECRET;
+const IS_PROD = process.argv.includes("--prod");
 const DRY_RUN = process.argv.includes("--dry-run");
+const CONVEX_URL = IS_PROD
+  ? process.env.CONVEX_URL_PROD
+  : (process.env.CONVEX_URL_DEV ?? process.env.NEXT_PUBLIC_CONVEX_URL);
+const SYNC_SECRET = process.env.SYNC_SECRET;
 
 if (!CONVEX_URL) {
-  console.error("Missing NEXT_PUBLIC_CONVEX_URL in environment");
+  console.error(`Missing ${IS_PROD ? "CONVEX_URL_PROD" : "CONVEX_URL_DEV"} in .env.local`);
   process.exit(1);
 }
 if (!SYNC_SECRET) {
@@ -25,7 +28,7 @@ const client = new ConvexHttpClient(CONVEX_URL);
 
 const vaultPath = process.argv.filter((a) => !a.startsWith("--"))[2];
 if (!vaultPath) {
-  console.error("Usage: npx tsx scripts/sync.ts <vault-path> [--dry-run]");
+  console.error("Usage: npx tsx scripts/sync.ts <vault-path> [--dry-run] [--prod]");
   process.exit(1);
 }
 

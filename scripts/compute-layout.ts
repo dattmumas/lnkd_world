@@ -2,7 +2,7 @@
  * Compute deterministic graph layout using d3-force and store in Convex.
  *
  * Usage:
- *   npx tsx scripts/compute-layout.ts
+ *   npx tsx scripts/compute-layout.ts [--prod]
  *
  * Fetches graph data from Convex, runs d3-force simulation with seeded RNG,
  * normalizes positions to [0,1], and stores the result.
@@ -24,9 +24,12 @@ import seedrandom from "seedrandom";
 
 config({ path: ".env.local" });
 
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const IS_PROD = process.argv.includes("--prod");
+const CONVEX_URL = IS_PROD
+  ? process.env.CONVEX_URL_PROD
+  : (process.env.CONVEX_URL_DEV ?? process.env.NEXT_PUBLIC_CONVEX_URL);
 if (!CONVEX_URL) {
-  console.error("Missing NEXT_PUBLIC_CONVEX_URL");
+  console.error(`Missing ${IS_PROD ? "CONVEX_URL_PROD" : "CONVEX_URL_DEV"} in .env.local`);
   process.exit(1);
 }
 
