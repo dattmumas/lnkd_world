@@ -192,8 +192,12 @@ async function syncContent(
       if (result.action === "created") s.created++;
       else s.updated++;
 
-      // Create version
-      const hash = contentHash(file.content.trim());
+      // Create version (hash includes content + metadata to detect all changes)
+      const title = (file.frontmatter.title as string) ?? file.slug;
+      const tags = (file.frontmatter.tags as string[]) ?? [];
+      const hash = contentHash(
+        file.content.trim() + "\0" + title + "\0" + JSON.stringify(tags)
+      );
       const vResult = await client.mutation(api.versions.createVersion, {
         secret: SYNC_SECRET!,
         slug: file.slug,
@@ -321,6 +325,42 @@ async function main() {
   const backlinks = await computeBacklinks(forwardLinks);
   console.log("\n  Computing backlinks...");
   await syncBacklinks(allFiles, backlinks);
+
+  // Post-sync validation
+  if (!DRY_RUN) {
+    console.log("  Validating...");
+    const allSlugs = new Set(allFiles.map((f) => f.slug));
+    let validationErrors = 0;
+
+    // 1. All wikilinksResolved point to existing slugs
+    for (const file of allFiles) {
+      const raw = extractWikilinksRaw(file.content);
+      const { resolved } = resolveWikilinks(raw, registry);
+      for (const target of resolved) {
+        if (!allSlugs.has(target)) {
+          console.error(`  [validation] ${file.slug} links to "${target}" which doesn't exist`);
+          validationErrors++;
+        }
+      }
+    }
+
+    // 2. Backlinks are symmetric (if A→B exists, B.backlinks includes A)
+    for (const [source, targets] of forwardLinks) {
+      for (const target of targets) {
+        const targetBacklinks = backlinks.get(target) ?? [];
+        if (!targetBacklinks.includes(source)) {
+          console.error(`  [validation] ${source}→${target} but ${target}.backlinks missing ${source}`);
+          validationErrors++;
+        }
+      }
+    }
+
+    if (validationErrors > 0) {
+      console.error(`  ${validationErrors} validation error(s)`);
+    } else {
+      console.log("  ✓ Validation passed");
+    }
+  }
 
   // Sync now.md
   const nowResult = await syncNow(vaultPath);

@@ -58,10 +58,11 @@ async function main() {
     return;
   }
 
-  // Check if layout already exists for this slug set
+  // Check if layout already exists for this node+edge set
   const slugs = data.nodes.map((n) => n.slug).sort();
+  const edgeKeys = data.edges.map((e) => `${e.source}→${e.target}`).sort();
   const layoutHash = createHash("sha256")
-    .update(slugs.join("|"))
+    .update(slugs.join("|") + "||" + edgeKeys.join("|"))
     .digest("hex")
     .slice(0, 32);
 
