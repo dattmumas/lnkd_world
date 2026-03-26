@@ -109,6 +109,7 @@ export class ConvexSyncer {
       gated: (frontmatter.gated as boolean) ?? undefined,
       publishedAt: frontmatter.publishedAt ? String(frontmatter.publishedAt) : undefined,
       url: (frontmatter.url as string) ?? undefined,
+      coverUrl: (frontmatter.coverUrl as string) ?? undefined,
       wikilinksRaw: wikilinks.raw,
       wikilinksResolved: wikilinks.resolved,
       wikilinksBroken: wikilinks.broken.length > 0 ? wikilinks.broken : undefined,

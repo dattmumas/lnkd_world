@@ -60,6 +60,7 @@ export default defineSchema({
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
     url: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
     featured: v.optional(v.boolean()),
     wikilinksRaw: v.optional(v.array(v.string())),
     wikilinksResolved: v.optional(v.array(v.string())),

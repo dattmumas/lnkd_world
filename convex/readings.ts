@@ -158,6 +158,7 @@ export const upsertBySlug = mutation({
     gated: v.optional(v.boolean()),
     publishedAt: v.optional(v.string()),
     url: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
     wikilinksRaw: v.optional(v.array(v.string())),
     wikilinksResolved: v.optional(v.array(v.string())),
     wikilinksBroken: v.optional(v.array(v.string())),

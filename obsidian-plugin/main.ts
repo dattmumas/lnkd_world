@@ -5,6 +5,7 @@ import { SyncQueue } from "./src/queue";
 import { SyncLog } from "./src/sync-log";
 import { extractWikilinks } from "./src/wikilinks";
 import { slugFromPath, getContentType, ContentType } from "./src/utils";
+import { transformBookSearchFile } from "./src/book-transform";
 
 export default class LnkdSyncPlugin extends Plugin {
   settings: LnkdSyncSettings = DEFAULT_SETTINGS;
@@ -36,14 +37,33 @@ export default class LnkdSyncPlugin extends Plugin {
       })
     );
 
-    // New file creation
+    // New file creation — also check for book-search files to auto-transform
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
-        if (!this.settings.autoSync) return;
         if (!(file instanceof TFile)) return;
-        if (!this.isWatchedFile(file)) return;
-        // Delay slightly — file may be empty on initial create
-        setTimeout(() => this.enqueueBatch(file), 500);
+        if (!file.path.endsWith(".md")) return;
+
+        // Delay to let Obsidian write content + populate metadataCache
+        setTimeout(async () => {
+          // Check if this is a book-search file that needs transformation
+          const cache = this.app.metadataCache.getFileCache(file);
+          const fm = cache?.frontmatter ?? {};
+          if (fm.isbn || fm.isbn13 || fm.publisher) {
+            const transformed = await transformBookSearchFile(
+              this.app, file, fm, this.settings.syncFolders.readings
+            );
+            if (transformed) {
+              new Notice(`LNKD: Transformed "${fm.title}" → readings format`);
+              // After transform + move, the modify/create events will trigger sync
+              return;
+            }
+          }
+
+          // Normal sync for watched files
+          if (!this.settings.autoSync) return;
+          if (!this.isWatchedFile(file)) return;
+          this.enqueueBatch(file);
+        }, 1000);
       })
     );
 
