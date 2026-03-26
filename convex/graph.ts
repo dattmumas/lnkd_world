@@ -48,18 +48,38 @@ export const nodes = query({
       })),
     ];
 
-    // Build edges from wikilinks only (high-signal, intentional connections)
-    const edges: { source: string; target: string }[] = [];
+    // Build edges: wikilinks (strong) + shared tags (weak, ≥1 shared tag)
+    const edges: { source: string; target: string; type: "wikilink" | "tag" }[] = [];
     const slugSet = new Set(nodes.map((n) => n.id));
     const edgeSet = new Set<string>();
 
+    // Wikilink edges (strong connections)
     for (const n of nodes) {
       for (const link of n.wikilinksResolved) {
         if (slugSet.has(link) && link !== n.id) {
           const key = [n.id, link].sort().join("|");
           if (!edgeSet.has(key)) {
             edgeSet.add(key);
-            edges.push({ source: n.id, target: link });
+            edges.push({ source: n.id, target: link, type: "wikilink" });
+          }
+        }
+      }
+    }
+
+    // Tag edges (weak connections — shared tags create clusters)
+    const tagIndex: Record<string, string[]> = {};
+    for (const n of nodes) {
+      for (const t of n.tags) {
+        (tagIndex[t] ??= []).push(n.id);
+      }
+    }
+    for (const slugs of Object.values(tagIndex)) {
+      for (let i = 0; i < slugs.length; i++) {
+        for (let j = i + 1; j < slugs.length; j++) {
+          const key = [slugs[i], slugs[j]].sort().join("|");
+          if (!edgeSet.has(key)) {
+            edgeSet.add(key);
+            edges.push({ source: slugs[i], target: slugs[j], type: "tag" });
           }
         }
       }

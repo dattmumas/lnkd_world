@@ -85,8 +85,8 @@ async function main() {
     id: n.slug,
     slug: n.slug,
     type: n.type,
-    x: (rng() - 0.5) * 300,
-    y: (rng() - 0.5) * 300,
+    x: (rng() - 0.5) * 150,
+    y: (rng() - 0.5) * 150,
   }));
 
   const nodeById = new Map(simNodes.map((n) => [n.id, n]));
@@ -104,9 +104,9 @@ async function main() {
         .id((d) => d.id)
         .distance(60)
     )
-    .force("charge", forceManyBody().strength(-80))
-    .force("center", forceCenter(0, 0))
-    .force("collide", forceCollide<GraphNode>().radius(12))
+    .force("charge", forceManyBody().strength(-40))
+    .force("center", forceCenter(0, 0).strength(0.15))
+    .force("collide", forceCollide<GraphNode>().radius(15))
     .stop();
 
   // Run synchronously for 300 ticks

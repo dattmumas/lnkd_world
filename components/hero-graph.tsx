@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const NODE_COLORS: Record<string, string> = {
   post: "#1B3A5C",
@@ -38,6 +38,7 @@ interface GraphNodeData {
 interface GraphEdgeData {
   source: string;
   target: string;
+  type: "wikilink" | "tag";
 }
 
 export default function HeroGraph() {
@@ -65,8 +66,8 @@ export default function HeroGraph() {
     const selected = [...featured, ...rest].slice(0, maxNodes);
     const selectedSlugs = new Set(selected.map((n) => n.slug));
 
-    const width = isMobile ? 350 : 700;
-    const height = isMobile ? 200 : 350;
+    const width = isMobile ? 350 : 600;
+    const height = isMobile ? 160 : 250;
     const radii = isMobile ? NODE_RADII_MOBILE : NODE_RADII;
 
     const nodes: GraphNodeData[] = selected.map((n) => {
@@ -141,39 +142,46 @@ export default function HeroGraph() {
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="w-full"
-        style={{ maxHeight: isMobile ? 200 : 350 }}
+        style={{ maxHeight: isMobile ? 160 : 250 }}
       >
-        {/* Edges — only shown on hover */}
-        <AnimatePresence>
-          {activeEdges.map((edge) => {
-            const s = nodeMap.get(edge.source);
-            const t = nodeMap.get(edge.target);
-            if (!s || !t) return null;
+        {/* Edges — always visible, highlight on hover */}
+        {edges.map((edge) => {
+          const s = nodeMap.get(edge.source);
+          const t = nodeMap.get(edge.target);
+          if (!s || !t) return null;
 
-            // Curved bezier
-            const mx = (s.x + t.x) / 2;
-            const my = (s.y + t.y) / 2;
-            const dx = t.x - s.x;
-            const dy = t.y - s.y;
-            const offset = Math.sqrt(dx * dx + dy * dy) * 0.15;
-            const cx = mx - dy * offset / Math.sqrt(dx * dx + dy * dy + 1);
-            const cy = my + dx * offset / Math.sqrt(dx * dx + dy * dy + 1);
+          const isActive = activeEdgeSet.has(`${edge.source}|${edge.target}`) ||
+            activeEdgeSet.has(`${edge.target}|${edge.source}`);
+          const baseOpacity = edge.type === "wikilink" ? 0.15 : 0.07;
+          const hoverOpacity = edge.type === "wikilink" ? 0.5 : 0.3;
 
-            return (
-              <motion.path
-                key={`${edge.source}|${edge.target}`}
-                d={`M ${s.x} ${s.y} Q ${cx} ${cy} ${t.x} ${t.y}`}
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth={1}
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 0.3 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-              />
-            );
-          })}
-        </AnimatePresence>
+          // Slight curve
+          const mx = (s.x + t.x) / 2;
+          const my = (s.y + t.y) / 2;
+          const dx = t.x - s.x;
+          const dy = t.y - s.y;
+          const dist = Math.sqrt(dx * dx + dy * dy + 1);
+          const curveAmt = dist * 0.12;
+          const cx = mx - (dy / dist) * curveAmt;
+          const cy = my + (dx / dist) * curveAmt;
+
+          return (
+            <motion.path
+              key={`${edge.source}|${edge.target}`}
+              d={`M ${s.x} ${s.y} Q ${cx} ${cy} ${t.x} ${t.y}`}
+              fill="none"
+              stroke="var(--color-border)"
+              strokeWidth={isActive ? 1.5 : 0.75}
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{
+                pathLength: 1,
+                opacity: isActive ? hoverOpacity : (hoveredNode ? baseOpacity * 0.3 : baseOpacity),
+                stroke: isActive ? "var(--color-accent)" : "var(--color-border)",
+              }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            />
+          );
+        })}
 
         {/* Nodes */}
         {nodes.map((node, i) => {
