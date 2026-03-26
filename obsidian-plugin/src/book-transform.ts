@@ -48,10 +48,13 @@ export async function transformBookSearchFile(
   // Build the new frontmatter
   const today = new Date().toISOString().split("T")[0];
   const coverUrl = bsData.cover ?? "";
-  const categories = bsData.categories ?? [];
-  const tags = categories.map((c) =>
-    c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-  ).filter(Boolean);
+  const rawCategories = bsData.categories ?? [];
+  const categories = Array.isArray(rawCategories) ? rawCategories
+    : typeof rawCategories === "string" ? [rawCategories] : [];
+  const tags = categories
+    .filter((c): c is string => typeof c === "string")
+    .map((c) => c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+    .filter(Boolean);
 
   // Read current file content
   const raw = await app.vault.read(file);

@@ -77,23 +77,35 @@ function ReadingsList() {
                 onClick={() => toggle(reading._id)}
                 className="w-full text-left group"
               >
-                <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <h2 className="font-semibold group-hover:text-[var(--color-accent)] transition-colors">
-                    {reading.title}
-                  </h2>
-                  <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
-                    {expanded.has(reading._id) ? "▲" : "▼"}
-                  </span>
+                <div className="flex gap-4">
+                  {/* Cover image */}
+                  {reading.coverUrl && (
+                    <img
+                      src={reading.coverUrl}
+                      alt={`Cover of ${reading.title}`}
+                      className="w-12 h-[72px] object-cover rounded shadow-sm shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3 mb-1">
+                      <h2 className="font-semibold group-hover:text-[var(--color-accent)] transition-colors">
+                        {reading.title}
+                      </h2>
+                      <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
+                        {expanded.has(reading._id) ? "▲" : "▼"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)] mb-1">
+                      <span>{reading.author}</span>
+                      <span className="text-xs uppercase px-1.5 py-0.5 border border-[var(--color-border)] rounded">
+                        {reading.type}
+                      </span>
+                      {reading.rating && <RatingStars rating={reading.rating} />}
+                      {reading.gated && <span className="text-xs">Subscribers</span>}
+                    </div>
+                    <Tags tags={reading.tags} />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)] mb-1">
-                  <span>{reading.author}</span>
-                  <span className="text-xs uppercase px-1.5 py-0.5 border border-[var(--color-border)] rounded">
-                    {reading.type}
-                  </span>
-                  {reading.rating && <RatingStars rating={reading.rating} />}
-                  {reading.gated && <span className="text-xs">Subscribers</span>}
-                </div>
-                <Tags tags={reading.tags} />
               </button>
 
               {expanded.has(reading._id) && (
