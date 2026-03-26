@@ -4,7 +4,7 @@ import { ConvexSyncer } from "./src/syncer";
 import { SyncQueue } from "./src/queue";
 import { SyncLog } from "./src/sync-log";
 import { extractWikilinks } from "./src/wikilinks";
-import { slugFromPath, parseFrontmatter, getContentType, ContentType } from "./src/utils";
+import { slugFromPath, getContentType, ContentType } from "./src/utils";
 
 export default class LnkdSyncPlugin extends Plugin {
   settings: LnkdSyncSettings = DEFAULT_SETTINGS;
@@ -33,6 +33,43 @@ export default class LnkdSyncPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         if (!this.isWatchedFile(file)) return;
         this.enqueueBatch(file);
+      })
+    );
+
+    // New file creation
+    this.registerEvent(
+      this.app.vault.on("create", (file: TAbstractFile) => {
+        if (!this.settings.autoSync) return;
+        if (!(file instanceof TFile)) return;
+        if (!this.isWatchedFile(file)) return;
+        // Delay slightly — file may be empty on initial create
+        setTimeout(() => this.enqueueBatch(file), 500);
+      })
+    );
+
+    // Rename handling (file moved or renamed)
+    this.registerEvent(
+      this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
+        if (!(file instanceof TFile)) return;
+        if (!file.path.endsWith(".md")) return;
+
+        // Delete old slug if it was in a watched folder
+        const oldType = getContentType({ path: oldPath } as TFile, this.settings.syncFolders, this.settings.nowFile);
+        if (oldType && oldType !== "now") {
+          const oldSlug = slugFromPath(oldPath);
+          this.queue.enqueue(oldPath, async () => {
+            try {
+              await this.syncer.deleteContent(oldSlug, oldType);
+            } catch (e) {
+              console.error(`LNKD: failed to delete old slug ${oldSlug}:`, e);
+            }
+          });
+        }
+
+        // Sync new location if it's in a watched folder
+        if (this.isWatchedFile(file)) {
+          this.enqueueBatch(file);
+        }
       })
     );
 
@@ -177,14 +214,18 @@ export default class LnkdSyncPlugin extends Plugin {
 
   private async syncFile(file: TFile): Promise<boolean> {
     this.setStatus("syncing");
+    const type = getContentType(file, this.settings.syncFolders, this.settings.nowFile);
+    if (!type) return false;
+    const slug = slugFromPath(file.path);
 
     try {
       const raw = await this.app.vault.read(file);
-      const { data: frontmatter, content } = parseFrontmatter(raw);
-      const type = getContentType(file, this.settings.syncFolders, this.settings.nowFile);
-      if (!type) return false;
-
-      const slug = slugFromPath(file.path);
+      // Use Obsidian's metadataCache for frontmatter (handles all YAML formats)
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
+      // Strip frontmatter from raw to get content body
+      const fmEnd = raw.indexOf("---", 4);
+      const content = fmEnd >= 0 ? raw.slice(raw.indexOf("\n", fmEnd) + 1) : raw;
 
       if (type === "now") {
         await this.syncer.syncNow(content);

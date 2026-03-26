@@ -41,11 +41,18 @@ export class ConvexSyncer {
           }),
         });
 
+        const body = response.json;
+        console.log(`LNKD mutation ${path}:`, response.status, JSON.stringify(body).slice(0, 200));
+
         if (response.status >= 400) {
           throw new Error(`Convex error ${response.status}: ${response.text}`);
         }
 
-        return response.json?.value;
+        if (body?.status === "error") {
+          throw new Error(`Convex mutation error: ${body.errorMessage ?? JSON.stringify(body)}`);
+        }
+
+        return body?.value;
       } catch (e) {
         if (attempt < 2) {
           await sleep(1000 * Math.pow(2, attempt));
