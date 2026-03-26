@@ -58,7 +58,6 @@ export default function HeroGraph() {
 
     // Score-sorted, take top N (featured always included)
     const sorted = [...graphData.nodes]
-      .filter((n) => posMap.has(n.slug))
       .sort((a, b) => b.score - a.score);
 
     const featured = sorted.filter((n) => n.featured);
@@ -68,10 +67,34 @@ export default function HeroGraph() {
 
     const width = isMobile ? 350 : 600;
     const height = isMobile ? 160 : 250;
-    const radii = isMobile ? NODE_RADII_MOBILE : NODE_RADII;
+
+    // Fallback position for nodes not in layout: place near a connected node or use deterministic hash
+    const fallbackPos = (slug: string): { x: number; y: number } => {
+      // Find a connected node that has a layout position
+      const connected = graphData.edges
+        .filter((e) => e.source === slug || e.target === slug)
+        .map((e) => e.source === slug ? e.target : e.source)
+        .find((s) => posMap.has(s));
+      if (connected) {
+        const base = posMap.get(connected)!;
+        // Offset slightly using slug hash for determinism
+        const hash = slug.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+        const angle = (hash % 360) * (Math.PI / 180);
+        return {
+          x: Math.max(0.05, Math.min(0.95, base.x + Math.cos(angle) * 0.08)),
+          y: Math.max(0.05, Math.min(0.95, base.y + Math.sin(angle) * 0.08)),
+        };
+      }
+      // No connected node — place deterministically based on slug
+      const hash = slug.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+      return {
+        x: 0.15 + (Math.abs(hash % 700) / 1000) * 0.7,
+        y: 0.15 + (Math.abs((hash >> 8) % 700) / 1000) * 0.7,
+      };
+    };
 
     const nodes: GraphNodeData[] = selected.map((n) => {
-      const pos = posMap.get(n.slug)!;
+      const pos = posMap.get(n.slug) ?? fallbackPos(n.slug);
       return {
         id: n.slug,
         type: n.type,
