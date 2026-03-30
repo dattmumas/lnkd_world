@@ -1,11 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
+import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
-import SignInForm from "@/components/sign-in-form";
-import Link from "next/link";
 
 type Role = "admin" | "subscriber";
 
@@ -22,8 +21,18 @@ function RoleCheck({
   children: ReactNode;
 }) {
   const user = useQuery(api.users.currentUser);
+  const router = useRouter();
 
-  if (user === undefined || (user === null)) {
+  const insufficientRole = user !== undefined && user !== null &&
+    (!user.role || ROLE_LEVEL[user.role] < ROLE_LEVEL[role]);
+
+  useEffect(() => {
+    if (insufficientRole) {
+      router.replace("/");
+    }
+  }, [insufficientRole, router]);
+
+  if (user === undefined || user === null) {
     return (
       <div className="max-w-lg mx-auto px-6 py-16 text-center">
         <p className="text-[var(--color-text-secondary)]">Loading...</p>
@@ -31,18 +40,23 @@ function RoleCheck({
     );
   }
 
-  if (!user.role || ROLE_LEVEL[user.role] < ROLE_LEVEL[role]) {
-    return (
-      <div className="max-w-lg mx-auto px-6 py-16 text-center">
-        <h1 className="text-2xl font-semibold mb-4">Access Denied</h1>
-        <p className="text-[var(--color-text-secondary)]">
-          You don&apos;t have permission to view this page.
-        </p>
-      </div>
-    );
+  if (insufficientRole) {
+    return null;
   }
 
   return <>{children}</>;
+}
+
+function RedirectHome() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/subscribe");
+  }, [router]);
+  return (
+    <div className="max-w-lg mx-auto px-6 py-16 text-center">
+      <p className="text-[var(--color-text-secondary)]">Redirecting...</p>
+    </div>
+  );
 }
 
 export default function AuthGuard({
@@ -60,16 +74,7 @@ export default function AuthGuard({
         </div>
       </AuthLoading>
       <Unauthenticated>
-        <div className="max-w-sm mx-auto px-6 py-16">
-          <Link
-            href="/"
-            className="block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-6 text-center"
-          >
-            &larr; Back to home
-          </Link>
-          <h1 className="text-2xl font-semibold mb-6 text-center">Sign In</h1>
-          <SignInForm />
-        </div>
+        <RedirectHome />
       </Unauthenticated>
       <Authenticated>
         <RoleCheck role={role}>{children}</RoleCheck>
