@@ -14,6 +14,7 @@ export default defineSchema({
 
   users: defineTable({
     email: v.optional(v.string()),
+    tokenIdentifier: v.optional(v.string()),
     role: v.optional(v.union(v.literal("admin"), v.literal("subscriber"))),
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -21,7 +22,8 @@ export default defineSchema({
     phone: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.float64()),
     isAnonymous: v.optional(v.boolean()),
-  }).index("by_email", ["email"]),
+  }).index("by_email", ["email"])
+    .index("by_token", ["tokenIdentifier"]),
 
   resources: defineTable({
     title: v.string(),

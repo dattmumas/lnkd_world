@@ -13,6 +13,8 @@ const ROLE_LEVEL: Record<Role, number> = {
   admin: 2,
 };
 
+const REDIRECT_TARGET = "/subscribe";
+
 function RoleCheck({
   role,
   children,
@@ -23,6 +25,8 @@ function RoleCheck({
   const user = useQuery(api.users.currentUser);
   const router = useRouter();
 
+  const isLoading = user === undefined;
+  const noRecord = user === null;
   const insufficientRole = user !== undefined && user !== null &&
     (!user.role || ROLE_LEVEL[user.role] < ROLE_LEVEL[role]);
 
@@ -32,7 +36,9 @@ function RoleCheck({
     }
   }, [insufficientRole, router]);
 
-  if (user === undefined || user === null) {
+  // User record not yet created by afterUserCreatedOrUpdated callback
+  // This is a brief window — show loading, not an error
+  if (isLoading || noRecord) {
     return (
       <div className="max-w-lg mx-auto px-6 py-16 text-center">
         <p className="text-[var(--color-text-secondary)]">Loading...</p>
@@ -47,10 +53,10 @@ function RoleCheck({
   return <>{children}</>;
 }
 
-function RedirectHome() {
+function RedirectToSignIn() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/subscribe");
+    router.replace(REDIRECT_TARGET);
   }, [router]);
   return (
     <div className="max-w-lg mx-auto px-6 py-16 text-center">
@@ -74,7 +80,7 @@ export default function AuthGuard({
         </div>
       </AuthLoading>
       <Unauthenticated>
-        <RedirectHome />
+        <RedirectToSignIn />
       </Unauthenticated>
       <Authenticated>
         <RoleCheck role={role}>{children}</RoleCheck>

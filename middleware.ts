@@ -11,7 +11,7 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const authenticated = await convexAuth.isAuthenticated();
 
   if ((isAdminRoute(request) || isSubscriberRoute(request)) && !authenticated) {
-    return nextjsMiddlewareRedirect(request, "/");
+    return nextjsMiddlewareRedirect(request, "/subscribe");
   }
 });
 

@@ -1,4 +1,5 @@
 import { QueryCtx, MutationCtx } from "../_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 /** Constant-time string comparison to prevent timing attacks on secret comparison */
 function timingSafeEqual(a: string, b: string): boolean {
@@ -10,31 +11,30 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
+/**
+ * Require authenticated user with admin role.
+ * Uses getAuthUserId() for direct user lookup — no email resolution needed.
+ */
 export async function requireAdmin(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new Error("Unauthenticated");
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthenticated");
 
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_email", (q) => q.eq("email", identity.email))
-    .first();
-
+  const user = await ctx.db.get(userId);
   if (!user || user.role !== "admin") {
     throw new Error("Unauthorized: admin required");
   }
   return user;
 }
 
+/**
+ * Require any authenticated user (subscriber or admin).
+ */
 export async function requireSubscriber(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new Error("Unauthenticated");
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthenticated");
 
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_email", (q) => q.eq("email", identity.email))
-    .first();
-
-  if (!user) throw new Error("Unauthorized: subscriber required");
+  const user = await ctx.db.get(userId);
+  if (!user) throw new Error("Unauthorized: no user record");
   return user;
 }
 
