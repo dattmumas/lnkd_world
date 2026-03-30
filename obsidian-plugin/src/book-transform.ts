@@ -47,7 +47,7 @@ export async function transformBookSearchFile(
 
   // Build the new frontmatter
   const today = new Date().toISOString().split("T")[0];
-  const coverUrl = bsData.cover ?? "";
+  const coverUrl = (bsData as any).coverUrl ?? bsData.cover ?? "";
   const rawCategories = bsData.categories ?? [];
   const categories = Array.isArray(rawCategories) ? rawCategories
     : typeof rawCategories === "string" ? [rawCategories] : [];

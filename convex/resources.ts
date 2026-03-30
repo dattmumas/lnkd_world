@@ -1,26 +1,10 @@
-import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-
-async function requireAdmin(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new Error("Unauthenticated");
-
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_email", (q) => q.eq("email", identity.email))
-    .first();
-
-  if (!user || user.role !== "admin") {
-    throw new Error("Unauthorized: admin required");
-  }
-  return user;
-}
+import { requireAdmin, requireSubscriber } from "./lib/auth";
 
 export const list = query({
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
-
+    await requireSubscriber(ctx);
     return await ctx.db
       .query("resources")
       .filter((q) => q.eq(q.field("published"), true))

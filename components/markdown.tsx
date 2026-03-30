@@ -6,6 +6,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 /**
  * Preprocess Obsidian-specific syntax into standard markdown/HTML
@@ -78,13 +79,32 @@ function calloutIcon(type: string): string {
   return icons[type] ?? "📌";
 }
 
+// Permissive sanitize schema that allows our preprocessed custom HTML
+// (callouts, multicol, mark, etc.) while blocking script injection
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    "mark", "details", "summary", "kbd", "sup", "sub",
+  ],
+  attributes: {
+    ...defaultSchema.attributes,
+    div: ["className", "class"],
+    p: ["className", "class"],
+    span: ["className", "class"],
+    code: ["className", "class"],
+    pre: ["className", "class"],
+    section: ["className", "class"],
+  },
+};
+
 export default function Markdown({ content }: { content: string }) {
   const processed = preprocessObsidian(content);
 
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]}
+      rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeKatex, rehypeHighlight]}
       components={{
         h1: ({ children }) => (
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mt-8 mb-3">

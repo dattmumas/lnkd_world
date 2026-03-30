@@ -13,6 +13,7 @@ import type * as bookmarks from "../bookmarks.js";
 import type * as graph from "../graph.js";
 import type * as graphLayout from "../graphLayout.js";
 import type * as http from "../http.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as now from "../now.js";
 import type * as posts from "../posts.js";
 import type * as projects from "../projects.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   graph: typeof graph;
   graphLayout: typeof graphLayout;
   http: typeof http;
+  "lib/auth": typeof lib_auth;
   now: typeof now;
   posts: typeof posts;
   projects: typeof projects;

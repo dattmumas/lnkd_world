@@ -17,7 +17,7 @@ Personal site focused on philosophy and politics. Branding is **LNKD**.
 
 ## Auth & Roles
 
-- Admin email: `mattdumas3@gmail.com` (auto-assigned on first sign-up)
+- Admin email: `mttdumas@gmail.com` (auto-assigned on first sign-up)
 - Everyone else gets `subscriber` role
 - Role hierarchy: admin > subscriber
 - `EnsureUser` component in provider auto-creates user record after auth

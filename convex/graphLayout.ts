@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { verifySyncSecret } from "./lib/auth";
 
 export const store = mutation({
   args: {
@@ -15,10 +16,7 @@ export const store = mutation({
     createdAt: v.string(),
   },
   handler: async (ctx, args) => {
-    const syncSecret = process.env.SYNC_SECRET;
-    if (!syncSecret || args.secret !== syncSecret) {
-      throw new Error("Unauthorized: invalid sync secret");
-    }
+    verifySyncSecret(args.secret);
 
     const { secret: _, ...fields } = args;
 

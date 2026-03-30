@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { verifySyncSecret } from "./lib/auth";
 
 export const listBySlug = query({
   args: {
@@ -45,10 +46,7 @@ export const createVersion = mutation({
     createdAt: v.string(),
   },
   handler: async (ctx, args) => {
-    const syncSecret = process.env.SYNC_SECRET;
-    if (!syncSecret || args.secret !== syncSecret) {
-      throw new Error("Unauthorized: invalid sync secret");
-    }
+    verifySyncSecret(args.secret);
 
     const existing = await ctx.db
       .query("versions")
@@ -76,15 +74,11 @@ export const restore = mutation({
     versionId: v.id("versions"),
   },
   handler: async (ctx, args) => {
-    const syncSecret = process.env.SYNC_SECRET;
-    if (!syncSecret || args.secret !== syncSecret) {
-      throw new Error("Unauthorized: invalid sync secret");
-    }
+    verifySyncSecret(args.secret);
 
     const version = await ctx.db.get(args.versionId);
     if (!version) throw new Error("Version not found");
 
-    // Find current document
     const table = args.contentType === "post" ? "posts"
       : args.contentType === "reading" ? "readings" : "bookmarks";
     const current = await ctx.db
@@ -93,13 +87,11 @@ export const restore = mutation({
       .first();
     if (!current) throw new Error("Document not found");
 
-    // Patch the document with restored content
     await ctx.db.patch(current._id, {
       content: version.content,
       title: version.title,
     });
 
-    // Create a new version entry for the restore (audit trail)
     await ctx.db.insert("versions", {
       slug: args.slug,
       contentType: args.contentType,
