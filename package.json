@@ -16,7 +16,8 @@
     "sync:readwise": "npx tsx scripts/readwise-sync.ts",
     "graph:layout": "npx tsx scripts/compute-layout.ts",
     "graph:layout:prod": "npx tsx scripts/compute-layout.ts --prod",
-    "ship": "find .next .open-next -type d -name node_modules -exec rm -rf {} + 2>/dev/null; rm -rf .next .open-next && pnpm build:worker && pnpm run deploy"
+    "clean": "find .next .open-next -type l -delete 2>/dev/null; find .next .open-next -type d -name node_modules -exec rm -rf {} + 2>/dev/null; find .next .open-next -type d -name '.pnpm' -exec rm -rf {} + 2>/dev/null; rm -rf .next .open-next",
+    "ship": "pnpm clean && pnpm build:worker && pnpm run deploy"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
