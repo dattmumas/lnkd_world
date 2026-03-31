@@ -60,6 +60,22 @@ export const createVersion = mutation({
       return { action: "unchanged" as const };
     }
 
+    // Minimum change threshold: require at least 50 characters of difference
+    // or 3 lines changed to create a new version (prevents noisy micro-edits)
+    if (latest) {
+      const oldLines = latest.content.split("\n");
+      const newLines = args.content.split("\n");
+      const charDiff = Math.abs(args.content.length - latest.content.length);
+      let linesChanged = 0;
+      const maxLen = Math.max(oldLines.length, newLines.length);
+      for (let i = 0; i < maxLen; i++) {
+        if ((oldLines[i] ?? "") !== (newLines[i] ?? "")) linesChanged++;
+      }
+      if (charDiff < 50 && linesChanged < 3) {
+        return { action: "below_threshold" as const };
+      }
+    }
+
     const { secret: _, ...fields } = args;
     const id = await ctx.db.insert("versions", fields);
     return { action: "created" as const, id };
