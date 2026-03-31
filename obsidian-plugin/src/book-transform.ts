@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App, TFile, requestUrl } from "obsidian";
 
 /**
  * Detects files created by the obsidian-book-search-plugin and
@@ -34,6 +34,20 @@ function hasLnkdFields(frontmatter: Record<string, unknown>): boolean {
   return frontmatter.type !== undefined && frontmatter.published !== undefined;
 }
 
+/** Try to fetch a cover URL from Open Library by ISBN */
+async function fetchCoverUrl(isbn?: string, isbn13?: string): Promise<string> {
+  const id = isbn13 ?? isbn;
+  if (!id) return "";
+  try {
+    const url = `https://covers.openlibrary.org/b/isbn/${id}-M.jpg?default=false`;
+    const resp = await requestUrl({ url, method: "HEAD" });
+    if (resp.status === 200) return `https://covers.openlibrary.org/b/isbn/${id}-M.jpg`;
+  } catch {
+    // 404 or network error — no cover available
+  }
+  return "";
+}
+
 export async function transformBookSearchFile(
   app: App,
   file: TFile,
@@ -41,13 +55,36 @@ export async function transformBookSearchFile(
   readingsFolder: string
 ): Promise<boolean> {
   if (!isBookSearchFile(frontmatter)) return false;
-  if (hasLnkdFields(frontmatter)) return false;
+
+  // If already transformed but missing coverUrl, try to backfill
+  if (hasLnkdFields(frontmatter)) {
+    if (!frontmatter.coverUrl && (frontmatter.isbn || frontmatter.isbn13)) {
+      const cover = await fetchCoverUrl(
+        frontmatter.isbn as string | undefined,
+        frontmatter.isbn13 as string | undefined
+      );
+      if (cover) {
+        const raw = await app.vault.read(file);
+        const insertBefore = raw.indexOf("\n---", 4);
+        if (insertBefore !== -1) {
+          const newContent = raw.slice(0, insertBefore) + `\ncoverUrl: "${cover}"` + raw.slice(insertBefore);
+          await app.vault.modify(file, newContent);
+          console.log(`LNKD: backfilled coverUrl for "${frontmatter.title}"`);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   const bsData = frontmatter as BookSearchFrontmatter;
 
   // Build the new frontmatter
   const today = new Date().toISOString().split("T")[0];
-  const coverUrl = (bsData as any).coverUrl ?? bsData.cover ?? "";
+  let coverUrl = (bsData as any).coverUrl ?? bsData.cover ?? "";
+  if (!coverUrl) {
+    coverUrl = await fetchCoverUrl(bsData.isbn, bsData.isbn13);
+  }
   const rawCategories = bsData.categories ?? [];
   const categories = Array.isArray(rawCategories) ? rawCategories
     : typeof rawCategories === "string" ? [rawCategories] : [];
