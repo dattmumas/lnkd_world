@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as bonds from "../bonds.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as graph from "../graph.js";
 import type * as graphLayout from "../graphLayout.js";
@@ -32,6 +33,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  bonds: typeof bonds;
   bookmarks: typeof bookmarks;
   graph: typeof graph;
   graphLayout: typeof graphLayout;

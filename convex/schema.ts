@@ -118,4 +118,13 @@ export default defineSchema({
     })),
     createdAt: v.string(),
   }),
+
+  // Bond market analysis dashboard snapshots (pushed daily from Python pipeline)
+  bondsSnapshots: defineTable({
+    generatedAt: v.string(),
+    version: v.string(),
+    status: v.string(),
+    data: v.string(), // JSON-stringified snapshot (too complex for Convex value types)
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
 });

@@ -88,3 +88,90 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-text-secondary);
   font-family: var(--font-lora), Georgia, serif;
 }
+
+/* ==========================================================================
+   BONDS TERMINAL — scoped dark theme
+   The .bonds-terminal class wraps the entire /bonds route,
+   overriding the cream-colored site theme with a Bloomberg-style dark UI.
+   ========================================================================== */
+
+.bonds-terminal {
+  --bt-bg: #0a0e17;
+  --bt-surface: #111827;
+  --bt-surface-alt: #0f172a;
+  --bt-border: #1e293b;
+  --bt-text: #e2e8f0;
+  --bt-text-secondary: #94a3b8;
+  --bt-text-muted: #4a5568;
+  --bt-green: #00ff88;
+  --bt-red: #ff6b6b;
+  --bt-blue: #4a9eff;
+  --bt-amber: #fbbf24;
+  --bt-purple: #a855f7;
+  --bt-orange: #f97316;
+  --bt-pink: #ec4899;
+
+  background-color: var(--bt-bg);
+  color: var(--bt-text);
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.bonds-terminal * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bt-border) transparent;
+}
+
+.bonds-terminal ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.bonds-terminal ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bonds-terminal ::-webkit-scrollbar-thumb {
+  background: var(--bt-border);
+  border-radius: 2px;
+}
+
+/* Override global body styles when terminal is active */
+.bonds-terminal h1,
+.bonds-terminal h2,
+.bonds-terminal h3,
+.bonds-terminal h4,
+.bonds-terminal h5,
+.bonds-terminal h6 {
+  font-family: inherit;
+}
+
+/* Pulse animation for live indicators */
+@keyframes terminal-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.bonds-terminal .pulse {
+  animation: terminal-pulse 2s ease-in-out infinite;
+}
+
+/* Scan-line effect (subtle) */
+.bonds-terminal::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+}

@@ -52,6 +52,12 @@ export default function Nav() {
             Reading
           </Link>
           <Link
+            href="/bonds"
+            className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0"
+          >
+            Bonds
+          </Link>
+          <Link
             href="/bookmarks"
             className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0 hidden sm:block"
           >

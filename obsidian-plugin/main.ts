@@ -331,6 +331,15 @@ export default class LnkdSyncPlugin extends Plugin {
 
     for (const file of allFiles) {
       try {
+        // Run book transform/backfill before syncing
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fm = cache?.frontmatter ?? {};
+        if (fm.isbn || fm.isbn13 || fm.publisher) {
+          await transformBookSearchFile(
+            this.app, file, fm, this.settings.syncFolders.readings
+          );
+        }
+
         const result = await this.syncFile(file);
         if (result) synced++;
       } catch {

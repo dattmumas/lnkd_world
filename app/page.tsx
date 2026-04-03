@@ -4,6 +4,7 @@ import NowSection from "@/components/now-section";
 import WritingSection from "@/components/writing-section";
 import ReadingSection from "@/components/reading-section";
 import BookmarksSection from "@/components/bookmarks-section";
+import BondsSection from "@/components/bonds-section";
 import ProjectList from "@/components/project-list";
 import Sidebar from "@/components/sidebar";
 import Footer from "@/components/footer";
@@ -20,6 +21,7 @@ export default function Home() {
         {/* Two-column layout: content left, sidebar right on wide desktop */}
         <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-16">
           <div className="min-w-0">
+            <BondsSection />
             <WritingSection />
             <ReadingSection />
             <BookmarksSection />
