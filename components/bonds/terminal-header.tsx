@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type JSX } from "react";
+
+interface TerminalHeaderProps {
+  generatedAt: string;
+  status: string;
+  errors?: string[];
+  canRefresh?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  refreshError?: string | null;
+}
 
 function LiveClock() {
   const [time, setTime] = useState("");
@@ -31,11 +41,11 @@ export default function TerminalHeader({
   generatedAt,
   status,
   errors,
-}: {
-  generatedAt: string;
-  status: string;
-  errors?: string[];
-}) {
+  canRefresh = false,
+  refreshing = false,
+  onRefresh,
+  refreshError,
+}: TerminalHeaderProps): JSX.Element {
   const statusColor =
     status === "ok"
       ? "#00ff88"
@@ -60,32 +70,53 @@ export default function TerminalHeader({
         style={{ transformOrigin: "left" }}
       />
 
-      <div className="max-w-[1920px] mx-auto px-3 py-2 flex items-center justify-between">
+      <div className="max-w-[1600px] mx-auto px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Left: Logo + Title */}
         <div className="flex items-center gap-4">
           <Link href="/" className="group flex items-center gap-2">
-            <span className="font-mono text-[#00ff88] text-sm font-bold tracking-widest group-hover:text-[#4a9eff] transition-colors">
+            <span className="font-mono text-[#00ff88] text-base font-bold tracking-widest group-hover:text-[#4a9eff] transition-colors">
               LNKD
             </span>
           </Link>
-          <div className="h-4 w-px bg-[#1e293b]" />
+          <div className="h-5 w-px bg-[#1e293b]" />
           <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2"
+            className="flex items-center gap-3"
           >
-            <span className="font-mono text-xs text-[#94a3b8] tracking-widest uppercase">
+            <span className="font-mono text-sm text-[#94a3b8] tracking-widest uppercase">
               Bond Market Terminal
             </span>
             <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              className="w-2 h-2 rounded-full animate-pulse"
               style={{ backgroundColor: statusColor }}
             />
           </motion.div>
         </div>
 
         {/* Right: Status + Clock */}
-        <div className="flex items-center gap-4 font-mono text-[10px] text-[#4a5568]">
+        <div className="flex items-center gap-5 font-mono text-xs text-[#cbd5e1]">
+          {canRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              title={
+                refreshError ?? "Regenerate the dashboard from fresh market data"
+              }
+              className="flex items-center gap-1.5 rounded border border-[#1e293b] px-2.5 py-1 uppercase tracking-wider text-[#00ff88] transition-colors hover:border-[#00ff88] hover:bg-[#00ff88]/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className={refreshing ? "inline-block animate-spin" : "inline-block"}>
+                ↻
+              </span>
+              {refreshing ? "Updating…" : "Refresh"}
+            </button>
+          )}
+          {refreshError && !refreshing && (
+            <span className="text-[#ff6b6b]" title={refreshError}>
+              refresh failed
+            </span>
+          )}
           {errors && errors.length > 0 && (
             <span className="text-[#fbbf24]">
               {errors.length} warning{errors.length > 1 ? "s" : ""}
@@ -99,7 +130,7 @@ export default function TerminalHeader({
               </span>
             </span>
           )}
-          <span className="text-[#94a3b8]">
+          <span className="text-[#94a3b8] text-sm">
             <LiveClock />
           </span>
         </div>
