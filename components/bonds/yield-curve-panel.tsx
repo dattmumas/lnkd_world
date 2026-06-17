@@ -19,14 +19,14 @@ function CurveSVG({
   activeComparison: string | null;
 }) {
   const width = 700;
-  const height = 300;
-  const pad = { top: 30, right: 40, bottom: 40, left: 60 };
+  const height = 104;
+  const pad = { top: 14, right: 20, bottom: 26, left: 42 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
 
   if (!curvePoints || curvePoints.length < 2) {
     return (
-      <div className="text-[#94a3b8] font-mono text-sm text-center py-16">
+      <div className="text-[#6e7682] font-mono text-sm text-center py-10">
         Insufficient data
       </div>
     );
@@ -69,8 +69,8 @@ function CurveSVG({
       {/* Grid */}
       {yTicks.map((tick) => (
         <g key={tick}>
-          <line x1={pad.left} x2={width - pad.right} y1={sy(tick)} y2={sy(tick)} stroke="#1e293b" strokeWidth={0.5} />
-          <text x={pad.left - 10} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#cbd5e1" fontSize={12} fontFamily="monospace">
+          <line x1={pad.left} x2={width - pad.right} y1={sy(tick)} y2={sy(tick)} stroke="#e8eaee" strokeWidth={0.5} />
+          <text x={pad.left - 10} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#374151" fontSize={10} fontFamily="monospace">
             {tick.toFixed(2)}%
           </text>
         </g>
@@ -78,7 +78,7 @@ function CurveSVG({
 
       {/* X labels */}
       {curvePoints.map((p) => (
-        <text key={p.tenor} x={sx(p.years)} y={height - 10} textAnchor="middle" fill="#cbd5e1" fontSize={12} fontFamily="monospace">
+        <text key={p.tenor} x={sx(p.years)} y={height - 10} textAnchor="middle" fill="#374151" fontSize={10} fontFamily="monospace">
           {p.tenor}
         </text>
       ))}
@@ -86,8 +86,8 @@ function CurveSVG({
       {/* Area fill */}
       <defs>
         <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4a9eff" stopOpacity={0.2} />
-          <stop offset="100%" stopColor="#4a9eff" stopOpacity={0} />
+          <stop offset="0%" stopColor="#0a8f57" stopOpacity={0.2} />
+          <stop offset="100%" stopColor="#0a8f57" stopOpacity={0} />
         </linearGradient>
       </defs>
       <motion.path d={areaPath} fill="url(#curveGrad)" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} />
@@ -98,7 +98,7 @@ function CurveSVG({
           <motion.path
             d={compPath}
             fill="none"
-            stroke="#64748b"
+            stroke="#6b7280"
             strokeWidth={1.5}
             strokeDasharray="6,4"
             initial={{ pathLength: 0, opacity: 0 }}
@@ -113,8 +113,8 @@ function CurveSVG({
       <motion.path
         d={currentPath}
         fill="none"
-        stroke="#4a9eff"
-        strokeWidth={2.5}
+        stroke="#0a8f57"
+        strokeWidth={2}
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 1, ease: "easeInOut" }}
@@ -126,10 +126,10 @@ function CurveSVG({
           key={p.tenor}
           cx={sx(p.years)}
           cy={sy(p.yield)}
-          r={4}
-          fill="#4a9eff"
-          stroke="#0a0e17"
-          strokeWidth={2}
+          r={3}
+          fill="#0a8f57"
+          stroke="#ffffff"
+          strokeWidth={1.5}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.08 * i + 0.4, type: "spring" }}
@@ -156,8 +156,8 @@ export default function YieldCurvePanel({
 
   if (!yieldCurve) {
     return (
-      <Panel title="Yield Curve" accent="#4a9eff">
-        <div className="text-[#94a3b8] font-mono text-sm text-center py-16">No yield curve data</div>
+      <Panel title="Yield Curve" accent="#0a8f57">
+        <div className="text-[#6e7682] font-mono text-sm text-center py-10">No yield curve data</div>
       </Panel>
     );
   }
@@ -175,19 +175,20 @@ export default function YieldCurvePanel({
     <Panel
       title="Treasury Yield Curve"
       subtitle={yieldCurve.as_of ? new Date(yieldCurve.as_of).toLocaleDateString() : undefined}
-      accent="#4a9eff"
+      accent="#0a8f57"
+      note="Treasury yield at each maturity. A normal curve slopes up; when it inverts (short rates above long), it has historically preceded recessions. Toggle a date to compare."
     >
       {/* Comparison toggles */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="font-mono text-xs text-[#94a3b8]">Compare:</span>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="font-mono text-xs text-[#6e7682]">Compare:</span>
         {comparisons.map((c) => (
           <button
             key={c.key}
             onClick={() => setComparison(comparison === c.key ? null : c.key)}
-            className={`px-3 py-1 rounded font-mono text-xs transition-colors ${
+            className={`px-2.5 py-0.5 rounded font-mono text-[11px] transition-colors ${
               comparison === c.key
-                ? "bg-[#4a9eff] text-[#0a0e17] font-medium"
-                : "bg-[#1e293b] text-[#94a3b8] hover:bg-[#2d3748]"
+                ? "bg-[#0a8f57] text-[#ffffff] font-medium"
+                : "bg-[#e8eaee] text-[#6e7682] hover:bg-[#dfe2e8]"
             }`}
           >
             {c.label}
@@ -203,7 +204,7 @@ export default function YieldCurvePanel({
       />
 
       {/* Key tenors */}
-      <div className="mt-4 grid grid-cols-4 gap-4">
+      <div className="mt-3 grid grid-cols-4 gap-2">
         {keyTenors.map((tenor) => {
           const current = yieldCurve.current[tenor];
           const prev =
@@ -213,9 +214,9 @@ export default function YieldCurvePanel({
           const change = current != null && prev != null ? (current - prev) * 100 : null;
 
           return (
-            <div key={tenor} className="bg-[#0f172a] rounded p-3 text-center">
-              <div className="font-mono text-xs text-[#94a3b8] mb-1">{tenor}</div>
-              <div className="font-mono text-xl font-bold text-[#f1f5f9]">
+            <div key={tenor} className="bg-[#f6f7f9] rounded p-2 text-center">
+              <div className="font-mono text-xs text-[#6e7682] mb-1">{tenor}</div>
+              <div className="font-mono text-base font-bold text-[#0f1115]">
                 {current != null ? `${current.toFixed(2)}%` : "--"}
               </div>
               {change != null && (
@@ -230,13 +231,13 @@ export default function YieldCurvePanel({
 
       {/* Forward rates */}
       {yieldCurve.forward_rates && yieldCurve.forward_rates.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[#1e293b]">
-          <div className="font-mono text-xs text-[#94a3b8] mb-2 tracking-wide">FORWARD RATES</div>
-          <div className="flex flex-wrap gap-4">
+        <div className="mt-3 pt-2.5 border-t border-[#e8eaee]">
+          <div className="font-mono text-xs text-[#6e7682] mb-2 tracking-wide">FORWARD RATES</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
             {yieldCurve.forward_rates.map((f) => (
               <div key={`${f.from}-${f.to}`} className="font-mono text-sm">
-                <span className="text-[#94a3b8]">{f.from}&rarr;{f.to}</span>
-                <span className="text-[#e2e8f0] ml-2 font-medium">
+                <span className="text-[#6e7682]">{f.from}&rarr;{f.to}</span>
+                <span className="text-[#1f2937] ml-2 font-medium">
                   {f.rate != null ? `${f.rate.toFixed(2)}%` : "--"}
                 </span>
               </div>

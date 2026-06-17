@@ -9,34 +9,42 @@ import { motion } from "framer-motion";
 export default function Panel({
   title,
   subtitle,
-  accent = "#4a9eff",
+  note,
+  accent = "#2563eb",
   className = "",
   children,
 }: {
   title: string;
   subtitle?: string;
+  note?: string;
   accent?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <div
-      className={`bg-[#111827] border border-[#1e293b] rounded overflow-hidden h-full ${className}`}
+      className={`bg-white border border-[#e6e8ee] rounded-lg overflow-hidden h-full shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.03)] ${className}`}
     >
       {/* Panel header bar */}
-      <div className="flex items-center gap-2.5 px-5 py-2.5 bg-[#0f172a] border-b border-[#1e293b]">
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accent }} />
-        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[#cbd5e1] font-medium">
+      <div className="flex items-center gap-2 px-3.5 py-2 bg-[#fafbfc] border-b border-[#eef0f3]">
+        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
+        <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-[#4a5160] font-semibold">
           {title}
         </span>
         {subtitle && (
-          <span className="font-mono text-xs text-[#94a3b8] ml-auto">
+          <span className="font-mono text-[11px] text-[#6e7682] ml-auto tabular-nums">
             {subtitle}
           </span>
         )}
       </div>
+      {/* Optional plain-English explainer for users */}
+      {note && (
+        <p className="px-3.5 pt-2.5 text-[11px] leading-snug text-[#6b7280]">
+          {note}
+        </p>
+      )}
       {/* Panel content */}
-      <div className="p-5">{children}</div>
+      <div className="p-3.5">{children}</div>
     </div>
   );
 }
@@ -53,9 +61,9 @@ export function DirectionArrow({
 }) {
   const sizeMap = { sm: "text-sm", md: "text-base", lg: "text-xl" };
   const colors: Record<number, string> = {
-    1: "#00ff88",
-    0: "#94a3b8",
-    [-1]: "#ff6b6b",
+    1: "#0a8f57",
+    0: "#6e7682",
+    [-1]: "#d23b3b",
   };
   const arrows: Record<number, string> = {
     1: "\u25B2",
@@ -86,11 +94,11 @@ export function ConvictionBar({
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const color =
-    clamped >= 70 ? "#00ff88" : clamped >= 40 ? "#fbbf24" : "#ff6b6b";
+    clamped >= 70 ? "#0a8f57" : clamped >= 40 ? "#a86e15" : "#d23b3b";
 
   return (
     <div
-      className="rounded-full bg-[#1e293b] overflow-hidden"
+      className="rounded-full bg-[#e8eaee] overflow-hidden"
       style={{ width: maxWidth, height }}
     >
       <motion.div
@@ -111,7 +119,7 @@ export function Sparkline({
   data,
   width = 120,
   height = 32,
-  color = "#4a9eff",
+  color = "#2563eb",
   showArea = false,
 }: {
   data: { value: number }[];
@@ -171,9 +179,9 @@ export function ChangeBadge({
   suffix?: string;
   decimals?: number;
 }) {
-  if (value == null) return <span className="text-[#64748b]">--</span>;
+  if (value == null) return <span className="text-[#6b7280]">--</span>;
 
-  const color = value > 0 ? "#00ff88" : value < 0 ? "#ff6b6b" : "#94a3b8";
+  const color = value > 0 ? "#0a8f57" : value < 0 ? "#d23b3b" : "#6e7682";
   const sign = value > 0 ? "+" : "";
 
   return (

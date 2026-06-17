@@ -16,8 +16,8 @@ export default function SentimentGauge({
 }) {
   if (!sentiment) {
     return (
-      <Panel title="Sentiment" accent="#ec4899">
-        <div className="text-[#94a3b8] font-mono text-xs text-center py-8">
+      <Panel title="Sentiment" accent="#d6307e">
+        <div className="text-[#6e7682] font-mono text-xs text-center py-8">
           No sentiment data
         </div>
       </Panel>
@@ -30,10 +30,10 @@ export default function SentimentGauge({
 
   const sentimentColor =
     normalizedScore > 0.2
-      ? "#00ff88"
+      ? "#0a8f57"
       : normalizedScore < -0.2
-        ? "#ff6b6b"
-        : "#fbbf24";
+        ? "#d23b3b"
+        : "#a86e15";
 
   const sentimentLabel =
     normalizedScore > 0.5
@@ -47,24 +47,28 @@ export default function SentimentGauge({
             : "STRONGLY BEARISH";
 
   return (
-    <Panel title="Market Sentiment" accent="#ec4899">
+    <Panel
+      title="Market Sentiment"
+      accent="#d6307e"
+      note="Composite risk appetite from macro proxies — left/red is risk-off (defensive), right/green is risk-on. The needle marks the current read."
+    >
       {/* Sentiment arc gauge */}
-      <div className="flex justify-center mb-5">
-        <svg viewBox="0 0 200 120" className="w-full max-w-[240px]">
+      <div className="flex justify-center mb-3">
+        <svg viewBox="0 0 200 120" className="w-full max-w-[200px]">
           {/* Background arc */}
           <path
             d="M 20 100 A 80 80 0 0 1 180 100"
             fill="none"
-            stroke="#1e293b"
+            stroke="#e8eaee"
             strokeWidth={14}
             strokeLinecap="round"
           />
           {/* Gradient arc */}
           <defs>
             <linearGradient id="sentimentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ff6b6b" />
-              <stop offset="50%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#00ff88" />
+              <stop offset="0%" stopColor="#d23b3b" />
+              <stop offset="50%" stopColor="#a86e15" />
+              <stop offset="100%" stopColor="#0a8f57" />
             </linearGradient>
           </defs>
           <motion.path
@@ -125,31 +129,31 @@ export default function SentimentGauge({
 
       {/* Metadata */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between bg-[#0f172a] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#cbd5e1]">SOURCE</span>
-          <span className="font-mono text-sm text-[#e2e8f0] uppercase">
+        <div className="flex items-center justify-between bg-[#f6f7f9] rounded px-4 py-2.5">
+          <span className="font-mono text-xs text-[#374151]">SOURCE</span>
+          <span className="font-mono text-sm text-[#1f2937] uppercase">
             {sentiment.source || "macro_proxy"}
           </span>
         </div>
-        <div className="flex items-center justify-between bg-[#0f172a] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#cbd5e1]">CONFIDENCE</span>
+        <div className="flex items-center justify-between bg-[#f6f7f9] rounded px-4 py-2.5">
+          <span className="font-mono text-xs text-[#374151]">CONFIDENCE</span>
           <span
             className="font-mono text-sm uppercase font-medium"
             style={{
               color:
                 sentiment.confidence === "high"
-                  ? "#00ff88"
+                  ? "#0a8f57"
                   : sentiment.confidence === "medium"
-                    ? "#fbbf24"
-                    : "#ff6b6b",
+                    ? "#a86e15"
+                    : "#d23b3b",
             }}
           >
             {sentiment.confidence || "low"}
           </span>
         </div>
-        <div className="flex items-center justify-between bg-[#0f172a] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#cbd5e1]">DIRECTION</span>
-          <span className="font-mono text-sm text-[#e2e8f0] uppercase font-medium">
+        <div className="flex items-center justify-between bg-[#f6f7f9] rounded px-4 py-2.5">
+          <span className="font-mono text-xs text-[#374151]">DIRECTION</span>
+          <span className="font-mono text-sm text-[#1f2937] uppercase font-medium">
             {sentiment.direction || "neutral"}
           </span>
         </div>
@@ -157,17 +161,17 @@ export default function SentimentGauge({
 
       {/* Components breakdown */}
       {sentiment.components && Object.keys(sentiment.components).length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[#1e293b]">
-          <div className="font-mono text-xs text-[#cbd5e1] mb-2">COMPONENTS</div>
+        <div className="mt-4 pt-3 border-t border-[#e8eaee]">
+          <div className="font-mono text-xs text-[#374151] mb-2">COMPONENTS</div>
           <div className="space-y-1.5">
             {Object.entries(sentiment.components)
               .filter(([, val]) => val != null && typeof val === "number")
               .map(([key, val]) => (
               <div key={key} className="flex items-center justify-between font-mono text-xs">
-                <span className="text-[#94a3b8]">{key}</span>
+                <span className="text-[#6e7682]">{key}</span>
                 <span
                   style={{
-                    color: (val as number) > 0 ? "#00ff88" : (val as number) < 0 ? "#ff6b6b" : "#94a3b8",
+                    color: (val as number) > 0 ? "#0a8f57" : (val as number) < 0 ? "#d23b3b" : "#6e7682",
                   }}
                 >
                   {(val as number) > 0 ? "+" : ""}

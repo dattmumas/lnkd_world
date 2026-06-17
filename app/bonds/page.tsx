@@ -34,23 +34,23 @@ const fadeUp = (delay: number) => ({
 
 function TerminalLoading() {
   return (
-    <div className="min-h-screen bg-[#0a0e17] flex items-center justify-center">
+    <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-        <div className="font-mono text-[#00ff88] text-lg mb-6 tracking-widest">
+        <div className="font-mono text-[#0a8f57] text-lg mb-6 tracking-widest">
           LNKD BOND TERMINAL
         </div>
         <div className="flex gap-1.5 justify-center">
           {[0, 1, 2, 3, 4].map((i) => (
             <motion.div
               key={i}
-              className="w-2.5 h-10 bg-[#00ff88] rounded-sm"
+              className="w-2.5 h-10 bg-[#0a8f57] rounded-sm"
               animate={{ scaleY: [0.3, 1, 0.3], opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
             />
           ))}
         </div>
         <motion.div
-          className="font-mono text-[#94a3b8] text-sm mt-6"
+          className="font-mono text-[#6e7682] text-sm mt-6"
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
@@ -63,16 +63,16 @@ function TerminalLoading() {
 
 function NoData() {
   return (
-    <div className="min-h-screen bg-[#0a0e17] flex items-center justify-center">
+    <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
       <div className="text-center font-mono max-w-md px-8">
-        <div className="text-[#ff6b6b] text-xl mb-4">NO DATA AVAILABLE</div>
-        <div className="text-[#cbd5e1] text-sm leading-relaxed">
+        <div className="text-[#d23b3b] text-xl mb-4">NO DATA AVAILABLE</div>
+        <div className="text-[#374151] text-sm leading-relaxed">
           Dashboard snapshot has not been generated yet.
         </div>
-        <code className="block mt-4 bg-[#111827] text-[#00ff88] text-sm p-4 rounded">
+        <code className="block mt-4 bg-[#ffffff] text-[#0a8f57] text-sm p-4 rounded">
           python -m src.export_dashboard --push
         </code>
-        <Link href="/" className="inline-block mt-8 text-[#4a9eff] text-sm hover:underline">
+        <Link href="/" className="inline-block mt-8 text-[#2563eb] text-sm hover:underline">
           &larr; Back to LNKD
         </Link>
       </div>
@@ -83,7 +83,10 @@ function NoData() {
 export default function BondsPage(): JSX.Element {
   const snapshot = useQuery(api.bonds.latest);
   const user = useQuery(api.users.currentUser);
-  const isAdmin = user?.role === "admin";
+  // Admin-gated in production; always shown in local dev so the control is visible
+  // while previewing (the Convex action still enforces admin on the server).
+  const isAdmin =
+    user?.role === "admin" || process.env.NODE_ENV === "development";
 
   const triggerRefresh = useAction(api.bonds.triggerRefresh);
   const [refreshing, setRefreshing] = useState(false);
@@ -143,7 +146,7 @@ export default function BondsPage(): JSX.Element {
   if (!snapshot || !data) return <NoData />;
 
   return (
-    <div className="min-h-screen bg-[#0a0e17] text-[#e2e8f0]">
+    <div className="min-h-screen bg-[#ffffff] text-[#1f2937]">
       <TerminalHeader
         generatedAt={data.generated_at || snapshot.generatedAt}
         status={data.status}
@@ -154,66 +157,70 @@ export default function BondsPage(): JSX.Element {
         refreshError={refreshError}
       />
 
-      <main className="max-w-[1600px] mx-auto px-6 lg:px-8 pb-12 space-y-5 pt-5">
-        {/* === ROW 1: Hero row — Yield Curve (star of the show) + Regime sidebar === */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-          <motion.div className="lg:col-span-3" {...fadeUp(0.1)}>
+      <main className="max-w-[1600px] mx-auto px-4 lg:px-6 pb-10 space-y-3 pt-3">
+        {/* === ROW 1: Hero — Yield Curve + Regime (matched heights) === */}
+        <div className="grid grid-cols-1 items-start lg:grid-cols-4 gap-3">
+          <motion.div className="lg:col-span-3" {...fadeUp(0.05)}>
             <YieldCurvePanel yieldCurve={data.yield_curve} />
           </motion.div>
-          <motion.div className="lg:col-span-1 space-y-5" {...fadeUp(0.2)}>
+          <motion.div className="lg:col-span-1" {...fadeUp(0.1)}>
             <RegimeIndicator model={data.model} />
-            <SentimentGauge sentiment={data.sentiment} />
           </motion.div>
         </div>
 
-        {/* === ROW 2: Signals + Trade Ideas === */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <motion.div {...fadeUp(0.3)}>
+        {/* === ROW 2: Signals + Trade Ideas (both tall — matched) === */}
+        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
+          <motion.div {...fadeUp(0.15)}>
             <SignalConsole signals={data.signals} />
           </motion.div>
-          <motion.div {...fadeUp(0.4)}>
+          <motion.div {...fadeUp(0.2)}>
             <TradeIdeas signals={data.signals} />
           </motion.div>
         </div>
 
-        {/* === ROW 3: Macro + Credit === */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <motion.div {...fadeUp(0.5)}>
+        {/* === ROW 3: Sentiment + Macro (both medium — matched) === */}
+        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
+          <motion.div {...fadeUp(0.25)}>
+            <SentimentGauge sentiment={data.sentiment} />
+          </motion.div>
+          <motion.div {...fadeUp(0.3)}>
             <MacroPanel macro={data.macro} />
           </motion.div>
-          <motion.div {...fadeUp(0.6)}>
+        </div>
+
+        {/* === ROW 4: Credit + ETFs + Portfolio === */}
+        <div className="grid grid-cols-1 items-start lg:grid-cols-3 gap-3">
+          <motion.div {...fadeUp(0.35)}>
             <CreditPanel credit={data.credit} />
           </motion.div>
-        </div>
-
-        {/* === ROW 4: ETFs + Portfolio + Calendar === */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <motion.div {...fadeUp(0.7)}>
+          <motion.div {...fadeUp(0.4)}>
             <EtfPanel etfs={data.etfs} />
           </motion.div>
-          <motion.div {...fadeUp(0.8)}>
+          <motion.div {...fadeUp(0.45)}>
             <PortfolioPanel portfolio={data.portfolio} />
           </motion.div>
-          <motion.div {...fadeUp(0.9)}>
+        </div>
+
+        {/* === ROW 5: Calendar + Model Diagnostics === */}
+        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
+          <motion.div {...fadeUp(0.5)}>
             <CalendarPanel calendar={data.calendar} />
           </motion.div>
-        </div>
-
-        {/* === ROW 5: Model + Memo === */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <motion.div {...fadeUp(1.0)}>
+          <motion.div {...fadeUp(0.55)}>
             <ModelDiagnostics model={data.model} />
           </motion.div>
-          <motion.div className="lg:col-span-2" {...fadeUp(1.1)}>
-            <MemoPanel signals={data.signals} />
-          </motion.div>
         </div>
 
+        {/* === ROW 6: Investment Memo (full width) === */}
+        <motion.div {...fadeUp(0.6)}>
+          <MemoPanel signals={data.signals} />
+        </motion.div>
+
         {/* Footer */}
-        <div className="pt-6 border-t border-[#1e293b] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#94a3b8]">
+        <div className="pt-4 border-t border-[#e8eaee] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#6e7682]">
           <div>
             LNKD BOND TERMINAL &middot; FRED &middot; Treasury.gov &middot; yfinance &middot;{" "}
-            <Link href="/" className="text-[#4a9eff] hover:underline">
+            <Link href="/" className="text-[#2563eb] hover:underline">
               lnkd.world
             </Link>
           </div>

@@ -15,10 +15,10 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }, [targetDate]);
 
   if (days === null) return null;
-  if (days < 0) return <span className="text-[#94a3b8] text-xs">PAST</span>;
+  if (days < 0) return <span className="text-[#6e7682] text-xs">PAST</span>;
 
   const color =
-    days <= 1 ? "#ff6b6b" : days <= 3 ? "#fbbf24" : days <= 7 ? "#4a9eff" : "#94a3b8";
+    days <= 1 ? "#d23b3b" : days <= 3 ? "#a86e15" : days <= 7 ? "#2563eb" : "#6e7682";
 
   return (
     <span className="font-mono text-sm tabular-nums font-medium" style={{ color }}>
@@ -38,13 +38,13 @@ const EVENT_ICONS: Record<string, string> = {
 };
 
 const EVENT_COLORS: Record<string, string> = {
-  FOMC: "#ff6b6b",
-  CPI: "#fbbf24",
-  NFP: "#4a9eff",
-  GDP: "#00ff88",
-  "Retail Sales": "#a855f7",
-  PMI: "#f97316",
-  "Consumer Sentiment": "#ec4899",
+  FOMC: "#d23b3b",
+  CPI: "#a86e15",
+  NFP: "#2563eb",
+  GDP: "#0a8f57",
+  "Retail Sales": "#0e9384",
+  PMI: "#e3700f",
+  "Consumer Sentiment": "#d6307e",
 };
 
 export default function CalendarPanel({
@@ -63,8 +63,8 @@ export default function CalendarPanel({
 }) {
   if (!calendar?.events || calendar.events.length === 0) {
     return (
-      <Panel title="Economic Calendar" accent="#ec4899">
-        <div className="text-[#94a3b8] font-mono text-sm text-center py-12">
+      <Panel title="Economic Calendar" accent="#d6307e">
+        <div className="text-[#6e7682] font-mono text-sm text-center py-8">
           No upcoming events
         </div>
       </Panel>
@@ -77,20 +77,20 @@ export default function CalendarPanel({
   );
 
   return (
-    <Panel title="Econ Calendar" subtitle="30d" accent="#ec4899">
+    <Panel title="Econ Calendar" note="Upcoming releases that tend to move rates (CPI, jobs, FOMC). Volatility usually clusters around these dates." subtitle="30d" accent="#d6307e">
       <div className="space-y-1.5">
         {sorted.slice(0, 10).map((evt, i) => {
           const eventKey = Object.keys(EVENT_COLORS).find((k) =>
             evt.event?.includes(k)
           );
-          const color = eventKey ? EVENT_COLORS[eventKey] : "#94a3b8";
+          const color = eventKey ? EVENT_COLORS[eventKey] : "#6e7682";
           const icon = eventKey ? EVENT_ICONS[eventKey] : "\u25CB";
           const isPast = new Date(evt.date).getTime() < Date.now();
 
           return (
             <motion.div
               key={i}
-              className={`flex items-center gap-3 bg-[#0f172a] rounded px-4 py-2.5 ${
+              className={`flex items-center gap-3 bg-[#f6f7f9] rounded px-4 py-2.5 ${
                 isPast ? "opacity-50" : ""
               }`}
               initial={{ opacity: 0, x: 10 }}
@@ -101,10 +101,10 @@ export default function CalendarPanel({
                 {icon}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="font-mono text-sm text-[#e2e8f0] truncate">
+                <div className="font-mono text-sm text-[#1f2937] truncate">
                   {evt.event}
                 </div>
-                <div className="font-mono text-xs text-[#94a3b8]">
+                <div className="font-mono text-xs text-[#6e7682]">
                   {new Date(evt.date).toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",

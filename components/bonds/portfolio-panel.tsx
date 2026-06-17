@@ -4,13 +4,13 @@ import { motion } from "framer-motion";
 import Panel from "./panel";
 
 const ALLOCATION_COLORS: Record<string, string> = {
-  treasuries_short: "#4a9eff",
-  treasuries_mid: "#00ff88",
-  treasuries_long: "#a855f7",
-  ig_corporate: "#fbbf24",
-  hy_corporate: "#ff6b6b",
-  tips: "#f97316",
-  cash: "#4a5568",
+  treasuries_short: "#2563eb",
+  treasuries_mid: "#0a8f57",
+  treasuries_long: "#0e9384",
+  ig_corporate: "#a86e15",
+  hy_corporate: "#d23b3b",
+  tips: "#e3700f",
+  cash: "#a8aeb9",
 };
 
 const ALLOCATION_LABELS: Record<string, string> = {
@@ -66,7 +66,7 @@ function DonutChart({
     return {
       key,
       d,
-      color: ALLOCATION_COLORS[key] || "#4a5568",
+      color: ALLOCATION_COLORS[key] || "#a8aeb9",
       pct: (value / total) * 100,
     };
   });
@@ -79,7 +79,7 @@ function DonutChart({
           d={seg.d}
           fill={seg.color}
           fillOpacity={0.8}
-          stroke="#111827"
+          stroke="#ffffff"
           strokeWidth={1.5}
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -104,8 +104,8 @@ export default function PortfolioPanel({
 }) {
   if (!portfolio || portfolio.error) {
     return (
-      <Panel title="Portfolio" accent="#00ff88">
-        <div className="text-[#94a3b8] font-mono text-sm text-center py-12">
+      <Panel title="Portfolio" accent="#0a8f57">
+        <div className="text-[#6e7682] font-mono text-sm text-center py-8">
           No portfolio data
         </div>
       </Panel>
@@ -116,7 +116,7 @@ export default function PortfolioPanel({
   const base = portfolio.base_allocation || {};
 
   return (
-    <Panel title="Portfolio Allocation" accent="#00ff88">
+    <Panel title="Portfolio Allocation" note="Suggested duration and sector tilts implied by the aggregated signals - a starting point, not a mandate." accent="#0a8f57">
       {/* Donut */}
       <DonutChart allocation={alloc} />
 
@@ -125,7 +125,7 @@ export default function PortfolioPanel({
         {Object.entries(alloc)
           .sort(([, a], [, b]) => b - a)
           .map(([key, value]) => {
-            const color = ALLOCATION_COLORS[key] || "#4a5568";
+            const color = ALLOCATION_COLORS[key] || "#a8aeb9";
             const label = ALLOCATION_LABELS[key] || key;
             const baseVal = base[key] || 0;
             const diff = value - baseVal;
@@ -139,14 +139,14 @@ export default function PortfolioPanel({
                   className="w-3 h-3 rounded shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-[#cbd5e1] w-20">{label}</span>
-                <span className="text-[#f1f5f9] w-12 text-right font-medium">
+                <span className="text-[#374151] w-20">{label}</span>
+                <span className="text-[#0f1115] w-12 text-right font-medium">
                   {(value * 100).toFixed(0)}%
                 </span>
                 {Math.abs(diff) > 0.005 && (
                   <span
                     className="text-xs"
-                    style={{ color: diff > 0 ? "#00ff88" : "#ff6b6b" }}
+                    style={{ color: diff > 0 ? "#0a8f57" : "#d23b3b" }}
                   >
                     ({diff > 0 ? "+" : ""}
                     {(diff * 100).toFixed(0)}%)
@@ -159,8 +159,8 @@ export default function PortfolioPanel({
 
       {/* Tilts applied */}
       {portfolio.tilts_applied && portfolio.tilts_applied.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[#1e293b]">
-          <div className="font-mono text-xs text-[#cbd5e1]">
+        <div className="mt-4 pt-3 border-t border-[#e8eaee]">
+          <div className="font-mono text-xs text-[#374151]">
             TILTS: {portfolio.tilts_applied.map((t) => t.signal_type).join(", ")}
           </div>
         </div>
