@@ -8,11 +8,16 @@ import {
   useEffect,
   useRef,
   useCallback,
+  Suspense,
   type JSX,
+  type ComponentProps,
 } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import TerminalHeader from "@/components/bonds/terminal-header";
+import TabBar, { type TabBarItem } from "@/components/bonds/tab-bar";
+import { Masonry, MasonryItem, fadeUp } from "@/components/bonds/masonry";
 import YieldCurvePanel from "@/components/bonds/yield-curve-panel";
 import SignalConsole from "@/components/bonds/signal-console";
 import MacroPanel from "@/components/bonds/macro-panel";
@@ -26,11 +31,112 @@ import RegimeIndicator from "@/components/bonds/regime-indicator";
 import ModelDiagnostics from "@/components/bonds/model-diagnostics";
 import SentimentGauge from "@/components/bonds/sentiment-gauge";
 
-const fadeUp = (delay: number) => ({
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay, duration: 0.5, ease: "easeOut" as const },
-});
+// Parsed dashboard snapshot. Slices are typed `unknown` at this boundary and
+// cast when handed to each panel (each panel declares its own shape).
+interface BondsData {
+  yield_curve?: unknown;
+  model?: unknown;
+  signals?: unknown;
+  macro?: unknown;
+  credit?: unknown;
+  etfs?: unknown;
+  sentiment?: unknown;
+  portfolio?: unknown;
+  calendar?: unknown;
+  generated_at?: string;
+  status?: string;
+  errors?: string[];
+}
+
+interface TabSpec extends TabBarItem {
+  panels: { key: string; render: (data: BondsData) => JSX.Element }[];
+}
+
+// Yield curve is a persistent hero above the tabs (it needs full width), so it
+// is not in any tab. Panels are listed tall-first for tidier column packing.
+const TABS: readonly TabSpec[] = [
+  {
+    id: "signals",
+    label: "Signals & Ideas",
+    panels: [
+      { key: "signals", render: (d) => <SignalConsole signals={d.signals as ComponentProps<typeof SignalConsole>["signals"]} /> },
+      { key: "trades", render: (d) => <TradeIdeas signals={d.signals as ComponentProps<typeof TradeIdeas>["signals"]} /> },
+      { key: "memo", render: (d) => <MemoPanel signals={d.signals as ComponentProps<typeof MemoPanel>["signals"]} /> },
+    ],
+  },
+  {
+    id: "model",
+    label: "Model & Regime",
+    panels: [
+      { key: "regime", render: (d) => <RegimeIndicator model={d.model as ComponentProps<typeof RegimeIndicator>["model"]} /> },
+      { key: "diagnostics", render: (d) => <ModelDiagnostics model={d.model as ComponentProps<typeof ModelDiagnostics>["model"]} /> },
+      { key: "sentiment", render: (d) => <SentimentGauge sentiment={d.sentiment as ComponentProps<typeof SentimentGauge>["sentiment"]} /> },
+    ],
+  },
+  {
+    id: "markets",
+    label: "Markets",
+    panels: [
+      { key: "macro", render: (d) => <MacroPanel macro={d.macro as ComponentProps<typeof MacroPanel>["macro"]} /> },
+      { key: "credit", render: (d) => <CreditPanel credit={d.credit as ComponentProps<typeof CreditPanel>["credit"]} /> },
+      { key: "etfs", render: (d) => <EtfPanel etfs={d.etfs as ComponentProps<typeof EtfPanel>["etfs"]} /> },
+    ],
+  },
+  {
+    id: "flows",
+    label: "Flows & Calendar",
+    panels: [
+      { key: "portfolio", render: (d) => <PortfolioPanel portfolio={d.portfolio as ComponentProps<typeof PortfolioPanel>["portfolio"]} /> },
+      { key: "calendar", render: (d) => <CalendarPanel calendar={d.calendar as ComponentProps<typeof CalendarPanel>["calendar"]} /> },
+    ],
+  },
+];
+
+const DEFAULT_TAB = "signals";
+
+/** Tabbed + masonry body. Isolated so the `useSearchParams` call sits under Suspense. */
+function BondsTabs({ data }: { data: BondsData }): JSX.Element {
+  const router = useRouter();
+  const params = useSearchParams();
+  const raw = params.get("view");
+  const activeId = TABS.some((t) => t.id === raw) ? (raw as string) : DEFAULT_TAB;
+  const activeTab = TABS.find((t) => t.id === activeId) ?? TABS[0];
+
+  const onSelect = useCallback(
+    (id: string): void => {
+      const usp = new URLSearchParams(Array.from(params.entries()));
+      usp.set("view", id);
+      router.replace(`/bonds?${usp.toString()}`, { scroll: false });
+    },
+    [router, params]
+  );
+
+  return (
+    <div className="space-y-3">
+      <TabBar tabs={TABS} activeId={activeId} onSelect={onSelect} />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeId}
+          id={`panel-${activeId}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeId}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <Masonry>
+            {activeTab.panels.map((p, i) => (
+              <MasonryItem key={p.key} delay={0.04 * i}>
+                {p.render(data)}
+              </MasonryItem>
+            ))}
+          </Masonry>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function TerminalLoading() {
   return (
@@ -94,10 +200,10 @@ export default function BondsPage(): JSX.Element {
   // generatedAt captured at click time; refresh is "done" once a newer one lands.
   const pendingFromRef = useRef<string | null>(null);
 
-  const data = useMemo(() => {
+  const data = useMemo((): BondsData | null => {
     if (!snapshot?.data) return null;
     try {
-      return JSON.parse(snapshot.data);
+      return JSON.parse(snapshot.data) as BondsData;
     } catch {
       return null;
     }
@@ -149,7 +255,7 @@ export default function BondsPage(): JSX.Element {
     <div className="min-h-screen bg-[#ffffff] text-[#1f2937]">
       <TerminalHeader
         generatedAt={data.generated_at || snapshot.generatedAt}
-        status={data.status}
+        status={data.status ?? snapshot.status}
         errors={data.errors}
         canRefresh={isAdmin}
         refreshing={refreshing}
@@ -158,63 +264,19 @@ export default function BondsPage(): JSX.Element {
       />
 
       <main className="max-w-[1600px] mx-auto px-4 lg:px-6 pb-10 space-y-3 pt-3">
-        {/* === ROW 1: Hero — Yield Curve + Regime (matched heights) === */}
-        <div className="grid grid-cols-1 items-start lg:grid-cols-4 gap-3">
-          <motion.div className="lg:col-span-3" {...fadeUp(0.05)}>
-            <YieldCurvePanel yieldCurve={data.yield_curve} />
-          </motion.div>
-          <motion.div className="lg:col-span-1" {...fadeUp(0.1)}>
-            <RegimeIndicator model={data.model} />
-          </motion.div>
-        </div>
-
-        {/* === ROW 2: Signals + Trade Ideas (both tall — matched) === */}
-        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
-          <motion.div {...fadeUp(0.15)}>
-            <SignalConsole signals={data.signals} />
-          </motion.div>
-          <motion.div {...fadeUp(0.2)}>
-            <TradeIdeas signals={data.signals} />
-          </motion.div>
-        </div>
-
-        {/* === ROW 3: Sentiment + Macro (both medium — matched) === */}
-        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
-          <motion.div {...fadeUp(0.25)}>
-            <SentimentGauge sentiment={data.sentiment} />
-          </motion.div>
-          <motion.div {...fadeUp(0.3)}>
-            <MacroPanel macro={data.macro} />
-          </motion.div>
-        </div>
-
-        {/* === ROW 4: Credit + ETFs + Portfolio === */}
-        <div className="grid grid-cols-1 items-start lg:grid-cols-3 gap-3">
-          <motion.div {...fadeUp(0.35)}>
-            <CreditPanel credit={data.credit} />
-          </motion.div>
-          <motion.div {...fadeUp(0.4)}>
-            <EtfPanel etfs={data.etfs} />
-          </motion.div>
-          <motion.div {...fadeUp(0.45)}>
-            <PortfolioPanel portfolio={data.portfolio} />
-          </motion.div>
-        </div>
-
-        {/* === ROW 5: Calendar + Model Diagnostics === */}
-        <div className="grid grid-cols-1 items-start lg:grid-cols-2 gap-3">
-          <motion.div {...fadeUp(0.5)}>
-            <CalendarPanel calendar={data.calendar} />
-          </motion.div>
-          <motion.div {...fadeUp(0.55)}>
-            <ModelDiagnostics model={data.model} />
-          </motion.div>
-        </div>
-
-        {/* === ROW 6: Investment Memo (full width) === */}
-        <motion.div {...fadeUp(0.6)}>
-          <MemoPanel signals={data.signals} />
+        {/* Persistent full-width hero — never enters a narrow masonry column */}
+        <motion.div {...fadeUp(0.05)}>
+          <YieldCurvePanel
+            yieldCurve={
+              data.yield_curve as ComponentProps<typeof YieldCurvePanel>["yieldCurve"]
+            }
+          />
         </motion.div>
+
+        {/* Tabbed + masonry body (Suspense required by useSearchParams) */}
+        <Suspense fallback={<div className="h-10" />}>
+          <BondsTabs data={data} />
+        </Suspense>
 
         {/* Footer */}
         <div className="pt-4 border-t border-[#e8eaee] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#6e7682]">

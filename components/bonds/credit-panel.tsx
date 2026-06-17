@@ -104,11 +104,11 @@ export default function CreditPanel({
         <div className="mt-4 pt-3 border-t border-[#e8eaee]">
           <div className="font-mono text-xs text-[#374151] mb-2 tracking-wide">RELATIVE VALUE</div>
           <div className="flex flex-wrap gap-2">
-            {credit.sector_rv.map((s) => {
+            {credit.sector_rv.map((s, i) => {
               const score = s.rv_score ?? 0;
               const color = score > 0.5 ? "#0a8f57" : score < -0.5 ? "#d23b3b" : "#6e7682";
               return (
-                <div key={s.sector} className="bg-[#f6f7f9] rounded px-3 py-1.5 font-mono text-sm">
+                <div key={`${s.sector ?? "rv"}-${i}`} className="bg-[#f6f7f9] rounded px-3 py-1.5 font-mono text-sm">
                   <span className="text-[#1f2937]">{s.sector}</span>
                   <span className="ml-2 font-medium" style={{ color }}>
                     {score > 0 ? "+" : ""}{score.toFixed(2)}

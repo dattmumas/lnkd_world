@@ -1,10 +1,23 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { type JSX } from "react";
+
+interface PanelProps {
+  title: string;
+  subtitle?: string;
+  note?: string;
+  accent?: string;
+  className?: string;
+  /** Drop `h-full` so the card takes its intrinsic height (needed in masonry). */
+  fitContent?: boolean;
+  children: React.ReactNode;
+}
 
 /**
- * Shared panel wrapper — Bloomberg terminal aesthetic.
- * Bigger, more readable, proper spacing.
+ * Shared panel wrapper for the bonds dashboard. White card, hairline border,
+ * subtle lift. `h-full` by default (for matched-height rows); pass `fitContent`
+ * to let it size to content inside a masonry column.
  */
 export default function Panel({
   title,
@@ -12,18 +25,12 @@ export default function Panel({
   note,
   accent = "#2563eb",
   className = "",
+  fitContent = false,
   children,
-}: {
-  title: string;
-  subtitle?: string;
-  note?: string;
-  accent?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
+}: PanelProps): JSX.Element {
   return (
     <div
-      className={`bg-white border border-[#e6e8ee] rounded-lg overflow-hidden h-full shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.03)] ${className}`}
+      className={`bg-white border border-[#e6e8ee] rounded-lg overflow-hidden ${fitContent ? "" : "h-full"} shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.03)] ${className}`}
     >
       {/* Panel header bar */}
       <div className="flex items-center gap-2 px-3.5 py-2 bg-[#fafbfc] border-b border-[#eef0f3]">
