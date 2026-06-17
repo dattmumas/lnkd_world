@@ -25,14 +25,14 @@ const ALLOCATION_LABELS: Record<string, string> = {
 
 function DonutChart({
   allocation,
-  size = 120,
+  size = 180,
 }: {
   allocation: Record<string, number>;
   size?: number;
 }) {
   const entries = Object.entries(allocation).filter(([, v]) => v > 0);
   const total = entries.reduce((sum, [, v]) => sum + v, 0);
-  const r = size / 2 - 10;
+  const r = size / 2 - 12;
   const cx = size / 2;
   const cy = size / 2;
 
@@ -72,7 +72,7 @@ function DonutChart({
   });
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-auto max-w-[140px] mx-auto">
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-auto max-w-[180px] mx-auto">
       {segments.map((seg, i) => (
         <motion.path
           key={seg.key}
@@ -80,7 +80,7 @@ function DonutChart({
           fill={seg.color}
           fillOpacity={0.8}
           stroke="#111827"
-          strokeWidth={1}
+          strokeWidth={1.5}
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: i * 0.1, type: "spring" }}
@@ -105,7 +105,7 @@ export default function PortfolioPanel({
   if (!portfolio || portfolio.error) {
     return (
       <Panel title="Portfolio" accent="#00ff88">
-        <div className="text-[#4a5568] font-mono text-xs text-center py-8">
+        <div className="text-[#94a3b8] font-mono text-sm text-center py-12">
           No portfolio data
         </div>
       </Panel>
@@ -121,7 +121,7 @@ export default function PortfolioPanel({
       <DonutChart allocation={alloc} />
 
       {/* Legend / breakdown */}
-      <div className="mt-3 space-y-1">
+      <div className="mt-4 space-y-2">
         {Object.entries(alloc)
           .sort(([, a], [, b]) => b - a)
           .map(([key, value]) => {
@@ -133,19 +133,19 @@ export default function PortfolioPanel({
             return (
               <div
                 key={key}
-                className="flex items-center gap-2 font-mono text-[10px]"
+                className="flex items-center gap-3 font-mono text-sm"
               >
                 <div
-                  className="w-2 h-2 rounded-sm shrink-0"
+                  className="w-3 h-3 rounded shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-[#94a3b8] w-16">{label}</span>
-                <span className="text-[#e2e8f0] w-10 text-right">
+                <span className="text-[#cbd5e1] w-20">{label}</span>
+                <span className="text-[#f1f5f9] w-12 text-right font-medium">
                   {(value * 100).toFixed(0)}%
                 </span>
                 {Math.abs(diff) > 0.005 && (
                   <span
-                    className="text-[9px]"
+                    className="text-xs"
                     style={{ color: diff > 0 ? "#00ff88" : "#ff6b6b" }}
                   >
                     ({diff > 0 ? "+" : ""}
@@ -159,8 +159,8 @@ export default function PortfolioPanel({
 
       {/* Tilts applied */}
       {portfolio.tilts_applied && portfolio.tilts_applied.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-[#1e293b]">
-          <div className="font-mono text-[9px] text-[#4a5568]">
+        <div className="mt-4 pt-3 border-t border-[#1e293b]">
+          <div className="font-mono text-xs text-[#cbd5e1]">
             TILTS: {portfolio.tilts_applied.map((t) => t.signal_type).join(", ")}
           </div>
         </div>

@@ -24,9 +24,9 @@ function CorrelationMatrix({
       <table className="w-full">
         <thead>
           <tr>
-            <th className="font-mono text-[8px] text-[#4a5568] p-0.5" />
+            <th className="font-mono text-xs text-[#94a3b8] p-1" />
             {tickers.map((t) => (
-              <th key={t} className="font-mono text-[8px] text-[#4a5568] p-0.5">
+              <th key={t} className="font-mono text-xs text-[#94a3b8] p-1">
                 {t}
               </th>
             ))}
@@ -35,13 +35,13 @@ function CorrelationMatrix({
         <tbody>
           {tickers.map((rowT, i) => (
             <tr key={rowT}>
-              <td className="font-mono text-[8px] text-[#4a5568] p-0.5 text-right pr-1">
+              <td className="font-mono text-xs text-[#94a3b8] p-1 text-right pr-2">
                 {rowT}
               </td>
               {values[i].map((v, j) => (
-                <td key={j} className="p-0.5">
+                <td key={j} className="p-1">
                   <motion.div
-                    className="w-full aspect-square rounded-sm flex items-center justify-center font-mono text-[7px]"
+                    className="w-full aspect-square rounded flex items-center justify-center font-mono text-[10px]"
                     style={{
                       backgroundColor: cellColor(v),
                       opacity: i === j ? 0.3 : 0.6 + Math.abs(v) * 0.4,
@@ -85,7 +85,7 @@ export default function EtfPanel({
   if (!etfs?.available) {
     return (
       <Panel title="Bond ETFs" accent="#a855f7">
-        <div className="text-[#4a5568] font-mono text-xs text-center py-8">
+        <div className="text-[#94a3b8] font-mono text-sm text-center py-12">
           No ETF data
         </div>
       </Panel>
@@ -95,44 +95,44 @@ export default function EtfPanel({
   return (
     <Panel title="Bond ETFs" accent="#a855f7">
       {/* ETF table */}
-      <div className="space-y-1 mb-3">
+      <div className="space-y-1.5 mb-4">
         {etfs.etfs.map((etf, i) => (
           <motion.div
             key={etf.ticker}
-            className="flex items-center gap-2 bg-[#0f172a] rounded-sm px-2 py-1.5"
+            className="flex items-center gap-3 bg-[#0f172a] rounded px-4 py-2.5"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
           >
-            <div className="font-mono text-[10px] text-[#4a9eff] w-8 shrink-0">
+            <div className="font-mono text-sm text-[#4a9eff] w-10 shrink-0 font-medium">
               {etf.ticker}
             </div>
-            <div className="font-mono text-[10px] text-[#e2e8f0] w-14 text-right shrink-0">
+            <div className="font-mono text-base text-[#f1f5f9] w-16 text-right shrink-0 font-medium">
               ${etf.price != null ? etf.price.toFixed(1) : "--"}
             </div>
-            <div className="shrink-0 w-12">
+            <div className="shrink-0 w-16">
               <ChangeBadge value={etf.return_1d} suffix="%" decimals={1} />
             </div>
             <div className="flex-1 min-w-0">
               <Sparkline
                 data={etf.sparkline}
-                width={70}
-                height={18}
+                width={120}
+                height={28}
                 color={etf.return_1m >= 0 ? "#00ff88" : "#ff6b6b"}
               />
             </div>
-            <div className="shrink-0 w-12 text-right">
+            <div className="shrink-0 w-16 text-right">
               <ChangeBadge value={etf.return_ytd} suffix="%" decimals={1} />
             </div>
-            <div className="font-mono text-[8px] text-[#4a5568] shrink-0">YTD</div>
+            <div className="font-mono text-xs text-[#94a3b8] shrink-0">YTD</div>
           </motion.div>
         ))}
       </div>
 
       {/* Correlation matrix */}
       {etfs.correlation && (
-        <div className="pt-2 border-t border-[#1e293b]">
-          <div className="font-mono text-[10px] text-[#4a5568] mb-2">
+        <div className="pt-3 border-t border-[#1e293b]">
+          <div className="font-mono text-xs text-[#cbd5e1] mb-2 tracking-wide">
             CORRELATION MATRIX (60D)
           </div>
           <CorrelationMatrix correlation={etfs.correlation} />

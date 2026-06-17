@@ -62,14 +62,14 @@ export default function RegimeIndicator({
   return (
     <Panel title="Regime" accent={color}>
       {/* Current regime indicator */}
-      <div className="text-center mb-4">
+      <div className="text-center mb-5">
         <motion.div
-          className="inline-flex items-center justify-center w-16 h-16 rounded-full border-2 mb-2"
+          className="inline-flex items-center justify-center w-20 h-20 rounded-full border-2 mb-3"
           style={{ borderColor: color }}
           animate={{
             boxShadow: [
               `0 0 0 0 ${color}40`,
-              `0 0 0 8px ${color}00`,
+              `0 0 0 10px ${color}00`,
             ],
           }}
           transition={{
@@ -78,38 +78,38 @@ export default function RegimeIndicator({
           }}
         >
           <motion.div
-            className="w-8 h-8 rounded-full"
+            className="w-10 h-10 rounded-full"
             style={{ backgroundColor: color }}
             animate={{ scale: [0.9, 1.1, 0.9] }}
             transition={{ duration: 3, repeat: Infinity }}
           />
         </motion.div>
-        <div className="font-mono text-[10px] tracking-widest" style={{ color }}>
+        <div className="font-mono text-xs tracking-widest font-medium" style={{ color }}>
           {label}
         </div>
       </div>
 
       {/* Trend + Level badges */}
       {regime && (
-        <div className="flex justify-center gap-2 mb-3">
-          <div className="bg-[#0f172a] rounded-sm px-2 py-1 font-mono text-[9px]">
-            <span className="text-[#4a5568]">TREND </span>
-            <span className="text-[#94a3b8] uppercase">{regime.trend}</span>
+        <div className="flex justify-center gap-3 mb-4">
+          <div className="bg-[#0f172a] rounded px-3 py-1.5 font-mono text-xs">
+            <span className="text-[#cbd5e1]">TREND </span>
+            <span className="text-[#e2e8f0] uppercase font-medium">{regime.trend}</span>
           </div>
-          <div className="bg-[#0f172a] rounded-sm px-2 py-1 font-mono text-[9px]">
-            <span className="text-[#4a5568]">LEVEL </span>
-            <span className="text-[#94a3b8] uppercase">{regime.level}</span>
+          <div className="bg-[#0f172a] rounded px-3 py-1.5 font-mono text-xs">
+            <span className="text-[#cbd5e1]">LEVEL </span>
+            <span className="text-[#e2e8f0] uppercase font-medium">{regime.level}</span>
           </div>
         </div>
       )}
 
       {/* Prediction */}
       {prediction && (
-        <div className="bg-[#0f172a] rounded-sm p-2 mb-2">
-          <div className="font-mono text-[9px] text-[#4a5568] mb-1">21D FORECAST</div>
+        <div className="bg-[#0f172a] rounded p-4 mb-3">
+          <div className="font-mono text-xs text-[#cbd5e1] mb-2">21D FORECAST</div>
           <div className="text-center">
             <motion.div
-              className="font-mono text-xl font-bold"
+              className="font-mono text-2xl font-bold"
               style={{
                 color:
                   (prediction.predicted_change_bps || 0) > 0
@@ -124,10 +124,10 @@ export default function RegimeIndicator({
             >
               {(prediction.predicted_change_bps || 0) > 0 ? "+" : ""}
               {(prediction.predicted_change_bps || 0).toFixed(0)}
-              <span className="text-xs font-normal">bp</span>
+              <span className="text-sm font-normal ml-0.5">bp</span>
             </motion.div>
             {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
-              <div className="font-mono text-[9px] text-[#4a5568] mt-0.5">
+              <div className="font-mono text-xs text-[#94a3b8] mt-1">
                 90% CI: [{prediction.ci_90_lower_bps.toFixed(0)},{" "}
                 {prediction.ci_90_upper_bps.toFixed(0)}]
               </div>
@@ -138,11 +138,11 @@ export default function RegimeIndicator({
 
       {/* Validation confidence */}
       {validation && validation.confidence_score != null && (
-        <div className="bg-[#0f172a] rounded-sm p-2">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[9px] text-[#4a5568]">MODEL CONF</span>
+        <div className="bg-[#0f172a] rounded p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-mono text-xs text-[#cbd5e1]">MODEL CONF</span>
             <span
-              className="font-mono text-[10px] font-bold uppercase"
+              className="font-mono text-sm font-bold uppercase"
               style={{
                 color:
                   validation.confidence_level === "high"
@@ -155,7 +155,7 @@ export default function RegimeIndicator({
               {validation.confidence_level}
             </span>
           </div>
-          <div className="h-1.5 bg-[#1e293b] rounded-full overflow-hidden mt-1">
+          <div className="h-2.5 bg-[#1e293b] rounded-full overflow-hidden">
             <motion.div
               className="h-full rounded-full"
               style={{
@@ -171,7 +171,7 @@ export default function RegimeIndicator({
               transition={{ duration: 1 }}
             />
           </div>
-          <div className="font-mono text-[9px] text-[#4a5568] text-center mt-1">
+          <div className="font-mono text-xs text-[#94a3b8] text-center mt-2">
             {(validation.confidence_score || 0).toFixed(0)} / 100
           </div>
         </div>

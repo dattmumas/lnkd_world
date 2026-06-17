@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 
 /**
- * Shared panel wrapper for Bloomberg terminal aesthetic.
- * Every dashboard section is wrapped in this.
+ * Shared panel wrapper — Bloomberg terminal aesthetic.
+ * Bigger, more readable, proper spacing.
  */
 export default function Panel({
   title,
@@ -21,58 +21,23 @@ export default function Panel({
 }) {
   return (
     <div
-      className={`bg-[#111827] border border-[#1e293b] rounded-sm overflow-hidden ${className}`}
+      className={`bg-[#111827] border border-[#1e293b] rounded overflow-hidden h-full ${className}`}
     >
       {/* Panel header bar */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0f172a] border-b border-[#1e293b]">
-        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
-        <span className="font-mono text-[10px] tracking-widest uppercase text-[#94a3b8]">
+      <div className="flex items-center gap-2.5 px-5 py-2.5 bg-[#0f172a] border-b border-[#1e293b]">
+        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accent }} />
+        <span className="font-mono text-xs tracking-[0.2em] uppercase text-[#cbd5e1] font-medium">
           {title}
         </span>
         {subtitle && (
-          <span className="font-mono text-[10px] text-[#4a5568] ml-auto">
+          <span className="font-mono text-xs text-[#94a3b8] ml-auto">
             {subtitle}
           </span>
         )}
       </div>
       {/* Panel content */}
-      <div className="p-3">{children}</div>
+      <div className="p-5">{children}</div>
     </div>
-  );
-}
-
-/**
- * Animated number that counts up from 0 to target value.
- */
-export function AnimatedValue({
-  value,
-  suffix = "",
-  prefix = "",
-  decimals = 2,
-  color,
-  className = "",
-}: {
-  value: number | null | undefined;
-  suffix?: string;
-  prefix?: string;
-  decimals?: number;
-  color?: string;
-  className?: string;
-}) {
-  if (value == null) return <span className="text-[#4a5568]">--</span>;
-
-  return (
-    <motion.span
-      className={className}
-      style={{ color }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      {prefix}
-      {typeof value === "number" ? value.toFixed(decimals) : value}
-      {suffix}
-    </motion.span>
   );
 }
 
@@ -86,13 +51,13 @@ export function DirectionArrow({
   direction: number;
   size?: "sm" | "md" | "lg";
 }) {
-  const sizeMap = { sm: "text-xs", md: "text-sm", lg: "text-lg" };
-  const colors = {
-    1: "text-[#00ff88]",
-    0: "text-[#4a5568]",
-    [-1]: "text-[#ff6b6b]",
+  const sizeMap = { sm: "text-sm", md: "text-base", lg: "text-xl" };
+  const colors: Record<number, string> = {
+    1: "#00ff88",
+    0: "#94a3b8",
+    [-1]: "#ff6b6b",
   };
-  const arrows = {
+  const arrows: Record<number, string> = {
     1: "\u25B2",
     0: "\u25C6",
     [-1]: "\u25BC",
@@ -101,8 +66,8 @@ export function DirectionArrow({
   const d = direction > 0 ? 1 : direction < 0 ? -1 : 0;
 
   return (
-    <span className={`${sizeMap[size]} ${colors[d as keyof typeof colors]}`}>
-      {arrows[d as keyof typeof arrows]}
+    <span className={`${sizeMap[size]}`} style={{ color: colors[d] }}>
+      {arrows[d]}
     </span>
   );
 }
@@ -112,10 +77,12 @@ export function DirectionArrow({
  */
 export function ConvictionBar({
   value,
-  maxWidth = 80,
+  maxWidth = 120,
+  height = 6,
 }: {
   value: number;
   maxWidth?: number;
+  height?: number;
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const color =
@@ -123,8 +90,8 @@ export function ConvictionBar({
 
   return (
     <div
-      className="h-1.5 rounded-full bg-[#1e293b] overflow-hidden"
-      style={{ width: maxWidth }}
+      className="rounded-full bg-[#1e293b] overflow-hidden"
+      style={{ width: maxWidth, height }}
     >
       <motion.div
         className="h-full rounded-full"
@@ -142,8 +109,8 @@ export function ConvictionBar({
  */
 export function Sparkline({
   data,
-  width = 80,
-  height = 24,
+  width = 120,
+  height = 32,
   color = "#4a9eff",
   showArea = false,
 }: {
@@ -162,7 +129,7 @@ export function Sparkline({
 
   const points = values.map((v, i) => {
     const x = (i / (values.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 2) - 1;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
     return `${x},${y}`;
   });
 
@@ -173,11 +140,7 @@ export function Sparkline({
   return (
     <svg width={width} height={height} className="inline-block">
       {showArea && (
-        <polygon
-          points={areaPoints}
-          fill={color}
-          fillOpacity={0.1}
-        />
+        <polygon points={areaPoints} fill={color} fillOpacity={0.1} />
       )}
       <polyline
         points={points.join(" ")}
@@ -186,11 +149,10 @@ export function Sparkline({
         strokeWidth={1.5}
         strokeLinejoin="round"
       />
-      {/* Current value dot */}
       <circle
         cx={width}
         cy={parseFloat(points[points.length - 1].split(",")[1])}
-        r={2}
+        r={2.5}
         fill={color}
       />
     </svg>
@@ -209,13 +171,13 @@ export function ChangeBadge({
   suffix?: string;
   decimals?: number;
 }) {
-  if (value == null) return <span className="text-[#4a5568]">--</span>;
+  if (value == null) return <span className="text-[#64748b]">--</span>;
 
-  const color = value > 0 ? "#00ff88" : value < 0 ? "#ff6b6b" : "#4a5568";
+  const color = value > 0 ? "#00ff88" : value < 0 ? "#ff6b6b" : "#94a3b8";
   const sign = value > 0 ? "+" : "";
 
   return (
-    <span className="font-mono text-xs" style={{ color }}>
+    <span className="font-mono text-sm" style={{ color }}>
       {sign}
       {value.toFixed(decimals)}
       {suffix}

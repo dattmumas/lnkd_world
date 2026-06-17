@@ -15,13 +15,13 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }, [targetDate]);
 
   if (days === null) return null;
-  if (days < 0) return <span className="text-[#4a5568]">PAST</span>;
+  if (days < 0) return <span className="text-[#94a3b8] text-xs">PAST</span>;
 
   const color =
-    days <= 1 ? "#ff6b6b" : days <= 3 ? "#fbbf24" : days <= 7 ? "#4a9eff" : "#4a5568";
+    days <= 1 ? "#ff6b6b" : days <= 3 ? "#fbbf24" : days <= 7 ? "#4a9eff" : "#94a3b8";
 
   return (
-    <span className="font-mono text-[10px] tabular-nums" style={{ color }}>
+    <span className="font-mono text-sm tabular-nums font-medium" style={{ color }}>
       {days === 0 ? "TODAY" : days === 1 ? "1D" : `${days}D`}
     </span>
   );
@@ -64,7 +64,7 @@ export default function CalendarPanel({
   if (!calendar?.events || calendar.events.length === 0) {
     return (
       <Panel title="Economic Calendar" accent="#ec4899">
-        <div className="text-[#4a5568] font-mono text-xs text-center py-8">
+        <div className="text-[#94a3b8] font-mono text-sm text-center py-12">
           No upcoming events
         </div>
       </Panel>
@@ -78,33 +78,33 @@ export default function CalendarPanel({
 
   return (
     <Panel title="Econ Calendar" subtitle="30d" accent="#ec4899">
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {sorted.slice(0, 10).map((evt, i) => {
           const eventKey = Object.keys(EVENT_COLORS).find((k) =>
             evt.event?.includes(k)
           );
-          const color = eventKey ? EVENT_COLORS[eventKey] : "#4a5568";
+          const color = eventKey ? EVENT_COLORS[eventKey] : "#94a3b8";
           const icon = eventKey ? EVENT_ICONS[eventKey] : "\u25CB";
           const isPast = new Date(evt.date).getTime() < Date.now();
 
           return (
             <motion.div
               key={i}
-              className={`flex items-center gap-2 bg-[#0f172a] rounded-sm px-2 py-1.5 ${
+              className={`flex items-center gap-3 bg-[#0f172a] rounded px-4 py-2.5 ${
                 isPast ? "opacity-50" : ""
               }`}
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: isPast ? 0.5 : 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <span className="text-[10px]" style={{ color }}>
+              <span className="text-base" style={{ color }}>
                 {icon}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="font-mono text-[10px] text-[#94a3b8] truncate">
+                <div className="font-mono text-sm text-[#e2e8f0] truncate">
                   {evt.event}
                 </div>
-                <div className="font-mono text-[9px] text-[#4a5568]">
+                <div className="font-mono text-xs text-[#94a3b8]">
                   {new Date(evt.date).toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",
