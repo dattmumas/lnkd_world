@@ -29,6 +29,7 @@ export interface RankedPost {
   user: XUser | undefined;
   W: number;
   score: number;
+  reply?: string; // optional AI-suggested reply (Trending on X feed)
 }
 export interface FeedGroup {
   niche: string; // section header; "" renders no header (flat list)
@@ -58,6 +59,61 @@ export function scorePost(
   const W = weightedEngagement(tweet.public_metrics);
   const ageMin = Math.max((nowMs - Date.parse(tweet.created_at)) / 60000, 30);
   return { W, score: (W / ageMin) * Math.sqrt(W) };
+}
+
+const REPLY_SYSTEM = `You write concise, high-signal replies to posts on X (Twitter) for someone building a presence in health, longevity, and startups.
+
+Rules:
+- Add genuine value: a sharp insight, a relevant fact, a thoughtful question, or a useful counterpoint.
+- Be specific to the post. Never generic praise ("Great point!") and never restate the post.
+- Conversational and natural. No hashtags. No emojis. Avoid hype and sycophancy.
+- One or two sentences, under 250 characters.
+- Output ONLY the reply text — no preamble, quotes, labels, or explanation.`;
+
+/**
+ * Generate a short suggested reply for a post via the Anthropic API (raw HTTP —
+ * the action module also holds a mutation/query, which precludes "use node" and
+ * the SDK). Reads the key from `process.env.anthropic_api_key`. Returns null when
+ * the key is unset or the call fails, so the feed degrades gracefully.
+ */
+export async function suggestReply(tweetText: string): Promise<string | null> {
+  const key = process.env.anthropic_api_key;
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 150,
+        thinking: { type: "disabled" },
+        system: REPLY_SYSTEM,
+        messages: [
+          { role: "user", content: `Post:\n"""${tweetText}"""\n\nWrite the reply.` },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return null;
+    }
+    const json = (await res.json()) as {
+      content?: { type: string; text?: string }[];
+    };
+    const text = (json.content ?? [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("")
+      .trim();
+    return text || null;
+  } catch (e) {
+    console.error(`Anthropic fetch failed: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
 }
 
 // X recent search. Returns tweets + resolved author users (via author_id expansion).
@@ -165,9 +221,16 @@ export function renderHtml(
             "repost",
             m.retweet_count,
           )}${stat("like", m.like_count)}${views}</div>
+          ${
+            p.reply
+              ? `<div class="reply"><div class="reply-label">Suggested reply</div><div class="reply-text">${esc(
+                  p.reply,
+                )}</div><button class="copy" data-copy="${esc(p.reply)}">Copy reply</button></div>`
+              : ""
+          }
           <div class="actions">
             <a href="${permalink}" target="_blank" rel="noopener">Open on X ↗</a>
-            <button class="copy" data-url="${permalink}">Copy link</button>
+            <button class="copy" data-copy="${esc(permalink)}">Copy link</button>
           </div>
         </div>`;
         })
@@ -203,6 +266,9 @@ export function renderHtml(
   .stats { display:flex; gap:20px; align-items:center; color:#536471; font-size:13px; margin-bottom:10px; }
   .stat { display:inline-flex; align-items:center; gap:6px; }
   .stat svg { width:16px; height:16px; fill:currentColor; }
+  .reply { background:#f8fafc; border:1px solid #e6e9ee; border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+  .reply-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; margin-bottom:4px; }
+  .reply-text { font-size:14px; color:#0f172a; margin-bottom:8px; white-space:pre-wrap; }
   .actions { display:flex; gap:10px; align-items:center; }
   .actions a { font-size:13px; font-weight:600; color:#2563eb; text-decoration:none; }
   .actions a:hover { text-decoration:underline; }
@@ -222,10 +288,11 @@ export function renderHtml(
   <script>
     document.querySelectorAll("button.copy").forEach(function (b) {
       b.addEventListener("click", function () {
-        var url = b.getAttribute("data-url");
-        var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = "Copy link"; }, 1500); };
+        var val = b.getAttribute("data-copy");
+        var label = b.textContent;
+        var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1500); };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url).then(done).catch(done);
+          navigator.clipboard.writeText(val).then(done).catch(done);
         } else { done(); }
       });
     });

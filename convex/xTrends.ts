@@ -11,6 +11,7 @@ import {
   searchRecent,
   scorePost,
   renderHtml,
+  suggestReply,
   type FeedGroup,
   type RankedPost,
 } from "./lib/xfeed";
@@ -75,6 +76,16 @@ export const refreshInternal = internalAction({
         groups.push({ niche, posts: ranked });
         total += ranked.length;
       }
+      // AI-suggested reply per selected post (parallel; no-op if the key is unset
+      // or a call fails — the card just renders without a reply).
+      await Promise.all(
+        groups
+          .flatMap((g) => g.posts)
+          .map(async (p) => {
+            const reply = await suggestReply(p.tweet.text);
+            if (reply) p.reply = reply;
+          }),
+      );
       const html = renderHtml(groups, {
         title: "Trending on X",
         subtitle: `early engagement velocity (replies ≫ reposts ≫ likes), posts from the past ${WINDOW_HOURS}h`,
