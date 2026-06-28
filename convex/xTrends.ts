@@ -69,6 +69,23 @@ const QUERIES: { niche: string; q: string }[] = [
 const MAX_RESULTS = 100; // per query (X API allows 10–100); bigger candidate pool
 const TOP_N = 6; // posts kept per niche
 const MIN_W = 25; // weighted-engagement floor to drop noise (≈1 reply or 25 likes)
+const WINDOW_HOURS = 4; // only consider posts from the last N hours (fresh/early)
+const MAX_AGE_MS = WINDOW_HOURS * 3600 * 1000;
+
+// X's own action-bar icons (reply, repost, like, views) as SVG path data.
+const ICON: Record<string, string> = {
+  reply:
+    "M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l1.904-.04v2.58l5.05-2.79c1.94-1.07 3.144-3.11 3.144-5.36 0-3.39-2.75-6.13-6.129-6.13H9.756z",
+  repost:
+    "M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z",
+  like:
+    "M20.884 13.19c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z",
+  views:
+    "M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z",
+};
+function stat(name: string, count: number): string {
+  return `<span class="stat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>${fmt(count)}</span>`;
+}
 
 // X-aligned weights: reply ≫ quote > repost ≈ bookmark ≫ like (see file header).
 function weightedEngagement(m: PublicMetrics): number {
@@ -172,7 +189,7 @@ function renderHtml(
           const m = p.tweet.public_metrics;
           const views =
             m.impression_count && m.impression_count > 0
-              ? ` · 👁 ${fmt(m.impression_count)}`
+              ? stat("views", m.impression_count)
               : "";
           return `
         <div class="post">
@@ -180,9 +197,10 @@ function renderHtml(
             handle,
           )}</span> · <span class="age">${ageLabel(p.tweet.created_at, nowMs)}</span></div>
           <div class="text">${esc(p.tweet.text)}</div>
-          <div class="stats">💬 ${fmt(m.reply_count)} · 🔁 ${fmt(
+          <div class="stats">${stat("reply", m.reply_count)}${stat(
+            "repost",
             m.retweet_count,
-          )} · ❤️ ${fmt(m.like_count)}${views}</div>
+          )}${stat("like", m.like_count)}${views}</div>
           <div class="actions">
             <a href="${permalink}" target="_blank" rel="noopener">Open on X ↗</a>
             <button class="copy" data-url="${permalink}">Copy link</button>
@@ -216,7 +234,9 @@ function renderHtml(
   .meta { font-size:13px; color:#64748b; margin-bottom:6px; }
   .meta .name { color:#0f172a; font-weight:600; }
   .text { font-size:15px; white-space:pre-wrap; margin-bottom:10px; }
-  .stats { font-size:13px; color:#475569; margin-bottom:10px; }
+  .stats { display:flex; gap:20px; align-items:center; color:#536471; font-size:13px; margin-bottom:10px; }
+  .stat { display:inline-flex; align-items:center; gap:6px; }
+  .stat svg { width:16px; height:16px; fill:currentColor; }
   .actions { display:flex; gap:10px; align-items:center; }
   .actions a { font-size:13px; font-weight:600; color:#2563eb; text-decoration:none; }
   .actions a:hover { text-decoration:underline; }
@@ -229,7 +249,7 @@ function renderHtml(
 <body>
   <div class="wrap">
     <h1>Trending on X</h1>
-    <div class="sub">Updated ${esc(when)} · ranked by early engagement velocity (replies ≫ reposts ≫ likes), last 24h</div>
+    <div class="sub">Updated ${esc(when)} · early engagement velocity (replies ≫ reposts ≫ likes), posts from the past ${WINDOW_HOURS}h</div>
     ${body}
     <footer>Live from the X API. Ranked by weighted-engagement velocity, not raw likes.</footer>
   </div>
@@ -256,7 +276,7 @@ export const refreshInternal = internalAction({
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
-      const startTime = new Date(nowMs - 24 * 3600 * 1000).toISOString();
+      const startTime = new Date(nowMs - MAX_AGE_MS).toISOString();
       const groups: { niche: string; posts: RankedPost[] }[] = [];
       let total = 0;
       for (const { niche, q } of QUERIES) {
@@ -267,7 +287,11 @@ export const refreshInternal = internalAction({
             const { W, score } = scorePost(t, nowMs);
             return { tweet: t, user: userById.get(t.author_id), W, score };
           })
-          .filter((p) => p.W >= MIN_W)
+          .filter(
+            (p) =>
+              p.W >= MIN_W &&
+              nowMs - Date.parse(p.tweet.created_at) <= MAX_AGE_MS,
+          )
           .sort((a, b) => b.score - a.score)
           .slice(0, TOP_N);
         groups.push({ niche, posts: ranked });
