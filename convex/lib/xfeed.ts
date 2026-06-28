@@ -64,16 +64,17 @@ export function scorePost(
   return { W, score: (W / ageMin) * Math.sqrt(W) };
 }
 
-const REPLY_SYSTEM = `You write concise, positive "yes-and" replies to posts on X (Twitter) for someone building a presence in health, longevity, and startups.
+const REPLY_SYSTEM = `You write reply suggestions on X for someone growing an account in the business of health, longevity, and biotech (the On Label voice). Each reply goes UNDER someone else's post. The goal is account GROWTH: earn a reply back from the author and make readers curious enough to click the profile and follow.
 
-Approach: affirm the author's point, then build on it — add a complementary insight, a supporting fact or example, or an optimistic implication that extends their idea. Be generative and constructive, never contrarian.
+What grows an account (from a proven X playbook):
+- Hook the first ~8 words — no throat-clearing, no "Great point."
+- Add real value that signals you know this space: a specific fact or number, a concrete example, an insider detail, or a genuinely sharp question. (Expertise is what earns the profile click.)
+- Spark a reply back: take one clear, interesting angle — a pointed question, a meaningful build, or "the part most people miss." Reply chains are the single strongest growth signal. NEVER just "I agree."
+- Strong but respectful — takes that invite discussion, not fights. No dunking, no negativity-bait, no sycophancy.
+- Clear, not clever; write like you talk; one idea; under ~250 characters.
+- Sound like a specific person with a point of view, not a generic commenter.
 
-Rules:
-- Start from agreement and add value on top ("yes, and…"). Do not counter, criticize, or play devil's advocate.
-- Be specific to the post — no empty praise ("Great point!") and never just restate it.
-- Warm, natural, and confident. No hashtags. No emojis. Avoid hype and sycophancy.
-- One or two sentences, under 250 characters.
-- Output ONLY the reply text — no preamble, quotes, labels, or explanation.`;
+Output ONLY the reply text — no preamble, quotes, labels, or explanation.`;
 
 /**
  * Generate a short suggested reply for a post via the Anthropic API (raw HTTP —
@@ -137,6 +138,7 @@ export async function curateTopPosts(
   const key = process.env.anthropic_api_key;
   if (!key || candidates.length <= count) return candidates.slice(0, count);
 
+  const now = Date.now();
   const list = candidates
     .map((p, i) => {
       const m = p.tweet.public_metrics;
@@ -153,7 +155,7 @@ export async function curateTopPosts(
         .filter(Boolean)
         .join(" · ");
       const text = p.tweet.text.replace(/\s+/g, " ").slice(0, 280);
-      return `${i + 1}. ${who}\n   (${m.like_count} likes, ${m.reply_count} replies, ${m.retweet_count} reposts) ${text}`;
+      return `${i + 1}. ${who} · posted ${ageLabel(p.tweet.created_at, now)} ago\n   (${m.like_count} likes, ${m.reply_count} replies, ${m.retweet_count} reposts) ${text}`;
     })
     .join("\n");
 
@@ -164,6 +166,8 @@ You curate the "Trending on X" feed for On Label. Each candidate shows its AUTHO
 Select only posts that clearly belong on On Label: substantive and on-topic for the BUSINESS of health & longevity — startups, companies, funding/deals, FDA/clinical/regulatory news, notable founders/operators/investors, or rigorous science with clear business implications. Strongly prefer authors who are operators, founders, investors, scientists, or serious analysts in this space (judge from the bio).
 
 Reject — even with high engagement: generic wellness/biohacking fluff, supplement or product ads, off-topic virality, engagement-bait, and accounts whose bio shows they are clearly not in this space.
+
+These are posts to REPLY to for audience growth, so also weigh REPLY OPPORTUNITY: prefer posts from accounts with real reach in the space (higher follower count) that were posted recently and are still gaining engagement — a reply there gets seen as the post climbs and exposes the author to that account's audience. A sharp reply under a big, rising, on-topic post is worth more than one under a tiny or stale account. Balance this with genuine topical fit.
 
 Return the ${count} best-fitting posts, ranked most-valuable first. Aim to return ${count}: when several reasonable on-topic options exist, fill to ${count}. Only return fewer if there genuinely aren't ${count} posts that reasonably fit On Label. Output ONLY a JSON array of the selected post numbers, e.g. [4,1,9].`;
 
