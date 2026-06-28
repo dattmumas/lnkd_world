@@ -69,7 +69,7 @@ const QUERIES: { niche: string; q: string }[] = [
 const MAX_RESULTS = 100; // per query (X API allows 10–100); bigger candidate pool
 const TOP_N = 6; // posts kept per niche
 const MIN_W = 120; // weighted-engagement floor — real traction, not noise (tunable)
-const WINDOW_HOURS = 4; // only consider posts from the last N hours (fresh/early)
+const WINDOW_HOURS = 6; // only consider posts from the last N hours (fresh/early)
 const MAX_AGE_MS = WINDOW_HOURS * 3600 * 1000;
 
 // X's own action-bar icons (reply, repost, like, views) as SVG path data.
