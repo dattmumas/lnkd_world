@@ -12,7 +12,7 @@ import {
   scorePost,
   renderHtml,
   suggestReply,
-  type FeedGroup,
+  curateTopPosts,
   type RankedPost,
 } from "./lib/xfeed";
 
@@ -42,10 +42,12 @@ const QUERIES: { niche: string; q: string }[] = [
   },
 ];
 
-const TOP_N = 6; // posts kept per niche
-const MIN_W = 175; // weighted-engagement floor — real traction, not noise (tunable)
+const MIN_W = 100; // candidate floor — broad pool; Opus curation does the quality cut
 const WINDOW_HOURS = 6; // only consider posts from the last N hours (fresh/early)
 const MAX_AGE_MS = WINDOW_HOURS * 3600 * 1000;
+const CANDIDATE_CAP_PER_NICHE = 12; // top candidates per niche before curation
+const MAX_CANDIDATES = 36; // total candidates handed to the curation model
+const FINAL_COUNT = 10; // curated posts surfaced per refresh
 
 /** The actual refresh: search X, rank, render, store. Called by cron + admin trigger. */
 export const refreshInternal = internalAction({
@@ -56,12 +58,13 @@ export const refreshInternal = internalAction({
     const nowMs = Date.now();
     try {
       const startTime = new Date(nowMs - MAX_AGE_MS).toISOString();
-      const groups: FeedGroup[] = [];
-      let total = 0;
-      for (const { niche, q } of QUERIES) {
+
+      // 1) Gather a broad candidate pool across niches (velocity-ranked, deduped).
+      const byId = new Map<string, RankedPost>();
+      for (const { q } of QUERIES) {
         const { tweets, users } = await searchRecent(q, startTime);
         const userById = new Map(users.map((u) => [u.id, u]));
-        const ranked: RankedPost[] = tweets
+        const ranked = tweets
           .map((t) => {
             const { W, score } = scorePost(t, nowMs);
             return { tweet: t, user: userById.get(t.author_id), W, score };
@@ -72,34 +75,39 @@ export const refreshInternal = internalAction({
               nowMs - Date.parse(p.tweet.created_at) <= MAX_AGE_MS,
           )
           .sort((a, b) => b.score - a.score)
-          .slice(0, TOP_N);
-        groups.push({ niche, posts: ranked });
-        total += ranked.length;
+          .slice(0, CANDIDATE_CAP_PER_NICHE);
+        for (const p of ranked) if (!byId.has(p.tweet.id)) byId.set(p.tweet.id, p);
       }
-      // AI-suggested reply per selected post (parallel; no-op if the key is unset
-      // or a call fails — the card just renders without a reply).
+      const pool = [...byId.values()]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, MAX_CANDIDATES);
+
+      // 2) Opus 4.8 curates the pool down to the top N most relevant to On Label.
+      const selected = await curateTopPosts(pool, FINAL_COUNT);
+
+      // 3) AI-suggested reply per selected post (parallel; degrades to no reply).
       await Promise.all(
-        groups
-          .flatMap((g) => g.posts)
-          .map(async (p) => {
-            const reply = await suggestReply(p.tweet.text);
-            if (reply) p.reply = reply;
-          }),
+        selected.map(async (p) => {
+          const reply = await suggestReply(p.tweet.text);
+          if (reply) p.reply = reply;
+        }),
       );
-      const html = renderHtml(groups, {
+
+      // 4) Render the curated list (single ranked group, no niche headers).
+      const html = renderHtml([{ niche: "", posts: selected }], {
         title: "Trending on X",
-        subtitle: `early engagement velocity (replies ≫ reposts ≫ likes), posts from the past ${WINDOW_HOURS}h`,
+        subtitle: `curated for On Label · early engagement, posts from the past ${WINDOW_HOURS}h`,
         generatedAt,
         nowMs,
       });
-      const status = total > 0 ? "ok" : "empty";
+      const status = selected.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.xTrends.store, {
         generatedAt,
         html,
         status,
-        count: total,
+        count: selected.length,
       });
-      return { status, count: total };
+      return { status, count: selected.length };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       await ctx.runMutation(internal.xTrends.store, {

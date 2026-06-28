@@ -116,6 +116,84 @@ export async function suggestReply(tweetText: string): Promise<string | null> {
   }
 }
 
+// What On Label is — context for the curation model. Edit to refine the focus.
+const ON_LABEL_CONTEXT = `On Label is a new blog about the business of health and longevity — the startups, companies, funding rounds, deals, operators, and investors building the longevity economy, plus biotech and consumer-health companies and the science with real business implications. Its audience is founders, operators, and investors who want genuine signal on what's happening in health/longevity business, not generic wellness content.`;
+
+/**
+ * Use Claude (Opus 4.8) to curate the candidate posts down to the `count` most
+ * relevant/valuable for On Label's audience. Returns the selected posts in the
+ * model's ranked order. Falls back to the velocity-ranked top `count` if the key
+ * is unset, the pool is already small, or the call/parse fails.
+ */
+export async function curateTopPosts(
+  candidates: RankedPost[],
+  count: number,
+): Promise<RankedPost[]> {
+  const key = process.env.anthropic_api_key;
+  if (!key || candidates.length <= count) return candidates.slice(0, count);
+
+  const list = candidates
+    .map((p, i) => {
+      const m = p.tweet.public_metrics;
+      const handle = p.user ? "@" + p.user.username : "?";
+      const text = p.tweet.text.replace(/\s+/g, " ").slice(0, 280);
+      return `${i + 1}. ${handle} (${m.like_count} likes, ${m.reply_count} replies, ${m.retweet_count} reposts): ${text}`;
+    })
+    .join("\n");
+
+  const system = `${ON_LABEL_CONTEXT}
+
+You curate the "Trending on X" feed for On Label. From the candidate posts below, select the ${count} most worth surfacing for On Label's audience: substantive and on-topic (health/longevity startups, companies, funding/deals, notable founders or investors, or rigorous science with business implications) and likely to spark good discussion. Exclude generic wellness fluff, supplement/product ads, off-topic virality, engagement-bait, and low-substance hot takes.
+
+Output ONLY a JSON array of the selected post numbers, ranked most-valuable first — e.g. [4,1,9]. Use exactly ${count} numbers, or fewer if fewer genuinely qualify.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 3000,
+        thinking: { type: "adaptive" },
+        system,
+        messages: [{ role: "user", content: `Candidates:\n${list}` }],
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Anthropic curate ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return candidates.slice(0, count);
+    }
+    const json = (await res.json()) as {
+      content?: { type: string; text?: string }[];
+    };
+    const text = (json.content ?? [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("");
+    const match = text.match(/\[[\d,\s]+\]/);
+    if (!match) return candidates.slice(0, count);
+    const order = JSON.parse(match[0]) as number[];
+    const picked: RankedPost[] = [];
+    const used = new Set<number>();
+    for (const n of order) {
+      const i = n - 1;
+      if (i >= 0 && i < candidates.length && !used.has(i)) {
+        used.add(i);
+        picked.push(candidates[i]);
+      }
+      if (picked.length >= count) break;
+    }
+    return picked.length ? picked : candidates.slice(0, count);
+  } catch (e) {
+    console.error(`Anthropic curate failed: ${e instanceof Error ? e.message : String(e)}`);
+    return candidates.slice(0, count);
+  }
+}
+
 // X recent search. Returns tweets + resolved author users (via author_id expansion).
 export async function searchRecent(
   query: string,
