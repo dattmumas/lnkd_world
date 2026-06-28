@@ -138,4 +138,23 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
+
+  // Admin-curated list of X creators for the "Creators" feed (convex/creators.ts).
+  creators: defineTable({
+    handle: v.string(), // X username, no leading @
+    note: v.optional(v.string()),
+    order: v.number(),
+    active: v.optional(v.boolean()),
+  }).index("by_order", ["order"]),
+
+  // "Creators" feed snapshots — rendered HTML from the daily refresh
+  // (convex/creators_feed.ts). Served by feed.getPage for slug "creators".
+  creatorsSnapshots: defineTable({
+    generatedAt: v.string(),
+    html: v.string(),
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
 });

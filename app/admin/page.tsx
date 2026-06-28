@@ -60,6 +60,14 @@ export default function AdminDashboard() {
             Manage Resources
           </Link>
         </li>
+        <li>
+          <Link
+            href="/admin/creators"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Manage Creators
+          </Link>
+        </li>
       </ul>
     </main>
   );

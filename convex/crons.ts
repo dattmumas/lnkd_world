@@ -10,4 +10,11 @@ crons.daily(
   internal.xTrends.refreshInternal,
 );
 
+// Refresh the curated "Creators" feed (offset to avoid simultaneous X API calls).
+crons.daily(
+  "refresh-creators",
+  { hourUTC: 13, minuteUTC: 30 },
+  internal.creators_feed.refreshInternal,
+);
+
 export default crons;

@@ -29,6 +29,12 @@ const CARDS = [
     blurb: "Recent on-topic posts worth replying to, each with a drafted reply.",
     accent: "#0d9488",
   },
+  {
+    slug: "creators",
+    title: "Creators",
+    blurb: "Top recent posts from the X accounts on your list.",
+    accent: "#7c3aed",
+  },
 ];
 
 export default function FeedPage() {
