@@ -26,6 +26,7 @@ export interface XUser {
   description?: string; // bio — lets the curator judge the account, not just the tweet
   verified?: boolean;
   public_metrics?: { followers_count?: number };
+  profile_image_url?: string;
 }
 export interface RankedPost {
   tweet: Tweet;
@@ -33,6 +34,7 @@ export interface RankedPost {
   W: number;
   score: number;
   reply?: string; // optional AI-suggested reply (Trending on X feed)
+  authorNiche?: string; // short niche label for the author (from the curator)
 }
 export interface FeedGroup {
   niche: string; // section header; "" renders no header (flat list)
@@ -141,7 +143,9 @@ export async function curateTopPosts(
   count: number,
 ): Promise<RankedPost[]> {
   const key = process.env.anthropic_api_key;
-  if (!key || candidates.length <= count) return candidates.slice(0, count);
+  // Run curation whenever there's a key and any candidates, so the niche labels
+  // (and ranking) are always produced — not just when the pool exceeds `count`.
+  if (!key || candidates.length === 0) return candidates.slice(0, count);
 
   const now = Date.now();
   const list = candidates
@@ -174,7 +178,9 @@ Reject — even with high engagement: generic wellness/biohacking fluff, supplem
 
 These are posts to REPLY to for audience growth, so also weigh REPLY OPPORTUNITY: prefer posts from accounts with real reach in the space (higher follower count) that were posted recently and are still gaining engagement — a reply there gets seen as the post climbs and exposes the author to that account's audience. A sharp reply under a big, rising, on-topic post is worth more than one under a tiny or stale account. Balance this with genuine topical fit.
 
-Return the ${count} best-fitting posts, ranked most-valuable first. Aim to return ${count}: when several reasonable on-topic options exist, fill to ${count}. Only return fewer if there genuinely aren't ${count} posts that reasonably fit On Label. Output ONLY a JSON array of the selected post numbers, e.g. [4,1,9].`;
+Return the ${count} best-fitting posts, ranked most-valuable first. Aim to return ${count}: when several reasonable on-topic options exist, fill to ${count}. Only return fewer if there genuinely aren't ${count} posts that reasonably fit On Label.
+
+Output ONLY a JSON array, one object per selected post, ranked most-valuable first. Each object is {"n": <the post number>, "niche": "<1-3 word label for THIS author's niche, judged from their bio, e.g. Biotech VC, Longevity researcher, Pharma analyst, Health founder>"}. Example: [{"n":4,"niche":"Biotech VC"},{"n":1,"niche":"Longevity researcher"}].`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -203,15 +209,19 @@ Return the ${count} best-fitting posts, ranked most-valuable first. Aim to retur
       .filter((b) => b.type === "text")
       .map((b) => b.text ?? "")
       .join("");
-    const match = text.match(/\[[\d,\s]+\]/);
+    const match = text.match(/\[[\s\S]*\]/);
     if (!match) return candidates.slice(0, count);
-    const order = JSON.parse(match[0]) as number[];
+    // Accept objects ({n, niche}) or bare numbers, for robustness.
+    const order = JSON.parse(match[0]) as (number | { n: number; niche?: string })[];
     const picked: RankedPost[] = [];
     const used = new Set<number>();
-    for (const n of order) {
+    for (const item of order) {
+      const n = typeof item === "number" ? item : item.n;
+      const niche = typeof item === "number" ? undefined : item.niche;
       const i = n - 1;
       if (i >= 0 && i < candidates.length && !used.has(i)) {
         used.add(i);
+        if (niche) candidates[i].authorNiche = niche;
         picked.push(candidates[i]);
       }
       if (picked.length >= count) break;
@@ -239,7 +249,7 @@ export async function searchRecent(
   url.searchParams.set("expansions", "author_id");
   url.searchParams.set(
     "user.fields",
-    "username,name,description,verified,public_metrics",
+    "username,name,description,verified,public_metrics,profile_image_url",
   );
   url.searchParams.set("start_time", startTime);
   url.searchParams.set("sort_order", "relevancy");
@@ -272,7 +282,8 @@ function ageLabel(createdAt: string, nowMs: number): string {
 }
 
 function fmt(n: number): string {
-  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10_000 ? 0 : 1) + "K";
   return String(n);
 }
 
@@ -286,6 +297,8 @@ const ICON: Record<string, string> = {
     "M20.884 13.19c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z",
   views:
     "M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z",
+  verified:
+    "M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z",
 };
 function stat(name: string, count: number): string {
   return `<span class="stat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>${fmt(count)}</span>`;
@@ -321,26 +334,48 @@ export function renderHtml(
             m.impression_count && m.impression_count > 0
               ? stat("views", m.impression_count)
               : "";
+          const avatarUrl = u?.profile_image_url
+            ? u.profile_image_url.replace("_normal", "_bigger")
+            : "";
+          const avatar = avatarUrl
+            ? `<img class="avatar" src="${esc(avatarUrl)}" alt="" loading="lazy">`
+            : `<div class="avatar avatar-fallback">${esc((u?.name || "?").slice(0, 1).toUpperCase())}</div>`;
+          const badge = u?.verified
+            ? `<svg class="badge" viewBox="0 0 24 24" aria-label="Verified"><path d="${ICON.verified}"/></svg>`
+            : "";
+          const bioTitle = u?.description ? ` title="${esc(u.description)}"` : "";
+          const followers = u?.public_metrics?.followers_count;
+          const insightParts = [
+            followers != null ? `${fmt(followers)} followers` : "",
+            p.authorNiche ? esc(p.authorNiche) : "",
+          ].filter(Boolean);
+          const insights = insightParts.length
+            ? `<div class="tw-insights">${insightParts.join(" · ")}</div>`
+            : "";
           return `
         <div class="post">
-          <div class="meta"><span class="name">${name}</span> <span class="handle">${esc(
-            handle,
-          )}</span> · <span class="age">${ageLabel(p.tweet.created_at, nowMs)}</span></div>
-          <div class="text">${esc(p.tweet.text)}</div>
-          <div class="stats">${stat("reply", m.reply_count)}${stat(
-            "repost",
-            m.retweet_count,
-          )}${stat("like", m.like_count)}${views}</div>
-          ${
-            p.reply
-              ? `<div class="reply"><div class="reply-label">Suggested reply</div><div class="reply-text">${esc(
-                  p.reply,
-                )}</div><button class="copy" data-copy="${esc(p.reply)}">Copy reply</button></div>`
-              : ""
-          }
-          <div class="actions">
-            <a href="${permalink}" target="_blank" rel="noopener">Open on X ↗</a>
-            <button class="copy" data-copy="${esc(permalink)}">Copy link</button>
+          ${avatar}
+          <div class="tw-body">
+            <div class="tw-head"><span class="tw-name"${bioTitle}>${name}</span>${badge}<span class="tw-handle">${esc(
+              handle,
+            )}</span><span class="tw-dot">·</span><span class="tw-age">${ageLabel(p.tweet.created_at, nowMs)}</span></div>
+            ${insights}
+            <div class="tw-text">${esc(p.tweet.text)}</div>
+            <div class="stats">${stat("reply", m.reply_count)}${stat(
+              "repost",
+              m.retweet_count,
+            )}${stat("like", m.like_count)}${views}</div>
+            ${
+              p.reply
+                ? `<div class="reply"><div class="reply-label">Suggested reply</div><div class="reply-text">${esc(
+                    p.reply,
+                  )}</div><button class="copy" data-copy="${esc(p.reply)}">Copy reply</button></div>`
+                : ""
+            }
+            <div class="actions">
+              <a href="${permalink}" target="_blank" rel="noopener">Open on X ↗</a>
+              <button class="copy" data-copy="${esc(permalink)}">Copy link</button>
+            </div>
           </div>
         </div>`;
         })
@@ -369,10 +404,16 @@ export function renderHtml(
   h1 { font-size:24px; margin:0 0 4px; }
   .sub { color:#64748b; font-size:13px; margin-bottom:24px; }
   h2.niche { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:#2563eb; margin:28px 0 12px; }
-  .post { background:#fff; border:1px solid #e6e9ee; border-radius:12px; padding:14px 16px; margin-bottom:12px; }
-  .meta { font-size:13px; color:#64748b; margin-bottom:6px; }
-  .meta .name { color:#0f172a; font-weight:600; }
-  .text { font-size:15px; white-space:pre-wrap; margin-bottom:10px; }
+  .post { display:flex; gap:12px; background:#fff; border:1px solid #e6e9ee; border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .avatar { width:44px; height:44px; border-radius:50%; flex-shrink:0; object-fit:cover; background:#e6e9ee; }
+  .avatar-fallback { display:flex; align-items:center; justify-content:center; font-weight:700; color:#64748b; font-size:18px; }
+  .tw-body { flex:1; min-width:0; }
+  .tw-head { display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:15px; line-height:1.3; }
+  .tw-name { font-weight:700; color:#0f172a; }
+  .badge { width:16px; height:16px; fill:#1d9bf0; flex-shrink:0; }
+  .tw-handle, .tw-dot, .tw-age { color:#64748b; font-weight:400; }
+  .tw-insights { font-size:12.5px; color:#536471; margin:2px 0 8px; }
+  .tw-text { font-size:15px; color:#0f172a; white-space:pre-wrap; margin-bottom:10px; }
   .stats { display:flex; gap:20px; align-items:center; color:#536471; font-size:13px; margin-bottom:10px; }
   .stat { display:inline-flex; align-items:center; gap:6px; }
   .stat svg { width:16px; height:16px; fill:currentColor; }
