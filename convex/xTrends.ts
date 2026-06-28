@@ -59,6 +59,11 @@ export const refreshInternal = internalAction({
     try {
       const startTime = new Date(nowMs - MAX_AGE_MS).toISOString();
 
+      // Posts already surfaced before — excluded so refreshes don't repeat.
+      const seen = new Set<string>(
+        await ctx.runQuery(internal.xTrends.seenIds, {}),
+      );
+
       // 1) Gather a broad candidate pool across niches (velocity-ranked, deduped).
       const byId = new Map<string, RankedPost>();
       for (const { q } of QUERIES) {
@@ -72,6 +77,7 @@ export const refreshInternal = internalAction({
           .filter(
             (p) =>
               p.W >= MIN_W &&
+              !seen.has(p.tweet.id) &&
               nowMs - Date.parse(p.tweet.created_at) <= MAX_AGE_MS,
           )
           .sort((a, b) => b.score - a.score)
@@ -107,6 +113,11 @@ export const refreshInternal = internalAction({
         status,
         count: selected.length,
       });
+      if (selected.length > 0) {
+        await ctx.runMutation(internal.xTrends.recordSeen, {
+          ids: selected.map((p) => p.tweet.id),
+        });
+      }
       return { status, count: selected.length };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -150,6 +161,34 @@ export const store = internalMutation({
       error: args.error,
       createdAt: new Date().toISOString(),
     });
+  },
+});
+
+/** Tweet IDs already surfaced (for excluding repeats on refresh). */
+export const seenIds = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("seenXPosts").collect();
+    return rows.map((r) => r.tweetId);
+  },
+});
+
+/** Record surfaced tweet IDs and prune entries older than 14 days. */
+export const recordSeen = internalMutation({
+  args: { ids: v.array(v.string()) },
+  handler: async (ctx, { ids }) => {
+    const now = Date.now();
+    const createdAt = new Date(now).toISOString();
+    for (const tweetId of ids) {
+      await ctx.db.insert("seenXPosts", { tweetId, createdAt });
+    }
+    const cutoff = new Date(now - 14 * 24 * 3600 * 1000).toISOString();
+    const old = await ctx.db
+      .query("seenXPosts")
+      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
+      .take(1000);
+    for (const r of old) await ctx.db.delete(r._id);
   },
 });
 

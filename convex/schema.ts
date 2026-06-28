@@ -139,6 +139,15 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // Tweet IDs already surfaced in the Trending on X feed — excluded on refresh
+  // so the same post isn't shown twice (convex/xTrends.ts). Pruned by age.
+  seenXPosts: defineTable({
+    tweetId: v.string(),
+    createdAt: v.string(),
+  })
+    .index("by_tweetId", ["tweetId"])
+    .index("by_createdAt", ["createdAt"]),
+
   // Admin-curated list of X creators for the "Creators" feed (convex/creators.ts).
   creators: defineTable({
     handle: v.string(), // X username, no leading @
