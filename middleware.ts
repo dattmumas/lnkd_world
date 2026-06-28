@@ -5,7 +5,7 @@ import {
 } from "@convex-dev/auth/nextjs/server";
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
-const isSubscriberRoute = createRouteMatcher(["/resources(.*)"]);
+const isSubscriberRoute = createRouteMatcher(["/resources(.*)", "/feed(.*)"]);
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const authenticated = await convexAuth.isAuthenticated();

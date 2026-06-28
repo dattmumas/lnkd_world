@@ -58,6 +58,12 @@ export default function Nav() {
             Bonds
           </Link>
           <Link
+            href="/feed"
+            className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0"
+          >
+            Feed
+          </Link>
+          <Link
             href="/bookmarks"
             className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0 hidden sm:block"
           >
@@ -82,7 +88,7 @@ export default function Nav() {
               href="/subscribe"
               className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
             >
-              Subscribe
+              Log In / Subscribe
             </Link>
           </Unauthenticated>
         </nav>

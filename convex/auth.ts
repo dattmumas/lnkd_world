@@ -1,10 +1,11 @@
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
+import { ResendOTPPasswordReset } from "./ResendOTPPasswordReset";
 
 const ADMIN_EMAIL = "mttdumas@gmail.com";
 
 export const { auth, signIn, signOut, store } = convexAuth({
-  providers: [Password],
+  providers: [Password({ reset: ResendOTPPasswordReset })],
   callbacks: {
     async afterUserCreatedOrUpdated(ctx, { userId, profile }) {
       // This fires server-side on every sign-in/sign-up

@@ -63,9 +63,19 @@ pnpm sync            # Sync Obsidian vault to Convex
 - `open-next.config.ts` — OpenNext Cloudflare config
 - `wrangler.toml` — Cloudflare Workers config
 
+## Environment Files
+
+| File | Loaded during | Contains |
+|------|--------------|----------|
+| `.env.production` | `pnpm build` / `pnpm ship` | `NEXT_PUBLIC_CONVEX_URL` (prod) |
+| `.env.development.local` | `pnpm dev` | `NEXT_PUBLIC_CONVEX_URL` (dev) |
+| `.env.local` | Always (secrets only) | `CONVEX_DEPLOYMENT`, `SYNC_SECRET`, sync script URLs |
+
+**NEVER put `NEXT_PUBLIC_*` vars in `.env.local`** — it overrides `.env.production` during builds, which bakes the wrong Convex URL into production deploys.
+
 ## Verified Mistakes to Avoid
 
-- **NEVER run `pnpm ship` locally.** The local `.env.local` sets `NEXT_PUBLIC_CONVEX_URL` to the dev Convex deployment (`perfect-ox-364`). Next.js bakes env vars at build time, and `.env.local` overrides `.env.production`. Running `pnpm ship` locally deploys a build pointing at the dev database to production, breaking live data sync. All production deploys must go through the Cloudflare Pages CI pipeline (triggered by `git push`), which only sees `.env.production` with the correct prod URL (`steady-butterfly-270`).
+- **NEVER put `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.** It overrides `.env.production` at build time and points the prod site at the dev database. This broke the live site on 2026-04-03.
 - **NEVER run `npx convex deploy` without confirming the deployment target.** The Convex deploy pushes functions to prod. Careless deploys can break the live site's backend.
 
 ## Convex Notes

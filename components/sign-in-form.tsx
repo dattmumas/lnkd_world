@@ -2,6 +2,7 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function SignInForm() {
   const { signIn } = useAuthActions();
@@ -61,6 +62,14 @@ export default function SignInForm() {
           ? "Need an account? Sign up"
           : "Already have an account? Sign in"}
       </button>
+      {flow === "signIn" && (
+        <Link
+          href="/forgot-password"
+          className="block text-center text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        >
+          Forgot password?
+        </Link>
+      )}
     </form>
   );
 }
