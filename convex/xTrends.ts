@@ -27,28 +27,32 @@ import {
  */
 
 // Niche search queries (recent search; freshness window applied via start_time).
-// Each query pairs a TOPIC term with a BUSINESS/people signal, so candidates skew
-// toward On Label's subject (the business of health & longevity) at the source.
+// High-recall queries (topic AND a broad business/science signal) cast a wide net
+// across On Label's space; the author-aware curator provides the precision.
 const QUERIES: { niche: string; q: string }[] = [
   {
-    niche: "Longevity business",
-    q: '(longevity OR healthspan OR "anti-aging" OR senolytics OR rapamycin OR "longevity economy") (startup OR founder OR funding OR raised OR Series OR biotech OR clinical OR FDA OR trial OR launch OR company) -is:retweet -is:reply lang:en',
+    niche: "Longevity & aging",
+    q: '(longevity OR healthspan OR "anti-aging" OR senolytics OR rapamycin OR geroscience OR aging OR "longevity biotech") (startup OR funding OR raised OR biotech OR clinical OR FDA OR trial OR company OR research OR data OR study OR founder OR investor OR therapy) -is:retweet -is:reply lang:en',
   },
   {
-    niche: "Health & biotech deals",
-    q: '(biotech OR healthtech OR "digital health" OR "metabolic health" OR GLP-1 OR diagnostics OR therapeutics) (raised OR funding OR Series OR seed OR FDA OR approval OR acquires OR IPO OR launch OR clinical OR trial) -is:retweet -is:reply lang:en',
+    niche: "Biotech & pharma",
+    q: '(biotech OR pharma OR "drug development" OR therapeutics OR oncology OR "digital health" OR healthtech OR diagnostics OR "life sciences") (raised OR funding OR Series OR FDA OR approval OR trial OR data OR readout OR acquire OR IPO OR launch OR pipeline OR deal) -is:retweet -is:reply lang:en',
+  },
+  {
+    niche: "Metabolic & GLP-1",
+    q: '(GLP-1 OR "metabolic health" OR obesity OR Ozempic OR Zepbound OR semaglutide OR tirzepatide OR diabetes) (study OR data OR trial OR market OR company OR FDA OR sales OR launch OR approval OR research) -is:retweet -is:reply lang:en',
   },
   {
     niche: "Founders & investors",
-    q: '(longevity OR healthspan OR biotech OR "health tech" OR "longevity biotech") (founder OR investor OR VC OR raising OR thesis OR market OR strategy OR building) -is:retweet -is:reply lang:en',
+    q: '(longevity OR biotech OR healthspan OR "health tech" OR "life sciences" OR healthcare) (founder OR investor OR VC OR raising OR fund OR thesis OR market OR building OR startup OR "Series A" OR seed) -is:retweet -is:reply lang:en',
   },
 ];
 
-const MIN_W = 100; // candidate floor — broad pool; Opus curation does the quality cut
+const MIN_W = 80; // candidate floor — broad pool; Opus curation does the quality cut
 const WINDOW_HOURS = 24; // candidate window — wider net; the curator does the focusing
 const MAX_AGE_MS = WINDOW_HOURS * 3600 * 1000;
-const CANDIDATE_CAP_PER_NICHE = 12; // top candidates per niche before curation
-const MAX_CANDIDATES = 36; // total candidates handed to the curation model
+const CANDIDATE_CAP_PER_NICHE = 15; // top candidates per niche before curation
+const MAX_CANDIDATES = 50; // total candidates handed to the curation model
 const FINAL_COUNT = 10; // curated posts surfaced per refresh
 
 /** The actual refresh: search X, rank, render, store. Called by cron + admin trigger. */

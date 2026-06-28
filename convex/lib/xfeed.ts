@@ -163,9 +163,9 @@ You curate the "Trending on X" feed for On Label. Each candidate shows its AUTHO
 
 Select only posts that clearly belong on On Label: substantive and on-topic for the BUSINESS of health & longevity — startups, companies, funding/deals, FDA/clinical/regulatory news, notable founders/operators/investors, or rigorous science with clear business implications. Strongly prefer authors who are operators, founders, investors, scientists, or serious analysts in this space (judge from the bio).
 
-Reject — even with high engagement: generic wellness/biohacking fluff, supplement or product ads, off-topic virality, engagement-bait, low-substance hot takes, and accounts whose bio shows they are not in this space.
+Reject — even with high engagement: generic wellness/biohacking fluff, supplement or product ads, off-topic virality, engagement-bait, and accounts whose bio shows they are clearly not in this space.
 
-QUALITY OVER QUANTITY. Return only the posts that genuinely fit, ranked most-valuable first, UP TO ${count}. If only a few qualify, return only those — do NOT pad to ${count} with marginal posts. Output ONLY a JSON array of the selected post numbers, e.g. [4,1,9].`;
+Return the ${count} best-fitting posts, ranked most-valuable first. Aim to return ${count}: when several reasonable on-topic options exist, fill to ${count}. Only return fewer if there genuinely aren't ${count} posts that reasonably fit On Label. Output ONLY a JSON array of the selected post numbers, e.g. [4,1,9].`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
