@@ -23,6 +23,9 @@ export interface XUser {
   id: string;
   username: string;
   name: string;
+  description?: string; // bio — lets the curator judge the account, not just the tweet
+  verified?: boolean;
+  public_metrics?: { followers_count?: number };
 }
 export interface RankedPost {
   tweet: Tweet;
@@ -135,17 +138,32 @@ export async function curateTopPosts(
   const list = candidates
     .map((p, i) => {
       const m = p.tweet.public_metrics;
-      const handle = p.user ? "@" + p.user.username : "?";
+      const u = p.user;
+      const followers = u?.public_metrics?.followers_count;
+      const who = [
+        u ? "@" + u.username : "?",
+        u?.verified ? "✓" : "",
+        followers != null ? `${fmt(followers)} followers` : "",
+        u?.description
+          ? `bio: ${u.description.replace(/\s+/g, " ").slice(0, 140)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
       const text = p.tweet.text.replace(/\s+/g, " ").slice(0, 280);
-      return `${i + 1}. ${handle} (${m.like_count} likes, ${m.reply_count} replies, ${m.retweet_count} reposts): ${text}`;
+      return `${i + 1}. ${who}\n   (${m.like_count} likes, ${m.reply_count} replies, ${m.retweet_count} reposts) ${text}`;
     })
     .join("\n");
 
   const system = `${ON_LABEL_CONTEXT}
 
-You curate the "Trending on X" feed for On Label. From the candidate posts below, select the ${count} most worth surfacing for On Label's audience: substantive and on-topic (health/longevity startups, companies, funding/deals, notable founders or investors, or rigorous science with business implications) and likely to spark good discussion. Exclude generic wellness fluff, supplement/product ads, off-topic virality, engagement-bait, and low-substance hot takes.
+You curate the "Trending on X" feed for On Label. Each candidate shows its AUTHOR (handle, verified, follower count, bio) and the POST (engagement + text). Judge fit using BOTH — the author matters as much as the tweet.
 
-Output ONLY a JSON array of the selected post numbers, ranked most-valuable first — e.g. [4,1,9]. Use exactly ${count} numbers, or fewer if fewer genuinely qualify.`;
+Select only posts that clearly belong on On Label: substantive and on-topic for the BUSINESS of health & longevity — startups, companies, funding/deals, FDA/clinical/regulatory news, notable founders/operators/investors, or rigorous science with clear business implications. Strongly prefer authors who are operators, founders, investors, scientists, or serious analysts in this space (judge from the bio).
+
+Reject — even with high engagement: generic wellness/biohacking fluff, supplement or product ads, off-topic virality, engagement-bait, low-substance hot takes, and accounts whose bio shows they are not in this space.
+
+QUALITY OVER QUANTITY. Return only the posts that genuinely fit, ranked most-valuable first, UP TO ${count}. If only a few qualify, return only those — do NOT pad to ${count} with marginal posts. Output ONLY a JSON array of the selected post numbers, e.g. [4,1,9].`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -208,7 +226,10 @@ export async function searchRecent(
   url.searchParams.set("max_results", String(MAX_RESULTS));
   url.searchParams.set("tweet.fields", "public_metrics,created_at,lang,author_id");
   url.searchParams.set("expansions", "author_id");
-  url.searchParams.set("user.fields", "username,name");
+  url.searchParams.set(
+    "user.fields",
+    "username,name,description,verified,public_metrics",
+  );
   url.searchParams.set("start_time", startTime);
   url.searchParams.set("sort_order", "relevancy");
 

@@ -27,23 +27,25 @@ import {
  */
 
 // Niche search queries (recent search; freshness window applied via start_time).
+// Each query pairs a TOPIC term with a BUSINESS/people signal, so candidates skew
+// toward On Label's subject (the business of health & longevity) at the source.
 const QUERIES: { niche: string; q: string }[] = [
   {
-    niche: "Longevity",
-    q: '(longevity OR healthspan OR rapamycin OR "anti-aging" OR senolytics OR epigenetic OR NAD) -is:retweet -is:reply lang:en',
+    niche: "Longevity business",
+    q: '(longevity OR healthspan OR "anti-aging" OR senolytics OR rapamycin OR "longevity economy") (startup OR founder OR funding OR raised OR Series OR biotech OR clinical OR FDA OR trial OR launch OR company) -is:retweet -is:reply lang:en',
   },
   {
-    niche: "Health",
-    q: '("metabolic health" OR GLP-1 OR "zone 2" OR VO2max OR creatine OR "blood sugar" OR "deep sleep") -is:retweet -is:reply lang:en',
+    niche: "Health & biotech deals",
+    q: '(biotech OR healthtech OR "digital health" OR "metabolic health" OR GLP-1 OR diagnostics OR therapeutics) (raised OR funding OR Series OR seed OR FDA OR approval OR acquires OR IPO OR launch OR clinical OR trial) -is:retweet -is:reply lang:en',
   },
   {
-    niche: "Health & longevity startups",
-    q: '((startup OR founder OR raised OR "seed round" OR "Series A") (health OR biotech OR longevity OR wellness OR diagnostics)) -is:retweet -is:reply lang:en',
+    niche: "Founders & investors",
+    q: '(longevity OR healthspan OR biotech OR "health tech" OR "longevity biotech") (founder OR investor OR VC OR raising OR thesis OR market OR strategy OR building) -is:retweet -is:reply lang:en',
   },
 ];
 
 const MIN_W = 100; // candidate floor — broad pool; Opus curation does the quality cut
-const WINDOW_HOURS = 6; // only consider posts from the last N hours (fresh/early)
+const WINDOW_HOURS = 24; // candidate window — wider net; the curator does the focusing
 const MAX_AGE_MS = WINDOW_HOURS * 3600 * 1000;
 const CANDIDATE_CAP_PER_NICHE = 12; // top candidates per niche before curation
 const MAX_CANDIDATES = 36; // total candidates handed to the curation model
@@ -102,7 +104,7 @@ export const refreshInternal = internalAction({
       // 4) Render the curated list (single ranked group, no niche headers).
       const html = renderHtml([{ niche: "", posts: selected }], {
         title: "Trending on X",
-        subtitle: `curated for On Label · early engagement, posts from the past ${WINDOW_HOURS}h`,
+        subtitle: `curated for On Label · the business of health & longevity · last ${WINDOW_HOURS}h`,
         generatedAt,
         nowMs,
       });
