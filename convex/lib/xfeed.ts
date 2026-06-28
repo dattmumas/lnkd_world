@@ -180,7 +180,7 @@ These are posts to REPLY to for audience growth, so also weigh REPLY OPPORTUNITY
 
 Return the ${count} best-fitting posts, ranked most-valuable first. Aim to return ${count}: when several reasonable on-topic options exist, fill to ${count}. Only return fewer if there genuinely aren't ${count} posts that reasonably fit On Label.
 
-Output ONLY a JSON array, one object per selected post, ranked most-valuable first. Each object is {"n": <the post number>, "niche": "<1-3 word label for THIS author's niche, judged from their bio, e.g. Biotech VC, Longevity researcher, Pharma analyst, Health founder>"}. Example: [{"n":4,"niche":"Biotech VC"},{"n":1,"niche":"Longevity researcher"}].`;
+Output ONLY a JSON array, one object per selected post, ranked most-valuable first. Every object MUST have both keys: {"n": <the post number>, "niche": "<1-3 word label for THIS author's niche, judged from their bio, e.g. Biotech VC, Longevity researcher, Pharma analyst, Health founder>"}. Always include "niche" for every pick. Do not output bare numbers. Example: [{"n":4,"niche":"Biotech VC"},{"n":1,"niche":"Longevity researcher"}].`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {

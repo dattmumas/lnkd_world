@@ -170,6 +170,17 @@ export const store = internalMutation({
   },
 });
 
+/** Maintenance: clear the surfaced-posts set (resets the dedup pool). */
+export const clearSeen = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("seenXPosts").collect();
+    for (const r of rows) await ctx.db.delete(r._id);
+    return rows.length;
+  },
+});
+
 /** Tweet IDs already surfaced (for excluding repeats on refresh). */
 export const seenIds = internalQuery({
   args: {},
