@@ -43,8 +43,8 @@ const QUERIES: { niche: string; q: string }[] = [
     q: '(GLP-1 OR "metabolic health" OR obesity OR Ozempic OR Zepbound OR semaglutide OR tirzepatide OR diabetes) (study OR data OR trial OR market OR company OR FDA OR sales OR launch OR approval OR research) -is:retweet -is:reply lang:en',
   },
   {
-    niche: "Founders & investors",
-    q: '(longevity OR biotech OR healthspan OR "health tech" OR "life sciences" OR healthcare) (founder OR investor OR VC OR raising OR fund OR thesis OR market OR building OR startup OR "Series A" OR seed) -is:retweet -is:reply lang:en',
+    niche: "Founders & funding",
+    q: '(longevity OR biotech OR healthspan OR "health tech" OR "life sciences") (founder OR raising OR "raised" OR fund OR funding OR building OR startup OR "Series A" OR seed OR launch) -is:retweet -is:reply lang:en',
   },
 ];
 
