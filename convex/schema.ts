@@ -127,4 +127,15 @@ export default defineSchema({
     data: v.string(), // JSON-stringified snapshot (too complex for Convex value types)
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
+
+  // "Trending on X" snapshots — rendered HTML from the daily X API refresh
+  // (convex/xTrends.ts). Served by feed.getPage for slug "x-trends".
+  xTrendsSnapshots: defineTable({
+    generatedAt: v.string(),
+    html: v.string(),
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
 });

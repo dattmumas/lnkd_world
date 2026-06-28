@@ -26,6 +26,21 @@ export const getPage = query({
     await requireSubscriber(ctx);
     const page = PAGES[slug];
     if (!page) return null;
+
+    // "x-trends" is generated live from the X API (convex/xTrends.ts). Serve the
+    // latest successful snapshot; fall back to the static module before the first
+    // refresh or if the API errored, so the page never breaks.
+    if (slug === "x-trends") {
+      const snapshot = await ctx.db
+        .query("xTrendsSnapshots")
+        .withIndex("by_createdAt")
+        .order("desc")
+        .first();
+      if (snapshot && snapshot.status === "ok") {
+        return { slug, title: page.title, html: snapshot.html };
+      }
+    }
+
     return { slug, title: page.title, html: page.html };
   },
 });
