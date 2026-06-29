@@ -8,13 +8,13 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import {
-  searchRecent,
   scorePost,
   renderHtml,
   suggestReply,
   curateTopPosts,
   type RankedPost,
 } from "./lib/xfeed";
+import { gxSearch } from "./lib/getxapi";
 
 /**
  * "Trending on X" — pulls real posts from the X API (recent search) and ranks
@@ -63,8 +63,6 @@ export const refreshInternal = internalAction({
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
-      const startTime = new Date(nowMs - MAX_AGE_MS).toISOString();
-
       // Posts already surfaced before — excluded so refreshes don't repeat.
       const seen = new Set<string>(
         await ctx.runQuery(internal.xTrends.seenIds, {}),
@@ -73,7 +71,11 @@ export const refreshInternal = internalAction({
       // 1) Gather a broad candidate pool across niches (velocity-ranked, deduped).
       const byId = new Map<string, RankedPost>();
       for (const { q } of QUERIES) {
-        const { tweets, users } = await searchRecent(q, startTime);
+        const { tweets, users } = await gxSearch(q, {
+          product: "Top", // engagement-sorted — best candidates for trending
+          maxAgeMs: MAX_AGE_MS,
+          maxTweets: 60,
+        });
         const userById = new Map(users.map((u) => [u.id, u]));
         const ranked = tweets
           .map((t) => {

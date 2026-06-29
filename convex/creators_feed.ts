@@ -8,12 +8,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import {
-  searchRecent,
   weightedEngagement,
   renderHtml,
   type RankedPost,
   type XUser,
 } from "./lib/xfeed";
+import { gxSearch } from "./lib/getxapi";
 
 /**
  * Curated "Creators" feed — recent posts from the admin's list of X handles
@@ -54,13 +54,16 @@ export const refreshInternal = internalAction({
         return { status: "empty", count: 0 };
       }
 
-      const startTime = new Date(nowMs - MAX_AGE_MS).toISOString();
       const byId = new Map<string, RankedPost>();
       const userById = new Map<string, XUser>();
 
       for (const group of chunk(handles, HANDLES_PER_QUERY)) {
         const q = `(${group.map((h) => `from:${h}`).join(" OR ")}) -is:retweet -is:reply lang:en`;
-        const { tweets, users } = await searchRecent(q, startTime);
+        const { tweets, users } = await gxSearch(q, {
+          product: "Latest", // chronological — recent posts from these handles
+          maxAgeMs: MAX_AGE_MS,
+          maxTweets: 80,
+        });
         for (const u of users) userById.set(u.id, u);
         for (const t of tweets) {
           if (byId.has(t.id)) continue;

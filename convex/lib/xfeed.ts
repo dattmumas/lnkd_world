@@ -41,8 +41,6 @@ export interface FeedGroup {
   posts: RankedPost[];
 }
 
-const MAX_RESULTS = 100; // per query (X API allows 10–100)
-
 // X-aligned weights: reply ≫ quote > repost ≈ bookmark ≫ like. Replies are the
 // strongest signal in X's open-sourced ranking (≈27× a like).
 export function weightedEngagement(m: PublicMetrics): number {
@@ -231,40 +229,6 @@ Output ONLY a JSON array, one object per selected post, ranked most-valuable fir
     console.error(`Anthropic curate failed: ${e instanceof Error ? e.message : String(e)}`);
     return candidates.slice(0, count);
   }
-}
-
-// X recent search. Returns tweets + resolved author users (via author_id expansion).
-export async function searchRecent(
-  query: string,
-  startTime: string,
-): Promise<{ tweets: Tweet[]; users: XUser[] }> {
-  const token = process.env.x_bearer;
-  if (!token) {
-    throw new Error("x_bearer is not set in the Convex environment.");
-  }
-  const url = new URL("https://api.x.com/2/tweets/search/recent");
-  url.searchParams.set("query", query);
-  url.searchParams.set("max_results", String(MAX_RESULTS));
-  url.searchParams.set("tweet.fields", "public_metrics,created_at,lang,author_id");
-  url.searchParams.set("expansions", "author_id");
-  url.searchParams.set(
-    "user.fields",
-    "username,name,description,verified,public_metrics,profile_image_url",
-  );
-  url.searchParams.set("start_time", startTime);
-  url.searchParams.set("sort_order", "relevancy");
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}`, "User-Agent": "lnkd-world-xfeed" },
-  });
-  if (!res.ok) {
-    throw new Error(`X API ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  }
-  const json = (await res.json()) as {
-    data?: Tweet[];
-    includes?: { users?: XUser[] };
-  };
-  return { tweets: json.data ?? [], users: json.includes?.users ?? [] };
 }
 
 function esc(s: string): string {
