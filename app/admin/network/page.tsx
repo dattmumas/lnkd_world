@@ -30,10 +30,17 @@ function BuildForm({
   onRequest,
   busy,
 }: {
-  onRequest: (seeds: string[], forceRefresh: boolean) => void;
+  onRequest: (
+    seeds: string[],
+    mode: string,
+    excludeHandle: string,
+    forceRefresh: boolean,
+  ) => void;
   busy: boolean;
 }) {
   const [seeds, setSeeds] = useState<string[]>(["", ""]);
+  const [mode, setMode] = useState<"following" | "followers">("followers");
+  const [excludeHandle, setExcludeHandle] = useState("");
   const [forceRefresh, setForceRefresh] = useState(false);
 
   const setAt = (i: number, val: string) =>
@@ -45,13 +52,24 @@ function BuildForm({
       onSubmit={(e) => {
         e.preventDefault();
         const cleaned = seeds.map((s) => s.trim()).filter(Boolean);
-        if (cleaned.length >= 2) onRequest(cleaned, forceRefresh);
+        if (cleaned.length >= 2) onRequest(cleaned, mode, excludeHandle.trim(), forceRefresh);
       }}
     >
-      <p className="text-sm text-[var(--color-text-secondary)]">
-        Enter 2+ seed handles. The web is the accounts that <strong>2+ of your
-        seeds follow</strong> — the shared connections. You&apos;ll see the cost
-        before anything is pulled.
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-[var(--color-text-secondary)]">Find accounts that 2+ seeds</span>
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "following" | "followers")}
+          className={field}
+        >
+          <option value="followers">are followed by (audience)</option>
+          <option value="following">follow (who they respect)</option>
+        </select>
+      </div>
+      <p className="text-xs text-[var(--color-text-secondary)]">
+        {mode === "followers"
+          ? "Mines the followers of your seed accounts and intersects them — the warm audience already orbiting the niche."
+          : "Mines who your seeds follow and intersects them — the respected core of the niche."}
       </p>
       <div className="space-y-2">
         {seeds.map((s, i) => (
@@ -75,6 +93,17 @@ function BuildForm({
           </div>
         ))}
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <span className="text-[var(--color-text-secondary)] whitespace-nowrap">
+          exclude followers of @
+        </span>
+        <input
+          placeholder="your handle (optional — drops people already following you)"
+          value={excludeHandle}
+          onChange={(e) => setExcludeHandle(e.target.value)}
+          className={`${field} flex-1`}
+        />
+      </label>
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -122,6 +151,8 @@ export default function NetworkDiscovery() {
   const [buildState, setBuildState] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [pendingSeeds, setPendingSeeds] = useState<string[] | null>(null);
+  const [pendingMode, setPendingMode] = useState("followers");
+  const [pendingExclude, setPendingExclude] = useState("");
   const [pendingForce, setPendingForce] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<Id<"networkRuns"> | null>(null);
   const run = useQuery(
@@ -160,14 +191,21 @@ export default function NetworkDiscovery() {
   const selectedAccounts = accounts.filter((a) => selected.has(a.id));
 
   // Step 1: cheap pre-flight — price the build before pulling anything.
-  const onRequest = async (seeds: string[], forceRefresh: boolean) => {
+  const onRequest = async (
+    seeds: string[],
+    mode: string,
+    excludeHandle: string,
+    forceRefresh: boolean,
+  ) => {
     setEstimate(null);
     setPendingSeeds(null);
     setBuildState("Checking cost…");
     try {
-      const e = await estimateBuild({ seeds, forceRefresh });
+      const e = await estimateBuild({ seeds, mode, excludeHandle, forceRefresh });
       setEstimate(e);
       setPendingSeeds(seeds);
+      setPendingMode(mode);
+      setPendingExclude(excludeHandle);
       setPendingForce(forceRefresh);
       setBuildState("");
     } catch (err) {
@@ -179,12 +217,16 @@ export default function NetworkDiscovery() {
   const onConfirmBuild = async () => {
     if (!pendingSeeds) return;
     const seeds = pendingSeeds;
-    const forceRefresh = pendingForce;
     setEstimate(null);
     setPendingSeeds(null);
-    setBuildState("Building… (pulling following lists from X)");
+    setBuildState("Building… (pulling lists from getXAPI)");
     try {
-      const r = await build({ seeds, forceRefresh });
+      const r = await build({
+        seeds,
+        mode: pendingMode,
+        excludeHandle: pendingExclude,
+        forceRefresh: pendingForce,
+      });
       setBuildState(
         r.status === "ok"
           ? `Done — ${r.count} shared accounts.`
@@ -241,7 +283,7 @@ export default function NetworkDiscovery() {
       </p>
 
       <BuildForm
-        onRequest={(s, f) => void onRequest(s, f)}
+        onRequest={(s, m, x, f) => void onRequest(s, m, x, f)}
         busy={buildState === "Checking cost…" || buildState.startsWith("Building")}
       />
 
@@ -257,8 +299,10 @@ export default function NetworkDiscovery() {
             ) : (
               <>
                 This build pulls{" "}
-                <strong>{estimate.billableFollowing.toLocaleString()}</strong> follows
-                (~{estimate.estCalls} getXAPI calls) ≈{" "}
+                <strong>{estimate.billableFollowing.toLocaleString()}</strong>{" "}
+                {pendingMode === "followers" ? "followers" : "follows"}
+                {pendingExclude ? ` (+ @${pendingExclude}'s followers)` : ""} (~
+                {estimate.estCalls} getXAPI calls) ≈{" "}
                 <strong>${estimate.estDollars.toFixed(3)}</strong>.
               </>
             )}
@@ -267,9 +311,11 @@ export default function NetworkDiscovery() {
             {estimate.seeds
               .map(
                 (s) =>
-                  `@${s.handle} follows ${s.following.toLocaleString()}${
-                    s.cached ? " (cached · free)" : ""
-                  }`,
+                  `@${s.handle} ${
+                    pendingMode === "followers" ? "has" : "follows"
+                  } ${s.following.toLocaleString()}${
+                    pendingMode === "followers" ? " followers" : ""
+                  }${s.cached ? " (cached · free)" : ""}`,
               )
               .join(" · ")}
           </p>
@@ -321,7 +367,10 @@ export default function NetworkDiscovery() {
                 <span className="font-medium">{r.seeds.map((s) => `@${s}`).join(" + ")}</span>
                 <span className="text-[var(--color-text-secondary)]">
                   {" "}
-                  · {r.status === "ok" ? `${r.count} shared` : r.status}
+                  · {r.mode === "followers" ? "audience" : "following"}
+                  {r.excludeHandle ? ` − @${r.excludeHandle}` : ""}
+                  {" · "}
+                  {r.status === "ok" ? `${r.count} shared` : r.status}
                   {r.truncated && " · truncated"}
                   {r.error && ` · ${r.error}`}
                 </span>

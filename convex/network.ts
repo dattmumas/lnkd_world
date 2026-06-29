@@ -10,7 +10,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import type { XUser } from "./lib/xfeed";
-import { gxUserInfo, gxFollowing, GX_PAGE_SIZE } from "./lib/getxapi";
+import { gxUserInfo, gxFollowing, gxFollowers, GX_PAGE_SIZE } from "./lib/getxapi";
 
 /**
  * X "network discovery" — given 2+ seed handles, build a deduped web of the
@@ -68,63 +68,92 @@ const COST_PER_CALL = 0.001; // getXAPI per-call price
 const CACHE_TTL_DAYS = 7; // reuse a seed's cached following list within this window
 const SEED_CACHE_CAP = 100; // max cached seed lists kept (prune oldest)
 
-/** The actual build: resolve seeds, get their following (cached or pulled), overlap. */
+/**
+ * The actual build: resolve seeds, get each one's connections (cached or pulled),
+ * intersect. `mode` picks the axis:
+ *  - "following": accounts the seeds follow (who they respect).
+ *  - "followers": accounts that follow the seeds (the audience) — the warm-audience
+ *    play. With `excludeHandle`, accounts already following you are removed, leaving
+ *    "follows ≥2 niche voices but not you".
+ */
 export const buildInternal = internalAction({
-  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
+  args: {
+    seeds: v.array(v.string()),
+    mode: v.optional(v.string()),
+    excludeHandle: v.optional(v.string()),
+    forceRefresh: v.optional(v.boolean()),
+  },
   returns: v.object({ status: v.string(), count: v.number() }),
-  handler: async (ctx, { seeds: rawSeeds, forceRefresh }) => {
+  handler: async (ctx, { seeds: rawSeeds, mode: rawMode, excludeHandle: rawExclude, forceRefresh }) => {
     const generatedAt = new Date().toISOString();
+    const mode = rawMode === "followers" ? "followers" : "following";
     const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
+    const excludeHandle = rawExclude ? normalizeHandle(rawExclude) : "";
     try {
       if (seeds.length < 2) {
         throw new Error("Provide at least 2 distinct seed handles.");
       }
 
+      // Cache-or-pull a handle's connections of `kind`, keyed by (seedId, kind).
+      const getConn = async (
+        handle: string,
+        sid: string,
+        kind: "following" | "followers",
+      ): Promise<{ follows: CompactFollow[]; truncated: boolean }> => {
+        if (!forceRefresh) {
+          const rows: CachedSeed[] = await ctx.runQuery(internal.network.cachedSeeds, {
+            seedIds: [sid],
+            kind,
+          });
+          if (rows[0]) {
+            return {
+              follows: JSON.parse(rows[0].followsJson) as CompactFollow[],
+              truncated: rows[0].truncated,
+            };
+          }
+        }
+        const pulled = kind === "followers" ? await gxFollowers(handle) : await gxFollowing(handle);
+        const follows = pulled.users.map(compact);
+        await ctx.runMutation(internal.network.cacheSeed, {
+          seedId: sid,
+          handle,
+          kind,
+          followsJson: JSON.stringify(follows),
+          count: follows.length,
+          truncated: pulled.truncated,
+        });
+        return { follows, truncated: pulled.truncated };
+      };
+
       // Resolve each seed (getXAPI) for its id — used to exclude seeds from the web.
       const seedUsers = await Promise.all(seeds.map((h) => gxUserInfo(h)));
       const seedIds = new Set(seedUsers.map((u) => u.id));
 
-      // Use cached following lists where fresh; only pull (and cache) what's missing.
-      const cached: CachedSeed[] = forceRefresh
-        ? []
-        : await ctx.runQuery(internal.network.cachedSeeds, {
-            seedIds: seedUsers.map((u) => u.id),
-          });
-      const cacheBySeed = new Map(cached.map((c) => [c.seedId, c]));
+      // "but not me": exclude accounts that already follow you (your followers).
+      const excludeIds = new Set<string>();
+      if (excludeHandle) {
+        const me = await gxUserInfo(excludeHandle);
+        excludeIds.add(me.id);
+        const { follows } = await getConn(excludeHandle, me.id, "followers");
+        for (const f of follows) excludeIds.add(f.id);
+      }
 
-      // id -> { account, set of seed handles that follow it }. getXAPI's following
-      // list carries full profiles, so we keep one account record per id directly.
+      // id -> { account, set of seed handles connected to it }. getXAPI's lists carry
+      // full profiles, so we keep one account record per id directly.
       const web = new Map<string, { acc: CompactFollow; seeds: Set<string> }>();
       let truncated = false;
       for (let i = 0; i < seeds.length; i++) {
-        const handle = seeds[i];
-        const sid = seedUsers[i].id;
-        const hit = cacheBySeed.get(sid);
-        let follows: CompactFollow[];
-        if (hit) {
-          follows = JSON.parse(hit.followsJson) as CompactFollow[];
-          if (hit.truncated) truncated = true;
-        } else {
-          const pulled = await gxFollowing(handle);
-          follows = pulled.users.map(compact);
-          if (pulled.truncated) truncated = true;
-          await ctx.runMutation(internal.network.cacheSeed, {
-            seedId: sid,
-            handle,
-            followsJson: JSON.stringify(follows),
-            count: follows.length,
-            truncated: pulled.truncated,
-          });
-        }
+        const { follows, truncated: t } = await getConn(seeds[i], seedUsers[i].id, mode);
+        if (t) truncated = true;
         for (const acc of follows) {
-          if (seedIds.has(acc.id)) continue; // a seed following another seed — skip
+          if (seedIds.has(acc.id) || excludeIds.has(acc.id)) continue;
           const entry = web.get(acc.id) ?? { acc, seeds: new Set<string>() };
-          entry.seeds.add(handle);
+          entry.seeds.add(seeds[i]);
           web.set(acc.id, entry);
         }
       }
 
-      // The web is the INTERSECTION: accounts followed by 2+ seeds, top by overlap.
+      // The web is the INTERSECTION: accounts connected to 2+ seeds, top by overlap.
       const accounts: WebAccount[] = [...web.values()]
         .filter((e) => e.seeds.size >= MIN_OVERLAP)
         .map(({ acc, seeds: s }) => ({
@@ -144,6 +173,8 @@ export const buildInternal = internalAction({
       const status = accounts.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.network.store, {
         seeds,
+        mode,
+        excludeHandle: excludeHandle || undefined,
         status,
         count: accounts.length,
         accounts: JSON.stringify(accounts),
@@ -170,6 +201,8 @@ export const buildInternal = internalAction({
 export const store = internalMutation({
   args: {
     seeds: v.array(v.string()),
+    mode: v.optional(v.string()),
+    excludeHandle: v.optional(v.string()),
     status: v.string(),
     count: v.number(),
     accounts: v.string(),
@@ -207,21 +240,26 @@ export const _assertAdmin = internalQuery({
 
 /** Admin entry point: kick off a build for the given seed handles. */
 export const build = action({
-  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
+  args: {
+    seeds: v.array(v.string()),
+    mode: v.optional(v.string()),
+    excludeHandle: v.optional(v.string()),
+    forceRefresh: v.optional(v.boolean()),
+  },
   returns: v.object({ ok: v.boolean(), status: v.string(), count: v.number() }),
-  handler: async (ctx, { seeds, forceRefresh }) => {
+  handler: async (ctx, { seeds, mode, excludeHandle, forceRefresh }) => {
     const _admin: null = await ctx.runQuery(internal.network._assertAdmin, {});
     const result: { status: string; count: number } = await ctx.runAction(
       internal.network.buildInternal,
-      { seeds, forceRefresh },
+      { seeds, mode, excludeHandle, forceRefresh },
     );
     return { ok: true, status: result.status, count: result.count };
   },
 });
 
-/** Freshly-cached seed following lists (within the TTL) for the given seed ids. */
+/** Freshly-cached connection lists (within the TTL) for the given seed ids + kind. */
 export const cachedSeeds = internalQuery({
-  args: { seedIds: v.array(v.string()) },
+  args: { seedIds: v.array(v.string()), kind: v.string() },
   returns: v.array(
     v.object({
       seedId: v.string(),
@@ -229,16 +267,17 @@ export const cachedSeeds = internalQuery({
       truncated: v.boolean(),
     }),
   ),
-  handler: async (ctx, { seedIds }) => {
+  handler: async (ctx, { seedIds, kind }) => {
     const cutoff = new Date(
       Date.now() - CACHE_TTL_DAYS * 24 * 3600 * 1000,
     ).toISOString();
     const out: { seedId: string; followsJson: string; truncated: boolean }[] = [];
     for (const seedId of seedIds) {
-      const row = await ctx.db
+      const rows = await ctx.db
         .query("seedFollows")
         .withIndex("by_seedId", (q) => q.eq("seedId", seedId))
-        .first();
+        .collect();
+      const row = rows.find((r) => (r.kind ?? "following") === kind);
       if (row && row.fetchedAt >= cutoff) {
         out.push({ seedId, followsJson: row.followsJson, truncated: row.truncated });
       }
@@ -247,21 +286,24 @@ export const cachedSeeds = internalQuery({
   },
 });
 
-/** Upsert a seed's cached following list, pruning the cache to SEED_CACHE_CAP. */
+/** Upsert a seed's cached connection list (per kind), pruning to SEED_CACHE_CAP. */
 export const cacheSeed = internalMutation({
   args: {
     seedId: v.string(),
     handle: v.string(),
+    kind: v.string(),
     followsJson: v.string(),
     count: v.number(),
     truncated: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    const rows = await ctx.db
       .query("seedFollows")
       .withIndex("by_seedId", (q) => q.eq("seedId", args.seedId))
-      .first();
-    if (existing) await ctx.db.delete(existing._id);
+      .collect();
+    for (const r of rows) {
+      if ((r.kind ?? "following") === args.kind) await ctx.db.delete(r._id);
+    }
     await ctx.db.insert("seedFollows", {
       ...args,
       fetchedAt: new Date().toISOString(),
@@ -286,7 +328,12 @@ export const cacheSeed = internalMutation({
  * cost is the number of paginated following calls for the uncached seeds.
  */
 export const estimateBuild = action({
-  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
+  args: {
+    seeds: v.array(v.string()),
+    mode: v.optional(v.string()),
+    excludeHandle: v.optional(v.string()),
+    forceRefresh: v.optional(v.boolean()),
+  },
   returns: v.object({
     seeds: v.array(
       v.object({
@@ -299,31 +346,50 @@ export const estimateBuild = action({
     estCalls: v.number(),
     estDollars: v.number(),
   }),
-  handler: async (ctx, { seeds: rawSeeds, forceRefresh }) => {
+  handler: async (ctx, { seeds: rawSeeds, mode: rawMode, excludeHandle: rawExclude, forceRefresh }) => {
     await ctx.runQuery(internal.network._assertAdmin, {});
+    const mode = rawMode === "followers" ? "followers" : "following";
     const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
+    const excludeHandle = rawExclude ? normalizeHandle(rawExclude) : "";
     if (seeds.length < 2) throw new Error("Provide at least 2 distinct seed handles.");
     const users = await Promise.all(seeds.map((h) => gxUserInfo(h)));
     const cached: CachedSeed[] = forceRefresh
       ? []
       : await ctx.runQuery(internal.network.cachedSeeds, {
           seedIds: users.map((u) => u.id),
+          kind: mode,
         });
     const cachedIds = new Set(cached.map((c) => c.seedId));
+    // The relevant size per seed depends on the axis (who they follow vs who follows them).
+    const sizeOf = (u: (typeof users)[number]) =>
+      mode === "followers"
+        ? (u.public_metrics?.followers_count ?? 0)
+        : (u.public_metrics?.following_count ?? 0);
     const list = users.map((u, i) => ({
       handle: seeds[i],
-      following: u.public_metrics?.following_count ?? 0,
+      following: sizeOf(u),
       cached: cachedIds.has(u.id), // cached seeds are reused for free
     }));
     const billableFollowing = list
       .filter((x) => !x.cached)
       .reduce((s, x) => s + x.following, 0);
-    // 1 resolve call/seed + ceil(following/70) following calls for each uncached seed.
-    const estCalls =
+    const pages = (n: number) => Math.max(1, Math.ceil(n / GX_PAGE_SIZE));
+    // resolve call/seed + connection-pull calls for each uncached seed.
+    let estCalls =
       users.length +
-      list
-        .filter((x) => !x.cached)
-        .reduce((s, x) => s + Math.max(1, Math.ceil(x.following / GX_PAGE_SIZE)), 0);
+      list.filter((x) => !x.cached).reduce((s, x) => s + pages(x.following), 0);
+    // "but not me": resolve the exclude account + pull its followers (cached -> free).
+    if (excludeHandle) {
+      const me = await gxUserInfo(excludeHandle);
+      const meCached: CachedSeed[] = forceRefresh
+        ? []
+        : await ctx.runQuery(internal.network.cachedSeeds, {
+            seedIds: [me.id],
+            kind: "followers",
+          });
+      estCalls +=
+        1 + (meCached.length ? 0 : pages(me.public_metrics?.followers_count ?? 0));
+    }
     return {
       seeds: list,
       billableFollowing,
@@ -345,6 +411,8 @@ export const listRuns = query({
     return runs.map((r) => ({
       _id: r._id,
       seeds: r.seeds,
+      mode: r.mode ?? "following",
+      excludeHandle: r.excludeHandle,
       status: r.status,
       count: r.count,
       truncated: r.truncated ?? false,

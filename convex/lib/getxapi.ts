@@ -29,10 +29,11 @@ interface GxRawUser {
   isVerified?: boolean;
 }
 
-interface GxFollowingResp {
+interface GxConnectionsResp {
   following?: GxRawUser[];
+  followers?: GxRawUser[];
   users?: GxRawUser[];
-  data?: GxRawUser[] | { following?: GxRawUser[] };
+  data?: GxRawUser[] | { following?: GxRawUser[]; followers?: GxRawUser[] };
   has_more?: boolean;
   next_cursor?: string | null;
 }
@@ -108,16 +109,18 @@ export async function gxUserInfo(handle: string): Promise<XUser> {
   return mapUser(json.data);
 }
 
-// Pull the accounts a user follows (cursor-paginated), as FULL user objects —
-// getXAPI's list already carries profile fields, so no enrich step is needed.
-export async function gxFollowing(
+// Pull a user's connections (cursor-paginated) as FULL user objects — getXAPI's
+// list already carries profile fields, so no enrich step is needed. `endpoint` is
+// "following_v2" (who they follow) or "followers_v2" (who follows them).
+async function gxConnections(
   handle: string,
+  endpoint: "following_v2" | "followers_v2",
 ): Promise<{ users: XUser[]; truncated: boolean }> {
   const byId = new Map<string, XUser>();
   let cursor: string | undefined;
   let truncated = false;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = new URL(`${BASE}/twitter/user/following_v2`);
+    const url = new URL(`${BASE}/twitter/user/${endpoint}`);
     url.searchParams.set("userName", handle);
     if (cursor) url.searchParams.set("cursor", cursor);
     const res = await gxFetch(url.toString());
@@ -128,14 +131,16 @@ export async function gxFollowing(
     if (!res.ok) {
       throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);
     }
-    const json = (await res.json()) as GxFollowingResp;
+    const json = (await res.json()) as GxConnectionsResp;
     const list: GxRawUser[] = Array.isArray(json.following)
       ? json.following
-      : Array.isArray(json.users)
-        ? json.users
-        : Array.isArray(json.data)
-          ? json.data
-          : (json.data?.following ?? []);
+      : Array.isArray(json.followers)
+        ? json.followers
+        : Array.isArray(json.users)
+          ? json.users
+          : Array.isArray(json.data)
+            ? json.data
+            : (json.data?.following ?? json.data?.followers ?? []);
     for (const u of list) {
       const m = mapUser(u);
       if (m.id && !byId.has(m.id)) byId.set(m.id, m);
@@ -149,6 +154,15 @@ export async function gxFollowing(
     if (page === MAX_PAGES - 1 && json.has_more) truncated = true;
   }
   return { users: [...byId.values()], truncated };
+}
+
+// Accounts a user follows.
+export function gxFollowing(handle: string) {
+  return gxConnections(handle, "following_v2");
+}
+// Accounts that follow a user.
+export function gxFollowers(handle: string) {
+  return gxConnections(handle, "followers_v2");
 }
 
 interface GxTweet {

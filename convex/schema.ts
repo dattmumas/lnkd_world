@@ -171,6 +171,8 @@ export default defineSchema({
   // the accounts the seeds follow, deduped and ranked by seed-overlap.
   networkRuns: defineTable({
     seeds: v.array(v.string()), // normalized seed handles
+    mode: v.optional(v.string()), // "following" | "followers"
+    excludeHandle: v.optional(v.string()), // "but not me" account, if set
     status: v.string(), // "ok" | "empty" | "error"
     count: v.number(), // distinct accounts in the web
     // JSON: [{id,username,name,description,followers,overlap,seeds:[handle]}]
@@ -187,8 +189,9 @@ export default defineSchema({
   seedFollows: defineTable({
     seedId: v.string(), // the seed's X user id
     handle: v.string(), // normalized handle (for display)
-    followsJson: v.string(), // JSON of full follow objects (id/username/name/followers/…)
-    count: v.number(), // number of accounts followed
+    kind: v.optional(v.string()), // "following" | "followers" (default following)
+    followsJson: v.string(), // JSON of full connection objects (id/username/name/followers/…)
+    count: v.number(), // number of accounts in the list
     truncated: v.boolean(), // the pull hit the page cap / a rate limit
     fetchedAt: v.string(), // ISO timestamp — drives TTL freshness
   })
