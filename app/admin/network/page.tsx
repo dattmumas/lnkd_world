@@ -30,10 +30,11 @@ function BuildForm({
   onRequest,
   busy,
 }: {
-  onRequest: (seeds: string[]) => void;
+  onRequest: (seeds: string[], forceRefresh: boolean) => void;
   busy: boolean;
 }) {
   const [seeds, setSeeds] = useState<string[]>(["", ""]);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   const setAt = (i: number, val: string) =>
     setSeeds((s) => s.map((v, j) => (j === i ? val : v)));
@@ -44,7 +45,7 @@ function BuildForm({
       onSubmit={(e) => {
         e.preventDefault();
         const cleaned = seeds.map((s) => s.trim()).filter(Boolean);
-        if (cleaned.length >= 2) onRequest(cleaned);
+        if (cleaned.length >= 2) onRequest(cleaned, forceRefresh);
       }}
     >
       <p className="text-sm text-[var(--color-text-secondary)]">
@@ -82,6 +83,17 @@ function BuildForm({
         >
           + add seed
         </button>
+        <label
+          className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1"
+          title="Ignore cached lists and re-pull from X (costs credits again)"
+        >
+          <input
+            type="checkbox"
+            checked={forceRefresh}
+            onChange={(e) => setForceRefresh(e.target.checked)}
+          />
+          re-pull fresh
+        </label>
         <button
           type="submit"
           disabled={busy || seeds.filter((s) => s.trim()).length < 2}
@@ -95,8 +107,8 @@ function BuildForm({
 }
 
 interface Estimate {
-  seeds: { handle: string; following: number }[];
-  totalFollowing: number;
+  seeds: { handle: string; following: number; cached: boolean }[];
+  billableFollowing: number;
   estDollars: number;
 }
 
@@ -110,6 +122,7 @@ export default function NetworkDiscovery() {
   const [buildState, setBuildState] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [pendingSeeds, setPendingSeeds] = useState<string[] | null>(null);
+  const [pendingForce, setPendingForce] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<Id<"networkRuns"> | null>(null);
   const run = useQuery(
     api.network.getRun,
@@ -148,14 +161,15 @@ export default function NetworkDiscovery() {
   const selectedAccounts = accounts.filter((a) => selected.has(a.id));
 
   // Step 1: cheap pre-flight — price the build before pulling anything.
-  const onRequest = async (seeds: string[]) => {
+  const onRequest = async (seeds: string[], forceRefresh: boolean) => {
     setEstimate(null);
     setPendingSeeds(null);
     setBuildState("Checking cost…");
     try {
-      const e = await estimateBuild({ seeds });
+      const e = await estimateBuild({ seeds, forceRefresh });
       setEstimate(e);
       setPendingSeeds(seeds);
+      setPendingForce(forceRefresh);
       setBuildState("");
     } catch (err) {
       setBuildState(`Failed — ${err instanceof Error ? err.message : String(err)}`);
@@ -166,11 +180,12 @@ export default function NetworkDiscovery() {
   const onConfirmBuild = async () => {
     if (!pendingSeeds) return;
     const seeds = pendingSeeds;
+    const forceRefresh = pendingForce;
     setEstimate(null);
     setPendingSeeds(null);
     setBuildState("Building… (pulling following lists from X)");
     try {
-      const r = await build({ seeds });
+      const r = await build({ seeds, forceRefresh });
       setBuildState(
         r.status === "ok"
           ? `Done — ${r.count} shared accounts.`
@@ -245,7 +260,7 @@ export default function NetworkDiscovery() {
       </p>
 
       <BuildForm
-        onRequest={(s) => void onRequest(s)}
+        onRequest={(s, f) => void onRequest(s, f)}
         busy={buildState === "Checking cost…" || buildState.startsWith("Building")}
       />
 
@@ -253,14 +268,28 @@ export default function NetworkDiscovery() {
       {estimate && (
         <div className="border border-[var(--color-accent)] rounded p-4 mt-3 text-sm">
           <p className="mb-2">
-            This build will read{" "}
-            <strong>{estimate.totalFollowing.toLocaleString()}</strong> accounts
-            (everyone these seeds follow) ≈{" "}
-            <strong>${estimate.estDollars.toFixed(2)}</strong> in API credits.
+            {estimate.estDollars === 0 ? (
+              <>
+                All seeds are <strong>cached</strong> — this rebuild is{" "}
+                <strong>free</strong> (no new pulls).
+              </>
+            ) : (
+              <>
+                This build will read{" "}
+                <strong>{estimate.billableFollowing.toLocaleString()}</strong>{" "}
+                accounts ≈ <strong>${estimate.estDollars.toFixed(2)}</strong> in API
+                credits.
+              </>
+            )}
           </p>
           <p className="text-[var(--color-text-secondary)] mb-3">
             {estimate.seeds
-              .map((s) => `@${s.handle} follows ${s.following.toLocaleString()}`)
+              .map(
+                (s) =>
+                  `@${s.handle} follows ${s.following.toLocaleString()}${
+                    s.cached ? " (cached · free)" : ""
+                  }`,
+              )
               .join(" · ")}
           </p>
           <div className="flex gap-2">
@@ -268,7 +297,9 @@ export default function NetworkDiscovery() {
               onClick={() => void onConfirmBuild()}
               className="bg-[var(--color-accent)] text-white rounded px-4 py-2 hover:bg-[var(--color-accent-hover)]"
             >
-              Build for ~${estimate.estDollars.toFixed(2)}
+              {estimate.estDollars === 0
+                ? "Build (free)"
+                : `Build for ~$${estimate.estDollars.toFixed(2)}`}
             </button>
             <button
               onClick={() => {

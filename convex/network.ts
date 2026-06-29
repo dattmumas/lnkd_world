@@ -11,7 +11,7 @@ import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import {
   resolveUser,
-  fetchFollowing,
+  fetchFollowingIds,
   hydrateUsers,
   type XUser,
 } from "./lib/xfeed";
@@ -43,16 +43,22 @@ interface WebAccount {
   enriched: boolean; // whether bio/follower count were fetched
 }
 
+// Cached seed entry (annotated explicitly at runQuery sites to break the same-file
+// circular type inference between buildInternal/estimateBuild and cachedSeeds).
+type CachedSeed = { seedId: string; idsJson: string; truncated: boolean };
+
 const MAX_RUNS = 20; // keep the most recent N saved runs
 const MIN_OVERLAP = 2; // the web is accounts followed by 2+ seeds (the actual connections)
-const ENRICH_MAX = 1000; // cap hydrated accounts (≤10 batch calls) to bound cost
+const ENRICH_MAX = 1000; // cap hydrated/stored accounts (≤10 batch calls) to bound cost
 const COST_PER_READ = 0.01; // empirical pay-per-use rate (~$0.009–0.01 per user object)
+const CACHE_TTL_DAYS = 7; // reuse a seed's cached following list within this window
+const SEED_CACHE_CAP = 100; // max cached seed lists kept (prune oldest)
 
-/** The actual build: resolve seeds, pull their following, compute the overlap web. */
+/** The actual build: resolve seeds, get their following (cached or pulled), overlap. */
 export const buildInternal = internalAction({
-  args: { seeds: v.array(v.string()) },
+  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
   returns: v.object({ status: v.string(), count: v.number() }),
-  handler: async (ctx, { seeds: rawSeeds }) => {
+  handler: async (ctx, { seeds: rawSeeds, forceRefresh }) => {
     const generatedAt = new Date().toISOString();
     const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
     try {
@@ -64,41 +70,63 @@ export const buildInternal = internalAction({
       const seedUsers = await Promise.all(seeds.map((h) => resolveUser(h)));
       const seedIds = new Set(seedUsers.map((u) => u.id));
 
-      // Pull each seed's following list (MINIMAL fields — id/name/username only),
-      // tagging every followed account with the seed handle(s) that follow it.
-      const web = new Map<string, { user: XUser; seeds: Set<string> }>();
+      // Use cached following lists where fresh; only pull (and cache) what's missing.
+      const cached: CachedSeed[] = forceRefresh
+        ? []
+        : await ctx.runQuery(internal.network.cachedSeeds, {
+            seedIds: seedUsers.map((u) => u.id),
+          });
+      const cacheBySeed = new Map(cached.map((c) => [c.seedId, c]));
+
+      // id -> set of seed handles that follow it.
+      const web = new Map<string, Set<string>>();
       let truncated = false;
       for (let i = 0; i < seeds.length; i++) {
         const handle = seeds[i];
-        const { users, truncated: t } = await fetchFollowing(seedUsers[i].id);
-        if (t) truncated = true;
-        for (const u of users) {
-          if (seedIds.has(u.id)) continue; // a seed following another seed — skip
-          const entry = web.get(u.id) ?? { user: u, seeds: new Set<string>() };
-          entry.seeds.add(handle);
-          web.set(u.id, entry);
+        const sid = seedUsers[i].id;
+        const hit = cacheBySeed.get(sid);
+        let ids: string[];
+        if (hit) {
+          ids = JSON.parse(hit.idsJson) as string[];
+          if (hit.truncated) truncated = true;
+        } else {
+          const pulled = await fetchFollowingIds(sid);
+          ids = pulled.ids;
+          if (pulled.truncated) truncated = true;
+          await ctx.runMutation(internal.network.cacheSeed, {
+            seedId: sid,
+            handle,
+            idsJson: JSON.stringify(ids),
+            count: ids.length,
+            truncated: pulled.truncated,
+          });
+        }
+        for (const id of ids) {
+          if (seedIds.has(id)) continue; // a seed following another seed — skip
+          const s = web.get(id) ?? new Set<string>();
+          s.add(handle);
+          web.set(id, s);
         }
       }
 
-      // The web is the INTERSECTION: accounts followed by 2+ seeds. Single-seed
-      // follows are the long tail and not what this tool is for — drop them.
-      const shared = [...web.values()].filter((e) => e.seeds.size >= MIN_OVERLAP);
-
-      // Enrich the shared accounts (capped) — bio + follower count for display.
-      const enrichIds = shared
-        .sort((a, b) => b.seeds.size - a.seeds.size)
-        .slice(0, ENRICH_MAX)
-        .map((e) => e.user.id);
+      // The web is the INTERSECTION: accounts followed by 2+ seeds, top by overlap
+      // (capped). We enrich and store exactly this set — nothing else is surfaced.
+      const shared = [...web.entries()]
+        .filter(([, s]) => s.size >= MIN_OVERLAP)
+        .sort((a, b) => b[1].size - a[1].size)
+        .slice(0, ENRICH_MAX);
       const hydrated =
-        enrichIds.length > 0 ? await hydrateUsers(enrichIds) : new Map<string, XUser>();
+        shared.length > 0
+          ? await hydrateUsers(shared.map(([id]) => id))
+          : new Map<string, XUser>();
 
       const accounts: WebAccount[] = shared
-        .map(({ user, seeds: s }) => {
-          const full = hydrated.get(user.id);
+        .map(([id, s]) => {
+          const full = hydrated.get(id);
           return {
-            id: user.id,
-            username: full?.username ?? user.username,
-            name: full?.name ?? user.name,
+            id,
+            username: full?.username ?? "",
+            name: full?.name ?? "",
             description: full?.description ?? "",
             followers: full?.public_metrics?.followers_count ?? 0,
             overlap: s.size,
@@ -106,12 +134,8 @@ export const buildInternal = internalAction({
             enriched: !!full,
           };
         })
-        .sort(
-          (a, b) =>
-            b.overlap - a.overlap ||
-            Number(b.enriched) - Number(a.enriched) ||
-            b.followers - a.followers,
-        );
+        .filter((a) => a.username) // drop suspended/deleted (failed to hydrate)
+        .sort((a, b) => b.overlap - a.overlap || b.followers - a.followers);
 
       const status = accounts.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.network.store, {
@@ -179,15 +203,75 @@ export const _assertAdmin = internalQuery({
 
 /** Admin entry point: kick off a build for the given seed handles. */
 export const build = action({
-  args: { seeds: v.array(v.string()) },
+  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
   returns: v.object({ ok: v.boolean(), status: v.string(), count: v.number() }),
-  handler: async (ctx, { seeds }) => {
+  handler: async (ctx, { seeds, forceRefresh }) => {
     const _admin: null = await ctx.runQuery(internal.network._assertAdmin, {});
     const result: { status: string; count: number } = await ctx.runAction(
       internal.network.buildInternal,
-      { seeds },
+      { seeds, forceRefresh },
     );
     return { ok: true, status: result.status, count: result.count };
+  },
+});
+
+/** Freshly-cached seed following lists (within the TTL) for the given seed ids. */
+export const cachedSeeds = internalQuery({
+  args: { seedIds: v.array(v.string()) },
+  returns: v.array(
+    v.object({
+      seedId: v.string(),
+      idsJson: v.string(),
+      truncated: v.boolean(),
+    }),
+  ),
+  handler: async (ctx, { seedIds }) => {
+    const cutoff = new Date(
+      Date.now() - CACHE_TTL_DAYS * 24 * 3600 * 1000,
+    ).toISOString();
+    const out: { seedId: string; idsJson: string; truncated: boolean }[] = [];
+    for (const seedId of seedIds) {
+      const row = await ctx.db
+        .query("seedFollows")
+        .withIndex("by_seedId", (q) => q.eq("seedId", seedId))
+        .first();
+      if (row && row.fetchedAt >= cutoff) {
+        out.push({ seedId, idsJson: row.idsJson, truncated: row.truncated });
+      }
+    }
+    return out;
+  },
+});
+
+/** Upsert a seed's cached following list, pruning the cache to SEED_CACHE_CAP. */
+export const cacheSeed = internalMutation({
+  args: {
+    seedId: v.string(),
+    handle: v.string(),
+    idsJson: v.string(),
+    count: v.number(),
+    truncated: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("seedFollows")
+      .withIndex("by_seedId", (q) => q.eq("seedId", args.seedId))
+      .first();
+    if (existing) await ctx.db.delete(existing._id);
+    await ctx.db.insert("seedFollows", {
+      ...args,
+      fetchedAt: new Date().toISOString(),
+    });
+    const all = await ctx.db
+      .query("seedFollows")
+      .withIndex("by_fetchedAt")
+      .order("asc")
+      .take(SEED_CACHE_CAP + 50);
+    if (all.length > SEED_CACHE_CAP) {
+      for (const r of all.slice(0, all.length - SEED_CACHE_CAP)) {
+        await ctx.db.delete(r._id);
+      }
+    }
   },
 });
 
@@ -197,26 +281,42 @@ export const build = action({
  * spending. The bulk pull is what costs money, so always estimate first.
  */
 export const estimateBuild = action({
-  args: { seeds: v.array(v.string()) },
+  args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
   returns: v.object({
-    seeds: v.array(v.object({ handle: v.string(), following: v.number() })),
-    totalFollowing: v.number(),
+    seeds: v.array(
+      v.object({
+        handle: v.string(),
+        following: v.number(),
+        cached: v.boolean(),
+      }),
+    ),
+    billableFollowing: v.number(),
     estDollars: v.number(),
   }),
-  handler: async (ctx, { seeds: rawSeeds }) => {
+  handler: async (ctx, { seeds: rawSeeds, forceRefresh }) => {
     await ctx.runQuery(internal.network._assertAdmin, {});
     const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
     if (seeds.length < 2) throw new Error("Provide at least 2 distinct seed handles.");
     const users = await Promise.all(seeds.map((h) => resolveUser(h)));
+    const cached: CachedSeed[] = forceRefresh
+      ? []
+      : await ctx.runQuery(internal.network.cachedSeeds, {
+          seedIds: users.map((u) => u.id),
+        });
+    const cachedIds = new Set(cached.map((c) => c.seedId));
     const list = users.map((u, i) => ({
       handle: seeds[i],
       following: u.public_metrics?.following_count ?? 0,
+      cached: cachedIds.has(u.id), // cached seeds are reused for free
     }));
-    const totalFollowing = list.reduce((s, x) => s + x.following, 0);
+    // Only uncached seeds incur a pull, so only they are billable.
+    const billableFollowing = list
+      .filter((x) => !x.cached)
+      .reduce((s, x) => s + x.following, 0);
     return {
       seeds: list,
-      totalFollowing,
-      estDollars: Math.round(totalFollowing * COST_PER_READ * 100) / 100,
+      billableFollowing,
+      estDollars: Math.round(billableFollowing * COST_PER_READ * 100) / 100,
     };
   },
 });

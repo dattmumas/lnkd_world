@@ -294,23 +294,22 @@ export async function resolveUser(username: string): Promise<XUser> {
   return json.data;
 }
 
-// Pull who a user follows (paginated), MINIMAL fields only — default response is
-// id + name + username, with no `user.fields` (no bio/metrics/avatar). This is the
-// cheapest per-object pull and all the overlap computation needs; the displayed
-// subset is enriched separately via `hydrateUsers`. Returns the deduped users and
-// whether the list was truncated (page cap or an X rate-limit 429).
-export async function fetchFollowing(
+// Pull the IDs of accounts a user follows (paginated), requesting NO user.fields —
+// IDs are all the overlap computation needs, and they're cheap to cache. The shared
+// subset is enriched separately via `hydrateUsers`. Returns deduped ids and whether
+// the list was truncated (page cap or an X rate-limit 429).
+export async function fetchFollowingIds(
   userId: string,
-): Promise<{ users: XUser[]; truncated: boolean }> {
+): Promise<{ ids: string[]; truncated: boolean }> {
   const token = process.env.x_bearer;
   if (!token) throw new Error("x_bearer is not set in the Convex environment.");
-  const byId = new Map<string, XUser>();
+  const ids = new Set<string>();
   let pageToken: string | undefined;
   let truncated = false;
   for (let page = 0; page < MAX_FOLLOWING_PAGES; page++) {
     const url = new URL(`https://api.x.com/2/users/${userId}/following`);
     url.searchParams.set("max_results", "1000");
-    // No user.fields — default (id, name, username) is all the overlap needs.
+    // No user.fields — default returns id/name/username; we keep only id.
     if (pageToken) url.searchParams.set("pagination_token", pageToken);
     const res = await fetch(url.toString(), { headers: xHeaders(token) });
     if (res.status === 429) {
@@ -321,15 +320,15 @@ export async function fetchFollowing(
       throw new Error(`X API ${res.status}: ${(await res.text()).slice(0, 200)}`);
     }
     const json = (await res.json()) as {
-      data?: XUser[];
+      data?: { id: string }[];
       meta?: { next_token?: string };
     };
-    for (const u of json.data ?? []) if (!byId.has(u.id)) byId.set(u.id, u);
+    for (const u of json.data ?? []) ids.add(u.id);
     pageToken = json.meta?.next_token;
     if (!pageToken) break;
     if (page === MAX_FOLLOWING_PAGES - 1 && pageToken) truncated = true;
   }
-  return { users: [...byId.values()], truncated };
+  return { ids: [...ids], truncated };
 }
 
 // Enrich a set of user ids with full fields (bio, follower count, avatar) via the

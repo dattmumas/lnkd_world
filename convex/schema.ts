@@ -181,6 +181,20 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // Cache of a seed's following list (convex/network.ts) so rebuilding a web —
+  // re-running the same seeds, or adding one — reuses paid-for pulls instead of
+  // re-charging. Keyed by the seed's X user id; refreshed past the TTL.
+  seedFollows: defineTable({
+    seedId: v.string(), // the seed's X user id
+    handle: v.string(), // normalized handle (for display)
+    idsJson: v.string(), // JSON string[] of followed account ids
+    count: v.number(), // number of accounts followed
+    truncated: v.boolean(), // the pull hit the page cap / a rate limit
+    fetchedAt: v.string(), // ISO timestamp — drives TTL freshness
+  })
+    .index("by_seedId", ["seedId"])
+    .index("by_fetchedAt", ["fetchedAt"]),
+
   // Log of accounts followed via the mass-follow action (convex/xFollow.ts) —
   // powers dedup (don't re-follow) and the daily-cap counter.
   xFollows: defineTable({
