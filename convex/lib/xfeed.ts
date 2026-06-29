@@ -25,7 +25,7 @@ export interface XUser {
   name: string;
   description?: string; // bio — lets the curator judge the account, not just the tweet
   verified?: boolean;
-  public_metrics?: { followers_count?: number };
+  public_metrics?: { followers_count?: number; following_count?: number };
   profile_image_url?: string;
 }
 export interface RankedPost {

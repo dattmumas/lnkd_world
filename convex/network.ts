@@ -44,8 +44,9 @@ interface WebAccount {
 }
 
 const MAX_RUNS = 20; // keep the most recent N saved runs
-const ENRICH_MIN_OVERLAP = 2; // only hydrate accounts followed by 2+ seeds (the core)
+const MIN_OVERLAP = 2; // the web is accounts followed by 2+ seeds (the actual connections)
 const ENRICH_MAX = 1000; // cap hydrated accounts (≤10 batch calls) to bound cost
+const COST_PER_READ = 0.01; // empirical pay-per-use rate (~$0.009–0.01 per user object)
 
 /** The actual build: resolve seeds, pull their following, compute the overlap web. */
 export const buildInternal = internalAction({
@@ -79,17 +80,19 @@ export const buildInternal = internalAction({
         }
       }
 
-      // Enrich ONLY the surfaced slice (followed by ENRICH_MIN_OVERLAP+ seeds),
-      // capped — the long tail never incurs the rich-object cost.
-      const enrichIds = [...web.values()]
-        .filter((e) => e.seeds.size >= ENRICH_MIN_OVERLAP)
+      // The web is the INTERSECTION: accounts followed by 2+ seeds. Single-seed
+      // follows are the long tail and not what this tool is for — drop them.
+      const shared = [...web.values()].filter((e) => e.seeds.size >= MIN_OVERLAP);
+
+      // Enrich the shared accounts (capped) — bio + follower count for display.
+      const enrichIds = shared
         .sort((a, b) => b.seeds.size - a.seeds.size)
         .slice(0, ENRICH_MAX)
         .map((e) => e.user.id);
       const hydrated =
         enrichIds.length > 0 ? await hydrateUsers(enrichIds) : new Map<string, XUser>();
 
-      const accounts: WebAccount[] = [...web.values()]
+      const accounts: WebAccount[] = shared
         .map(({ user, seeds: s }) => {
           const full = hydrated.get(user.id);
           return {
@@ -185,6 +188,36 @@ export const build = action({
       { seeds },
     );
     return { ok: true, status: result.status, count: result.count };
+  },
+});
+
+/**
+ * Cheap pre-flight (~2 user reads): resolve the seeds and report how many
+ * accounts a build will pull and the rough cost, so the UI can confirm BEFORE
+ * spending. The bulk pull is what costs money, so always estimate first.
+ */
+export const estimateBuild = action({
+  args: { seeds: v.array(v.string()) },
+  returns: v.object({
+    seeds: v.array(v.object({ handle: v.string(), following: v.number() })),
+    totalFollowing: v.number(),
+    estDollars: v.number(),
+  }),
+  handler: async (ctx, { seeds: rawSeeds }) => {
+    await ctx.runQuery(internal.network._assertAdmin, {});
+    const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
+    if (seeds.length < 2) throw new Error("Provide at least 2 distinct seed handles.");
+    const users = await Promise.all(seeds.map((h) => resolveUser(h)));
+    const list = users.map((u, i) => ({
+      handle: seeds[i],
+      following: u.public_metrics?.following_count ?? 0,
+    }));
+    const totalFollowing = list.reduce((s, x) => s + x.following, 0);
+    return {
+      seeds: list,
+      totalFollowing,
+      estDollars: Math.round(totalFollowing * COST_PER_READ * 100) / 100,
+    };
   },
 });
 

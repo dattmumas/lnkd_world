@@ -27,10 +27,10 @@ const field =
   "border border-[var(--color-border)] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]";
 
 function BuildForm({
-  onBuild,
+  onRequest,
   busy,
 }: {
-  onBuild: (seeds: string[]) => void;
+  onRequest: (seeds: string[]) => void;
   busy: boolean;
 }) {
   const [seeds, setSeeds] = useState<string[]>(["", ""]);
@@ -44,12 +44,13 @@ function BuildForm({
       onSubmit={(e) => {
         e.preventDefault();
         const cleaned = seeds.map((s) => s.trim()).filter(Boolean);
-        if (cleaned.length >= 2) onBuild(cleaned);
+        if (cleaned.length >= 2) onRequest(cleaned);
       }}
     >
       <p className="text-sm text-[var(--color-text-secondary)]">
-        Enter 2+ seed handles. The web is every account they <strong>follow</strong>,
-        ranked by how many of your seeds follow each.
+        Enter 2+ seed handles. The web is the accounts that <strong>2+ of your
+        seeds follow</strong> — the shared connections. You&apos;ll see the cost
+        before anything is pulled.
       </p>
       <div className="space-y-2">
         {seeds.map((s, i) => (
@@ -86,20 +87,29 @@ function BuildForm({
           disabled={busy || seeds.filter((s) => s.trim()).length < 2}
           className="bg-[var(--color-accent)] text-white rounded px-4 py-2 text-sm hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-60"
         >
-          {busy ? "Building…" : "Build web"}
+          {busy ? "Checking…" : "Estimate cost"}
         </button>
       </div>
     </form>
   );
 }
 
+interface Estimate {
+  seeds: { handle: string; following: number }[];
+  totalFollowing: number;
+  estDollars: number;
+}
+
 export default function NetworkDiscovery() {
   const runs = useQuery(api.network.listRuns);
+  const estimateBuild = useAction(api.network.estimateBuild);
   const build = useAction(api.network.build);
   const addToWatchlist = useMutation(api.network.addToWatchlist);
   const followAccounts = useAction(api.xFollow.followAccounts);
 
   const [buildState, setBuildState] = useState("");
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [pendingSeeds, setPendingSeeds] = useState<string[] | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<Id<"networkRuns"> | null>(null);
   const run = useQuery(
     api.network.getRun,
@@ -137,13 +147,33 @@ export default function NetworkDiscovery() {
 
   const selectedAccounts = accounts.filter((a) => selected.has(a.id));
 
-  const onBuild = async (seeds: string[]) => {
+  // Step 1: cheap pre-flight — price the build before pulling anything.
+  const onRequest = async (seeds: string[]) => {
+    setEstimate(null);
+    setPendingSeeds(null);
+    setBuildState("Checking cost…");
+    try {
+      const e = await estimateBuild({ seeds });
+      setEstimate(e);
+      setPendingSeeds(seeds);
+      setBuildState("");
+    } catch (err) {
+      setBuildState(`Failed — ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // Step 2: only after the user confirms the cost do we pull the lists.
+  const onConfirmBuild = async () => {
+    if (!pendingSeeds) return;
+    const seeds = pendingSeeds;
+    setEstimate(null);
+    setPendingSeeds(null);
     setBuildState("Building… (pulling following lists from X)");
     try {
       const r = await build({ seeds });
       setBuildState(
         r.status === "ok"
-          ? `Done — ${r.count} accounts in the web.`
+          ? `Done — ${r.count} shared accounts.`
           : `Build ${r.status}.`,
       );
     } catch (e) {
@@ -214,7 +244,44 @@ export default function NetworkDiscovery() {
         or follow on X.
       </p>
 
-      <BuildForm onBuild={(s) => void onBuild(s)} busy={buildState.startsWith("Building")} />
+      <BuildForm
+        onRequest={(s) => void onRequest(s)}
+        busy={buildState === "Checking cost…" || buildState.startsWith("Building")}
+      />
+
+      {/* Cost confirm — nothing is pulled until this is accepted */}
+      {estimate && (
+        <div className="border border-[var(--color-accent)] rounded p-4 mt-3 text-sm">
+          <p className="mb-2">
+            This build will read{" "}
+            <strong>{estimate.totalFollowing.toLocaleString()}</strong> accounts
+            (everyone these seeds follow) ≈{" "}
+            <strong>${estimate.estDollars.toFixed(2)}</strong> in API credits.
+          </p>
+          <p className="text-[var(--color-text-secondary)] mb-3">
+            {estimate.seeds
+              .map((s) => `@${s.handle} follows ${s.following.toLocaleString()}`)
+              .join(" · ")}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => void onConfirmBuild()}
+              className="bg-[var(--color-accent)] text-white rounded px-4 py-2 hover:bg-[var(--color-accent-hover)]"
+            >
+              Build for ~${estimate.estDollars.toFixed(2)}
+            </button>
+            <button
+              onClick={() => {
+                setEstimate(null);
+                setPendingSeeds(null);
+              }}
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Saved runs */}
       <h2 className="text-lg font-medium mt-10 mb-3">Saved runs</h2>
@@ -242,7 +309,7 @@ export default function NetworkDiscovery() {
                 <span className="font-medium">{r.seeds.map((s) => `@${s}`).join(" + ")}</span>
                 <span className="text-[var(--color-text-secondary)]">
                   {" "}
-                  · {r.status === "ok" ? `${r.count} accounts` : r.status}
+                  · {r.status === "ok" ? `${r.count} shared` : r.status}
                   {r.truncated && " · truncated"}
                   {r.error && ` · ${r.error}`}
                 </span>
@@ -256,21 +323,24 @@ export default function NetworkDiscovery() {
       {selectedRunId && run && accounts.length > 0 && (
         <div className="mt-8">
           <div className="flex flex-wrap items-center gap-3 mb-3">
-            <h2 className="text-lg font-medium">The web ({visible.length})</h2>
-            <label className="text-sm text-[var(--color-text-secondary)] flex items-center gap-1">
-              min overlap
-              <select
-                value={minOverlap}
-                onChange={(e) => setMinOverlap(Number(e.target.value))}
-                className={field}
-              >
-                {Array.from({ length: totalSeeds }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}/{totalSeeds}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <h2 className="text-lg font-medium">Shared accounts ({visible.length})</h2>
+            {/* Only meaningful for 3+ seeds; for 2 seeds everything is 2/2. */}
+            {totalSeeds >= 3 && (
+              <label className="text-sm text-[var(--color-text-secondary)] flex items-center gap-1">
+                followed by ≥
+                <select
+                  value={minOverlap}
+                  onChange={(e) => setMinOverlap(Number(e.target.value))}
+                  className={field}
+                >
+                  {Array.from({ length: totalSeeds - 1 }, (_, i) => i + 2).map((n) => (
+                    <option key={n} value={n}>
+                      {n}/{totalSeeds}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <input
               placeholder="filter…"
               value={filter}
