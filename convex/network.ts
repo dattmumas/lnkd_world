@@ -9,7 +9,12 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
-import { resolveUser, fetchFollowing, type XUser } from "./lib/xfeed";
+import {
+  resolveUser,
+  fetchFollowing,
+  hydrateUsers,
+  type XUser,
+} from "./lib/xfeed";
 
 /**
  * X "network discovery" — given 2+ seed handles, build a deduped web of the
@@ -25,6 +30,8 @@ function normalizeHandle(raw: string): string {
 }
 
 // One account in a built web (serialized into networkRuns.accounts as JSON).
+// Long-tail (overlap 1) rows stay lean — handle/name only, enriched=false — so we
+// never pay the rich-object cost for accounts that aren't surfaced.
 interface WebAccount {
   id: string;
   username: string;
@@ -33,9 +40,12 @@ interface WebAccount {
   followers: number;
   overlap: number; // how many seeds follow this account
   seeds: string[]; // which seed handles follow it
+  enriched: boolean; // whether bio/follower count were fetched
 }
 
 const MAX_RUNS = 20; // keep the most recent N saved runs
+const ENRICH_MIN_OVERLAP = 2; // only hydrate accounts followed by 2+ seeds (the core)
+const ENRICH_MAX = 1000; // cap hydrated accounts (≤10 batch calls) to bound cost
 
 /** The actual build: resolve seeds, pull their following, compute the overlap web. */
 export const buildInternal = internalAction({
@@ -53,8 +63,8 @@ export const buildInternal = internalAction({
       const seedUsers = await Promise.all(seeds.map((h) => resolveUser(h)));
       const seedIds = new Set(seedUsers.map((u) => u.id));
 
-      // Pull each seed's following list, tagging every followed account with the
-      // seed handle(s) that follow it.
+      // Pull each seed's following list (MINIMAL fields — id/name/username only),
+      // tagging every followed account with the seed handle(s) that follow it.
       const web = new Map<string, { user: XUser; seeds: Set<string> }>();
       let truncated = false;
       for (let i = 0; i < seeds.length; i++) {
@@ -69,17 +79,36 @@ export const buildInternal = internalAction({
         }
       }
 
+      // Enrich ONLY the surfaced slice (followed by ENRICH_MIN_OVERLAP+ seeds),
+      // capped — the long tail never incurs the rich-object cost.
+      const enrichIds = [...web.values()]
+        .filter((e) => e.seeds.size >= ENRICH_MIN_OVERLAP)
+        .sort((a, b) => b.seeds.size - a.seeds.size)
+        .slice(0, ENRICH_MAX)
+        .map((e) => e.user.id);
+      const hydrated =
+        enrichIds.length > 0 ? await hydrateUsers(enrichIds) : new Map<string, XUser>();
+
       const accounts: WebAccount[] = [...web.values()]
-        .map(({ user, seeds: s }) => ({
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          description: user.description ?? "",
-          followers: user.public_metrics?.followers_count ?? 0,
-          overlap: s.size,
-          seeds: [...s],
-        }))
-        .sort((a, b) => b.overlap - a.overlap || b.followers - a.followers);
+        .map(({ user, seeds: s }) => {
+          const full = hydrated.get(user.id);
+          return {
+            id: user.id,
+            username: full?.username ?? user.username,
+            name: full?.name ?? user.name,
+            description: full?.description ?? "",
+            followers: full?.public_metrics?.followers_count ?? 0,
+            overlap: s.size,
+            seeds: [...s],
+            enriched: !!full,
+          };
+        })
+        .sort(
+          (a, b) =>
+            b.overlap - a.overlap ||
+            Number(b.enriched) - Number(a.enriched) ||
+            b.followers - a.followers,
+        );
 
       const status = accounts.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.network.store, {

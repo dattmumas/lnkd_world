@@ -294,8 +294,11 @@ export async function resolveUser(username: string): Promise<XUser> {
   return json.data;
 }
 
-// Pull the full list of accounts a user follows (paginated). Returns the deduped
-// users and whether the list was truncated (page cap or an X rate-limit 429).
+// Pull who a user follows (paginated), MINIMAL fields only — default response is
+// id + name + username, with no `user.fields` (no bio/metrics/avatar). This is the
+// cheapest per-object pull and all the overlap computation needs; the displayed
+// subset is enriched separately via `hydrateUsers`. Returns the deduped users and
+// whether the list was truncated (page cap or an X rate-limit 429).
 export async function fetchFollowing(
   userId: string,
 ): Promise<{ users: XUser[]; truncated: boolean }> {
@@ -307,7 +310,7 @@ export async function fetchFollowing(
   for (let page = 0; page < MAX_FOLLOWING_PAGES; page++) {
     const url = new URL(`https://api.x.com/2/users/${userId}/following`);
     url.searchParams.set("max_results", "1000");
-    url.searchParams.set("user.fields", USER_FIELDS);
+    // No user.fields — default (id, name, username) is all the overlap needs.
     if (pageToken) url.searchParams.set("pagination_token", pageToken);
     const res = await fetch(url.toString(), { headers: xHeaders(token) });
     if (res.status === 429) {
@@ -327,6 +330,28 @@ export async function fetchFollowing(
     if (page === MAX_FOLLOWING_PAGES - 1 && pageToken) truncated = true;
   }
   return { users: [...byId.values()], truncated };
+}
+
+// Enrich a set of user ids with full fields (bio, follower count, avatar) via the
+// batch user-lookup endpoint (up to 100 ids/request). Only called for the accounts
+// actually shown — so we never pay the rich-object cost for the long tail.
+export async function hydrateUsers(ids: string[]): Promise<Map<string, XUser>> {
+  const token = process.env.x_bearer;
+  if (!token) throw new Error("x_bearer is not set in the Convex environment.");
+  const byId = new Map<string, XUser>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const url = new URL("https://api.x.com/2/users");
+    url.searchParams.set("ids", chunk.join(","));
+    url.searchParams.set("user.fields", USER_FIELDS);
+    const res = await fetch(url.toString(), { headers: xHeaders(token) });
+    if (!res.ok) {
+      throw new Error(`X API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const json = (await res.json()) as { data?: XUser[] };
+    for (const u of json.data ?? []) byId.set(u.id, u);
+  }
+  return byId;
 }
 
 function esc(s: string): string {

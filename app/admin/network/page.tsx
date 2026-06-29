@@ -14,6 +14,7 @@ interface WebAccount {
   followers: number;
   overlap: number;
   seeds: string[];
+  enriched: boolean; // bio/follower count only fetched for the surfaced (overlap≥2) slice
 }
 
 function fmt(n: number): string {
@@ -106,7 +107,7 @@ export default function NetworkDiscovery() {
   );
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [minOverlap, setMinOverlap] = useState(1);
+  const [minOverlap, setMinOverlap] = useState(2); // default to the enriched core
   const [filter, setFilter] = useState("");
   const [actionState, setActionState] = useState("");
   const [confirmFollow, setConfirmFollow] = useState(false);
@@ -230,7 +231,7 @@ export default function NetworkDiscovery() {
                   setSelectedRunId(r._id);
                   setSelected(new Set());
                   setActionState("");
-                  setMinOverlap(1);
+                  setMinOverlap(2);
                 }}
                 className={`w-full text-left border rounded p-3 text-sm hover:bg-[var(--color-border)]/20 ${
                   selectedRunId === r._id
@@ -361,7 +362,7 @@ export default function NetworkDiscovery() {
                   <div className="font-medium text-[var(--color-text)]">
                     {a.overlap}/{totalSeeds}
                   </div>
-                  <div>{fmt(a.followers)} followers</div>
+                  <div>{a.enriched ? `${fmt(a.followers)} followers` : "—"}</div>
                 </div>
               </li>
             ))}
