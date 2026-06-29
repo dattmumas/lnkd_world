@@ -179,6 +179,25 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // Admin-managed RSS sources for the Science News feed (convex/newsSources.ts).
+  newsSources: defineTable({
+    name: v.string(),
+    url: v.string(), // RSS/Atom feed URL
+    active: v.optional(v.boolean()),
+    order: v.number(),
+  }).index("by_order", ["order"]),
+
+  // "Science News" snapshots — curated stories worth sharing, combed from the
+  // RSS sources (convex/scienceFeed.ts). Served by feed.getPage for "science".
+  scienceSnapshots: defineTable({
+    generatedAt: v.string(),
+    html: v.string(),
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
+
   // "Content Teardown" snapshots — top-performing posts from your list + niche
   // (convex/teardown.ts). Served by feed.getPage for slug "teardown".
   teardownSnapshots: defineTable({

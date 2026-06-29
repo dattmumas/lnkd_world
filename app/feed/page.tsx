@@ -7,14 +7,14 @@ import AuthGuard from "@/components/auth-guard";
 export const metadata: Metadata = {
   title: "Signal Feed — LNKD",
   description:
-    "Health, longevity & startup signal — contentious news, what's trending on X, and reply radar.",
+    "Health, longevity & startup signal — science news, what's trending on X, your watchlist, and audience research.",
 };
 
 const CARDS = [
   {
-    slug: "contentious-news",
-    title: "Contentious Health & Longevity News",
-    blurb: "The most-debated stories in health & longevity — both sides, with sources.",
+    slug: "science",
+    title: "Science News",
+    blurb: "Fresh stories worth sharing, combed from your science sites — each with an angle.",
     accent: "#d97706",
   },
   {
@@ -22,12 +22,6 @@ const CARDS = [
     title: "Trending on X",
     blurb: "What's trending across startups, health & longevity — expand for the posts.",
     accent: "#2563eb",
-  },
-  {
-    slug: "reply-radar",
-    title: "Reply Radar",
-    blurb: "Recent on-topic posts worth replying to, each with a drafted reply.",
-    accent: "#0d9488",
   },
   {
     slug: "creators",

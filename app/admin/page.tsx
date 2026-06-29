@@ -70,6 +70,14 @@ export default function AdminDashboard() {
         </li>
         <li>
           <Link
+            href="/admin/sources"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Science Sources
+          </Link>
+        </li>
+        <li>
+          <Link
             href="/admin/network"
             className="text-[var(--color-accent)] hover:underline underline-offset-4"
           >

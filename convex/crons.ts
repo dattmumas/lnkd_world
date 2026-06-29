@@ -38,4 +38,11 @@ crons.daily(
   internal.teardown.refreshInternal,
 );
 
+// Science News — comb the RSS sources daily for stories worth sharing.
+crons.daily(
+  "refresh-science",
+  { hourUTC: 11, minuteUTC: 30 },
+  internal.scienceFeed.refreshInternal,
+);
+
 export default crons;

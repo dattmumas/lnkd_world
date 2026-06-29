@@ -9,9 +9,8 @@ import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import AuthGuard from "@/components/auth-guard";
 
-// Feeds whose content is regenerated live from the X API (admin can refresh).
-// contentious-news / reply-radar are static snapshots, so no refresh button.
-const REFRESHABLE = new Set(["x-trends", "creators", "early", "teardown"]);
+// Feeds whose content is regenerated live (admin can refresh).
+const REFRESHABLE = new Set(["x-trends", "creators", "teardown", "science"]);
 
 function FeedContent() {
   const params = useParams<{ slug: string }>();
@@ -20,8 +19,8 @@ function FeedContent() {
   const user = useQuery(api.users.currentUser);
   const refreshXTrends = useAction(api.xTrends.refresh);
   const refreshCreators = useAction(api.creators_feed.refresh);
-  const refreshEarly = useAction(api.earlyFeed.refresh);
   const refreshTeardown = useAction(api.teardown.refresh);
+  const refreshScience = useAction(api.scienceFeed.refresh);
   const [state, setState] = useState("");
 
   const canRefresh = user?.role === "admin" && REFRESHABLE.has(slug);
@@ -32,10 +31,10 @@ function FeedContent() {
       const fn =
         slug === "creators"
           ? refreshCreators
-          : slug === "early"
-            ? refreshEarly
-            : slug === "teardown"
-              ? refreshTeardown
+          : slug === "teardown"
+            ? refreshTeardown
+            : slug === "science"
+              ? refreshScience
               : refreshXTrends;
       const r = await fn();
       // getPage is reactive, so the iframe updates itself once the snapshot lands.
