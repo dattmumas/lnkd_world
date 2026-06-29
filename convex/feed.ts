@@ -31,24 +31,26 @@ export const getPage = query({
     const page = PAGES[slug];
     if (!page) return null;
 
-    let snapshot = null;
+    // Serve the most recent *ok* snapshot — not just the newest row — so a failed
+    // refresh (e.g. a transient getXAPI error) doesn't regress the page to the
+    // static placeholder while good older snapshots still exist.
+    let html: string | null = null;
     if (slug === "x-trends") {
-      snapshot = await ctx.db
+      const recent = await ctx.db
         .query("xTrendsSnapshots")
         .withIndex("by_createdAt")
         .order("desc")
-        .first();
+        .take(15);
+      html = recent.find((s) => s.status === "ok")?.html ?? null;
     } else if (slug === "creators") {
-      snapshot = await ctx.db
+      const recent = await ctx.db
         .query("creatorsSnapshots")
         .withIndex("by_createdAt")
         .order("desc")
-        .first();
-    }
-    if (snapshot && snapshot.status === "ok") {
-      return { slug, title: page.title, html: snapshot.html };
+        .take(15);
+      html = recent.find((s) => s.status === "ok")?.html ?? null;
     }
 
-    return { slug, title: page.title, html: page.html };
+    return { slug, title: page.title, html: html ?? page.html };
   },
 });

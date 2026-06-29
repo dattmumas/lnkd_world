@@ -70,12 +70,23 @@ export const refreshInternal = internalAction({
 
       // 1) Gather a broad candidate pool across niches (velocity-ranked, deduped).
       const byId = new Map<string, RankedPost>();
+      let queryFailures = 0;
       for (const { q } of QUERIES) {
-        const { tweets, users } = await gxSearch(q, {
-          product: "Top", // engagement-sorted — best candidates for trending
-          maxAgeMs: MAX_AGE_MS,
-          maxTweets: 60,
-        });
+        let tweets, users;
+        try {
+          ({ tweets, users } = await gxSearch(q, {
+            product: "Top", // engagement-sorted — best candidates for trending
+            maxAgeMs: MAX_AGE_MS,
+            maxTweets: 60,
+          }));
+        } catch (err) {
+          // One flaky niche query shouldn't sink the whole feed — skip it.
+          queryFailures++;
+          console.error(
+            `xTrends query failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          continue;
+        }
         const userById = new Map(users.map((u) => [u.id, u]));
         const ranked = tweets
           .map((t) => {
@@ -91,6 +102,10 @@ export const refreshInternal = internalAction({
           .sort((a, b) => b.score - a.score)
           .slice(0, CANDIDATE_CAP_PER_NICHE);
         for (const p of ranked) if (!byId.has(p.tweet.id)) byId.set(p.tweet.id, p);
+      }
+      // Only abort if every query failed — otherwise build from what we got.
+      if (queryFailures === QUERIES.length) {
+        throw new Error(`All ${QUERIES.length} getXAPI search queries failed.`);
       }
       const pool = [...byId.values()]
         .sort((a, b) => b.score - a.score)

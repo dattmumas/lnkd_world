@@ -46,6 +46,38 @@ function gxHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${key}`, "User-Agent": "lnkd-world" };
 }
 
+async function sleep(ms: number): Promise<void> {
+  if (typeof setTimeout !== "function") return; // no-op if the runtime lacks timers
+  await new Promise<void>((r) => setTimeout(r, ms));
+}
+
+// Fetch a getXAPI URL with retries on TRANSIENT failures (HTTP 5xx + network/throw).
+// 2xx and 4xx (incl. 429) return immediately so callers handle them as before. This
+// absorbs getXAPI's occasional 502s so one hiccup doesn't fail a whole feed refresh.
+async function gxFetch(url: string): Promise<Response> {
+  const backoffs = [300, 800, 1500];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= backoffs.length; attempt++) {
+    try {
+      const res = await fetch(url, { headers: gxHeaders() });
+      if (res.status >= 500 && attempt < backoffs.length) {
+        await sleep(backoffs[attempt]);
+        continue;
+      }
+      return res;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < backoffs.length) {
+        await sleep(backoffs[attempt]);
+        continue;
+      }
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error("getXAPI request failed after retries");
+}
+
 // Map a getXAPI user object onto our shared XUser shape.
 function mapUser(u: GxRawUser): XUser {
   return {
@@ -66,7 +98,7 @@ function mapUser(u: GxRawUser): XUser {
 export async function gxUserInfo(handle: string): Promise<XUser> {
   const url = new URL(`${BASE}/twitter/user/info`);
   url.searchParams.set("userName", handle);
-  const res = await fetch(url.toString(), { headers: gxHeaders() });
+  const res = await gxFetch(url.toString());
   if (!res.ok) {
     throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
@@ -89,7 +121,7 @@ export async function gxFollowing(
     const url = new URL(`${BASE}/twitter/user/following_v2`);
     url.searchParams.set("userName", handle);
     if (cursor) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: gxHeaders() });
+    const res = await gxFetch(url.toString());
     if (res.status === 429) {
       truncated = true; // rate-limited mid-pull — keep what we have
       break;
@@ -183,7 +215,7 @@ export async function gxSearch(
     url.searchParams.set("q", query);
     url.searchParams.set("product", product);
     if (cursor) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: gxHeaders() });
+    const res = await gxFetch(url.toString());
     if (res.status === 429) break;
     if (!res.ok) {
       throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);

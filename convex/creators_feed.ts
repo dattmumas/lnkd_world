@@ -57,19 +57,34 @@ export const refreshInternal = internalAction({
       const byId = new Map<string, RankedPost>();
       const userById = new Map<string, XUser>();
 
-      for (const group of chunk(handles, HANDLES_PER_QUERY)) {
+      const groups = chunk(handles, HANDLES_PER_QUERY);
+      let groupFailures = 0;
+      for (const group of groups) {
         const q = `(${group.map((h) => `from:${h}`).join(" OR ")}) -is:retweet -is:reply lang:en`;
-        const { tweets, users } = await gxSearch(q, {
-          product: "Latest", // chronological — recent posts from these handles
-          maxAgeMs: MAX_AGE_MS,
-          maxTweets: 80,
-        });
+        let tweets, users;
+        try {
+          ({ tweets, users } = await gxSearch(q, {
+            product: "Latest", // chronological — recent posts from these handles
+            maxAgeMs: MAX_AGE_MS,
+            maxTweets: 80,
+          }));
+        } catch (err) {
+          // A flaky search shouldn't sink the whole feed — skip this group.
+          groupFailures++;
+          console.error(
+            `Creators query failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          continue;
+        }
         for (const u of users) userById.set(u.id, u);
         for (const t of tweets) {
           if (byId.has(t.id)) continue;
           const W = weightedEngagement(t.public_metrics);
           byId.set(t.id, { tweet: t, user: userById.get(t.author_id), W, score: W });
         }
+      }
+      if (groups.length > 0 && groupFailures === groups.length) {
+        throw new Error(`All ${groups.length} getXAPI search queries failed.`);
       }
 
       // Rank by engagement, cap per creator for variety, take top N.
