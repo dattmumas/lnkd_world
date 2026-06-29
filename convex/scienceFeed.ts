@@ -33,8 +33,10 @@ interface NewsItem {
   image: string;
 }
 
-// Pull a representative image URL from an RSS/Atom item block.
+// Pull a representative image URL from an RSS/Atom item block. Entity-decode first
+// so images embedded as encoded HTML (&lt;img src=…&gt;) are found too.
 function extractImage(block: string): string {
+  block = block.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
   const pats = [
     /<media:content[^>]+url="([^"]+)"[^>]*(?:medium|type)="image/i,
     /<media:thumbnail[^>]+url="([^"]+)"/i,
@@ -49,11 +51,14 @@ function extractImage(block: string): string {
   return "";
 }
 
-function decode(s: string): string {
+// Strip only real tag-like markup (starts with a letter / "/" / "!"), so text like
+// "5 < 10" survives.
+function stripTags(s: string): string {
+  return s.replace(/<\/?[a-zA-Z!][^>]*>/g, " ");
+}
+
+function decodeEntities(s: string): string {
   return s
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -63,9 +68,17 @@ function decode(s: string): string {
     .replace(/&#8211;|&ndash;/g, "–")
     .replace(/&#8212;|&mdash;/g, "—")
     .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+// CDATA-unwrap, strip literal tags, decode entities, then strip again to catch
+// markup that was entity-encoded (e.g. BioPharma Dive's "&lt;figure&gt;…").
+function decode(s: string): string {
+  let t = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+  t = stripTags(t);
+  t = decodeEntities(t);
+  t = stripTags(t);
+  return t.replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 }
 
 function tag(block: string, name: string): string {
