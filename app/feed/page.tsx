@@ -41,6 +41,12 @@ const CARDS = [
     blurb: "Freshest posts from your watchlist — get in early. Updates every ~20 min.",
     accent: "#dc2626",
   },
+  {
+    slug: "teardown",
+    title: "Content Teardown",
+    blurb: "Top-performing posts from your list + the niche — study what earns follows.",
+    accent: "#0891b2",
+  },
 ];
 
 export default function FeedPage() {

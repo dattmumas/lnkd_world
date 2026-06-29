@@ -35,6 +35,7 @@ import type * as readings from "../readings.js";
 import type * as resources from "../resources.js";
 import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
+import type * as teardown from "../teardown.js";
 import type * as users from "../users.js";
 import type * as versions from "../versions.js";
 import type * as xTrends from "../xTrends.js";
@@ -73,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   resources: typeof resources;
   seed: typeof seed;
   stats: typeof stats;
+  teardown: typeof teardown;
   users: typeof users;
   versions: typeof versions;
   xTrends: typeof xTrends;

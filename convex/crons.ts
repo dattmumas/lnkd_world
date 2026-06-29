@@ -31,4 +31,11 @@ crons.daily(
   internal.growth.snapshotInternal,
 );
 
+// Content teardown — refresh top-performing posts daily (offset from the others).
+crons.daily(
+  "refresh-teardown",
+  { hourUTC: 14, minuteUTC: 0 },
+  internal.teardown.refreshInternal,
+);
+
 export default crons;

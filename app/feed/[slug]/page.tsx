@@ -11,7 +11,7 @@ import AuthGuard from "@/components/auth-guard";
 
 // Feeds whose content is regenerated live from the X API (admin can refresh).
 // contentious-news / reply-radar are static snapshots, so no refresh button.
-const REFRESHABLE = new Set(["x-trends", "creators", "early"]);
+const REFRESHABLE = new Set(["x-trends", "creators", "early", "teardown"]);
 
 function FeedContent() {
   const params = useParams<{ slug: string }>();
@@ -21,6 +21,7 @@ function FeedContent() {
   const refreshXTrends = useAction(api.xTrends.refresh);
   const refreshCreators = useAction(api.creators_feed.refresh);
   const refreshEarly = useAction(api.earlyFeed.refresh);
+  const refreshTeardown = useAction(api.teardown.refresh);
   const [state, setState] = useState("");
 
   const canRefresh = user?.role === "admin" && REFRESHABLE.has(slug);
@@ -33,7 +34,9 @@ function FeedContent() {
           ? refreshCreators
           : slug === "early"
             ? refreshEarly
-            : refreshXTrends;
+            : slug === "teardown"
+              ? refreshTeardown
+              : refreshXTrends;
       const r = await fn();
       // getPage is reactive, so the iframe updates itself once the snapshot lands.
       setState(`Updated — ${r.count} post${r.count === 1 ? "" : "s"}`);

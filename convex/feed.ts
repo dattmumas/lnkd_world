@@ -11,6 +11,9 @@ const CREATORS_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset
 // Shown for "early" before the first refresh or when no fresh posts exist.
 const EARLY_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa}.wrap{max-width:680px;margin:0 auto;padding:48px 20px}p{color:#64748b}</style></head><body><div class="wrap"><h1 style="font-size:22px">Early Engagement</h1><p>No fresh posts from your watchlist in the last couple of hours. Add accounts in <strong>/admin/creators</strong>; this polls them every ~20 minutes.</p></div></body></html>`;
 
+// Shown for "teardown" before the first refresh.
+const TEARDOWN_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa}.wrap{max-width:680px;margin:0 auto;padding:48px 20px}p{color:#64748b}</style></head><body><div class="wrap"><h1 style="font-size:22px">Content Teardown</h1><p>No teardown yet. Add accounts to emulate in <strong>/admin/creators</strong>, then hit “Refresh.” Shows their top-performing posts plus the niche’s.</p></div></body></html>`;
+
 // Slug allowlist → title + static fallback HTML. Served only to logged-in users.
 const PAGES: Record<string, { title: string; html: string }> = {
   "contentious-news": {
@@ -21,6 +24,7 @@ const PAGES: Record<string, { title: string; html: string }> = {
   "reply-radar": { title: "Reply Radar", html: replyRadar },
   creators: { title: "Creators", html: CREATORS_PLACEHOLDER },
   early: { title: "Early Engagement", html: EARLY_PLACEHOLDER },
+  teardown: { title: "Content Teardown", html: TEARDOWN_PLACEHOLDER },
 };
 
 /**
@@ -56,6 +60,13 @@ export const getPage = query({
     } else if (slug === "early") {
       const recent = await ctx.db
         .query("earlySnapshots")
+        .withIndex("by_createdAt")
+        .order("desc")
+        .take(15);
+      html = recent.find((s) => s.status === "ok")?.html ?? null;
+    } else if (slug === "teardown") {
+      const recent = await ctx.db
+        .query("teardownSnapshots")
         .withIndex("by_createdAt")
         .order("desc")
         .take(15);

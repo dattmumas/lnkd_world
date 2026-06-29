@@ -178,6 +178,17 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // "Content Teardown" snapshots — top-performing posts from your list + niche
+  // (convex/teardown.ts). Served by feed.getPage for slug "teardown".
+  teardownSnapshots: defineTable({
+    generatedAt: v.string(),
+    html: v.string(),
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
+
   // A saved "follower web" built from 2+ seed handles (convex/network.ts):
   // the accounts the seeds follow, deduped and ranked by seed-overlap.
   networkRuns: defineTable({
