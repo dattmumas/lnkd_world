@@ -68,6 +68,14 @@ export default function AdminDashboard() {
             Manage Creators
           </Link>
         </li>
+        <li>
+          <Link
+            href="/admin/network"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Network Discovery
+          </Link>
+        </li>
       </ul>
     </main>
   );

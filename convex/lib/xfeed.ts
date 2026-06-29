@@ -267,6 +267,68 @@ export async function searchRecent(
   return { tweets: json.data ?? [], users: json.includes?.users ?? [] };
 }
 
+// Fields requested for any user lookup (bio + follower count + avatar).
+const USER_FIELDS = "username,name,description,verified,public_metrics,profile_image_url";
+// Cap pages when pulling a following list so a seed who follows tens of thousands
+// can't run the action forever; flagged as `truncated` when hit.
+const MAX_FOLLOWING_PAGES = 20; // 20 × 1000 = up to 20k accounts per seed
+
+function xHeaders(token: string) {
+  return { Authorization: `Bearer ${token}`, "User-Agent": "lnkd-world-xfeed" };
+}
+
+// Resolve a handle (no leading @) to its X user object, including id + bio + metrics.
+export async function resolveUser(username: string): Promise<XUser> {
+  const token = process.env.x_bearer;
+  if (!token) throw new Error("x_bearer is not set in the Convex environment.");
+  const url = new URL(
+    `https://api.x.com/2/users/by/username/${encodeURIComponent(username)}`,
+  );
+  url.searchParams.set("user.fields", USER_FIELDS);
+  const res = await fetch(url.toString(), { headers: xHeaders(token) });
+  if (!res.ok) {
+    throw new Error(`X API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { data?: XUser; errors?: unknown };
+  if (!json.data) throw new Error(`Could not resolve @${username}`);
+  return json.data;
+}
+
+// Pull the full list of accounts a user follows (paginated). Returns the deduped
+// users and whether the list was truncated (page cap or an X rate-limit 429).
+export async function fetchFollowing(
+  userId: string,
+): Promise<{ users: XUser[]; truncated: boolean }> {
+  const token = process.env.x_bearer;
+  if (!token) throw new Error("x_bearer is not set in the Convex environment.");
+  const byId = new Map<string, XUser>();
+  let pageToken: string | undefined;
+  let truncated = false;
+  for (let page = 0; page < MAX_FOLLOWING_PAGES; page++) {
+    const url = new URL(`https://api.x.com/2/users/${userId}/following`);
+    url.searchParams.set("max_results", "1000");
+    url.searchParams.set("user.fields", USER_FIELDS);
+    if (pageToken) url.searchParams.set("pagination_token", pageToken);
+    const res = await fetch(url.toString(), { headers: xHeaders(token) });
+    if (res.status === 429) {
+      truncated = true; // rate-limited mid-pull — keep what we have
+      break;
+    }
+    if (!res.ok) {
+      throw new Error(`X API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const json = (await res.json()) as {
+      data?: XUser[];
+      meta?: { next_token?: string };
+    };
+    for (const u of json.data ?? []) if (!byId.has(u.id)) byId.set(u.id, u);
+    pageToken = json.meta?.next_token;
+    if (!pageToken) break;
+    if (page === MAX_FOLLOWING_PAGES - 1 && pageToken) truncated = true;
+  }
+  return { users: [...byId.values()], truncated };
+}
+
 function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;")

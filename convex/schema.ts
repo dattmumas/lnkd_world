@@ -166,4 +166,30 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
+
+  // A saved "follower web" built from 2+ seed handles (convex/network.ts):
+  // the accounts the seeds follow, deduped and ranked by seed-overlap.
+  networkRuns: defineTable({
+    seeds: v.array(v.string()), // normalized seed handles
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(), // distinct accounts in the web
+    // JSON: [{id,username,name,description,followers,overlap,seeds:[handle]}]
+    accounts: v.string(),
+    truncated: v.optional(v.boolean()), // a seed's following list hit the page cap
+    error: v.optional(v.string()),
+    generatedAt: v.string(),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
+
+  // Log of accounts followed via the mass-follow action (convex/xFollow.ts) —
+  // powers dedup (don't re-follow) and the daily-cap counter.
+  xFollows: defineTable({
+    targetId: v.string(),
+    username: v.optional(v.string()),
+    status: v.string(), // "followed" | "failed"
+    detail: v.optional(v.string()), // error text on failure
+    followedAt: v.string(),
+  })
+    .index("by_followedAt", ["followedAt"])
+    .index("by_targetId", ["targetId"]),
 });

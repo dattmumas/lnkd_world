@@ -24,6 +24,7 @@ import type * as graphLayout from "../graphLayout.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_xfeed from "../lib/xfeed.js";
+import type * as network from "../network.js";
 import type * as now from "../now.js";
 import type * as posts from "../posts.js";
 import type * as projects from "../projects.js";
@@ -33,6 +34,7 @@ import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 import type * as versions from "../versions.js";
+import type * as xFollow from "../xFollow.js";
 import type * as xTrends from "../xTrends.js";
 
 import type {
@@ -58,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/xfeed": typeof lib_xfeed;
+  network: typeof network;
   now: typeof now;
   posts: typeof posts;
   projects: typeof projects;
@@ -67,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   stats: typeof stats;
   users: typeof users;
   versions: typeof versions;
+  xFollow: typeof xFollow;
   xTrends: typeof xTrends;
 }>;
 

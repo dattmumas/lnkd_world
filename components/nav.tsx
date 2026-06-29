@@ -20,6 +20,7 @@ function AdminBar() {
       <Link href="/admin/resources" className="hover:underline underline-offset-2 shrink-0">Resources</Link>
       <Link href="/admin/projects" className="hover:underline underline-offset-2 shrink-0">Projects</Link>
       <Link href="/admin/creators" className="hover:underline underline-offset-2 shrink-0">Creators</Link>
+      <Link href="/admin/network" className="hover:underline underline-offset-2 shrink-0">Network</Link>
     </div>
   );
 }
