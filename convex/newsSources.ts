@@ -4,14 +4,23 @@ import { requireAdmin } from "./lib/auth";
 
 /** Admin-managed RSS sources for the Science News feed (convex/scienceFeed.ts). */
 
-// A sensible default set for On Label's space (health / longevity / biotech).
+// Curated default set for On Label's space (health / longevity / biotech). All
+// verified to return valid RSS. Mix of biotech/pharma business, top journals,
+// longevity-specific, and general health science.
 const DEFAULTS: { name: string; url: string }[] = [
   { name: "STAT News", url: "https://www.statnews.com/feed/" },
-  { name: "Science Daily — Health", url: "https://www.sciencedaily.com/rss/health_medicine.xml" },
-  { name: "Nature", url: "https://www.nature.com/nature.rss" },
-  { name: "Eurekalert — Medicine", url: "https://www.eurekalert.org/rss/health_medicine.xml" },
-  { name: "Medical Xpress", url: "https://medicalxpress.com/rss-feed/" },
   { name: "Fierce Biotech", url: "https://www.fiercebiotech.com/rss/xml" },
+  { name: "Fierce Pharma", url: "https://www.fiercepharma.com/rss/xml" },
+  { name: "BioPharma Dive", url: "https://www.biopharmadive.com/feeds/news/" },
+  { name: "GEN — Genetic Engineering News", url: "https://www.genengnews.com/feed/" },
+  { name: "Nature", url: "https://www.nature.com/nature.rss" },
+  { name: "Nature Medicine", url: "https://www.nature.com/nm.rss" },
+  { name: "Nature Biotechnology", url: "https://www.nature.com/nbt.rss" },
+  { name: "Fight Aging!", url: "https://www.fightaging.org/feed/" },
+  { name: "Lifespan.io", url: "https://www.lifespan.io/feed/" },
+  { name: "Science Daily — Health", url: "https://www.sciencedaily.com/rss/health_medicine.xml" },
+  { name: "EurekAlert! — Medicine", url: "https://www.eurekalert.org/rss/health_medicine.xml" },
+  { name: "Medical Xpress", url: "https://medicalxpress.com/rss-feed/" },
 ];
 
 export const listAll = query({
@@ -60,19 +69,41 @@ export const remove = mutation({
   },
 });
 
-/** Seed the default sources (only if the list is currently empty). */
+/** Add any default sources not already present (by URL). Safe to re-run. */
 export const seedDefaults = mutation({
   args: {},
   returns: v.object({ added: v.number() }),
   handler: async (ctx) => {
     await requireAdmin(ctx);
     const existing = await ctx.db.query("newsSources").withIndex("by_order").collect();
-    if (existing.length > 0) return { added: 0 };
-    let order = 0;
+    const have = new Set(existing.map((s) => s.url));
+    let order = existing.length;
+    let added = 0;
     for (const s of DEFAULTS) {
+      if (have.has(s.url)) continue;
       await ctx.db.insert("newsSources", { ...s, order: order++, active: true });
+      added++;
     }
-    return { added: DEFAULTS.length };
+    return { added };
+  },
+});
+
+import { internalMutation } from "./_generated/server";
+/** Maintenance: load any missing default sources via the CLI (idempotent). */
+export const seedDefaultsCli = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const existing = await ctx.db.query("newsSources").withIndex("by_order").collect();
+    const have = new Set(existing.map((s) => s.url));
+    let order = existing.length;
+    let added = 0;
+    for (const s of DEFAULTS) {
+      if (have.has(s.url)) continue;
+      await ctx.db.insert("newsSources", { ...s, order: order++, active: true });
+      added++;
+    }
+    return added;
   },
 });
 
