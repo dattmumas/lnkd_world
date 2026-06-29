@@ -172,6 +172,7 @@ export default defineSchema({
   earlySnapshots: defineTable({
     generatedAt: v.string(),
     html: v.string(),
+    posts: v.optional(v.string()), // JSON cards for the native /feed/early view
     status: v.string(), // "ok" | "empty" | "error"
     count: v.number(),
     error: v.optional(v.string()),

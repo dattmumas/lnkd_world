@@ -6,7 +6,8 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { requireAdmin } from "./lib/auth";
+import { requireAdmin, requireSubscriber } from "./lib/auth";
+import { query } from "./_generated/server";
 import { renderHtml, type RankedPost, type XUser } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
 
@@ -97,10 +98,35 @@ export const refreshInternal = internalAction({
         generatedAt,
         nowMs,
       });
+      // Structured cards for the interactive native /feed/early view.
+      const cards = picked
+        .map((p) => {
+          const u = p.user;
+          const m = p.tweet.public_metrics;
+          return {
+            tweetId: p.tweet.id,
+            text: p.tweet.text,
+            createdAt: p.tweet.created_at,
+            username: u?.username ?? "",
+            name: u?.name ?? "",
+            avatar: u?.profile_image_url ?? "",
+            followers: u?.public_metrics?.followers_count ?? 0,
+            verified: !!u?.verified,
+            permalink: u
+              ? `https://x.com/${u.username}/status/${p.tweet.id}`
+              : `https://x.com/i/status/${p.tweet.id}`,
+            replies: m.reply_count,
+            reposts: m.retweet_count,
+            likes: m.like_count,
+            views: m.impression_count ?? 0,
+          };
+        })
+        .filter((c) => c.username);
       const status = picked.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.earlyFeed.store, {
         generatedAt,
         html,
+        posts: JSON.stringify(cards),
         status,
         count: picked.length,
       });
@@ -124,6 +150,7 @@ export const store = internalMutation({
   args: {
     generatedAt: v.string(),
     html: v.string(),
+    posts: v.optional(v.string()),
     status: v.string(),
     count: v.number(),
     error: v.optional(v.string()),
@@ -142,11 +169,29 @@ export const store = internalMutation({
     return await ctx.db.insert("earlySnapshots", {
       generatedAt: args.generatedAt,
       html: args.html,
+      posts: args.posts,
       status: args.status,
       count: args.count,
       error: args.error,
       createdAt: new Date().toISOString(),
     });
+  },
+});
+
+/** Subscriber: latest structured cards for the native /feed/early view. */
+export const getLatest = query({
+  handler: async (ctx) => {
+    await requireSubscriber(ctx);
+    const recent = await ctx.db
+      .query("earlySnapshots")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(15);
+    const snap = recent.find((s) => s.status === "ok" && s.posts);
+    return {
+      posts: snap?.posts ?? "[]",
+      generatedAt: snap?.generatedAt ?? null,
+    };
   },
 });
 

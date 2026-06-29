@@ -53,6 +53,21 @@ export const remove = mutation({
   },
 });
 
+/** Remove a creator by handle (used by the Early feed's per-card remove button). */
+export const removeByHandle = mutation({
+  args: { handle: v.string() },
+  returns: v.object({ removed: v.boolean() }),
+  handler: async (ctx, { handle }) => {
+    await requireAdmin(ctx);
+    const h = normalizeHandle(handle);
+    const all = await ctx.db.query("creators").withIndex("by_order").collect();
+    const row = all.find((c) => c.handle === h);
+    if (!row) return { removed: false };
+    await ctx.db.delete(row._id);
+    return { removed: true };
+  },
+});
+
 /** Active handles for the feed refresh action (actions have no ctx.db). */
 export const activeHandles = internalQuery({
   args: {},
