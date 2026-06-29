@@ -15,6 +15,7 @@ import type * as bookmarks from "../bookmarks.js";
 import type * as creators from "../creators.js";
 import type * as creators_feed from "../creators_feed.js";
 import type * as crons from "../crons.js";
+import type * as earlyFeed from "../earlyFeed.js";
 import type * as feed from "../feed.js";
 import type * as feedPages_contentiousNews from "../feedPages/contentiousNews.js";
 import type * as feedPages_replyRadar from "../feedPages/replyRadar.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   creators: typeof creators;
   creators_feed: typeof creators_feed;
   crons: typeof crons;
+  earlyFeed: typeof earlyFeed;
   feed: typeof feed;
   "feedPages/contentiousNews": typeof feedPages_contentiousNews;
   "feedPages/replyRadar": typeof feedPages_replyRadar;

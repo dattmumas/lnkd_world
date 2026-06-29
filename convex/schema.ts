@@ -167,6 +167,17 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // "Early Engagement" snapshots — newest posts from the Creators list, refreshed
+  // frequently (convex/earlyFeed.ts) so you can reply early. Served at "early".
+  earlySnapshots: defineTable({
+    generatedAt: v.string(),
+    html: v.string(),
+    status: v.string(), // "ok" | "empty" | "error"
+    count: v.number(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_createdAt", ["createdAt"]),
+
   // A saved "follower web" built from 2+ seed handles (convex/network.ts):
   // the accounts the seeds follow, deduped and ranked by seed-overlap.
   networkRuns: defineTable({

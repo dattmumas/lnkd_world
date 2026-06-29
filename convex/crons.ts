@@ -17,4 +17,11 @@ crons.daily(
   internal.creators_feed.refreshInternal,
 );
 
+// "Early Engagement" — poll the watchlist for fresh posts often, so replies are early.
+crons.interval(
+  "refresh-early",
+  { minutes: 20 },
+  internal.earlyFeed.refreshInternal,
+);
+
 export default crons;

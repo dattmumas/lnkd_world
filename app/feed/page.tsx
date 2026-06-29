@@ -35,6 +35,12 @@ const CARDS = [
     blurb: "Top recent posts from the X accounts on your list.",
     accent: "#7c3aed",
   },
+  {
+    slug: "early",
+    title: "Early Engagement",
+    blurb: "Freshest posts from your watchlist — get in early. Updates every ~20 min.",
+    accent: "#dc2626",
+  },
 ];
 
 export default function FeedPage() {
