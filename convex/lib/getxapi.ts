@@ -6,8 +6,7 @@
  * enrich step. ~700× cheaper on the network pulls; ~$0.001/page on search.
  *
  * Auth: `Authorization: Bearer <process.env.production>` (the key is stored in
- * Convex under the env name "production"). Read-only; the follow WRITE stays on
- * the official X OAuth path (convex/xFollow.ts).
+ * Convex under the env name "production"). Read-only.
  */
 import type { Tweet, XUser } from "./xfeed";
 

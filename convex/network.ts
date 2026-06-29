@@ -16,8 +16,7 @@ import { gxUserInfo, gxFollowing, GX_PAGE_SIZE } from "./lib/getxapi";
  * X "network discovery" — given 2+ seed handles, build a deduped web of the
  * accounts those seeds FOLLOW, ranked by how many seeds follow each (overlap).
  * Saved as a `networkRuns` snapshot and surfaced at /admin/network, where the
- * admin can add accounts to the Creators watchlist or follow them en masse
- * (convex/xFollow.ts).
+ * admin can add accounts to the Creators watchlist for engagement.
  *
  * Reads go through getXAPI (convex/lib/getxapi.ts) — per-call billing with full
  * user objects in the following list, ~700× cheaper than the official X API.
@@ -391,42 +390,5 @@ export const addToWatchlist = mutation({
       added++;
     }
     return { added, skipped };
-  },
-});
-
-/** Record follow outcomes (called by the use-node follow action). */
-export const recordFollows = internalMutation({
-  args: {
-    results: v.array(
-      v.object({
-        targetId: v.string(),
-        username: v.optional(v.string()),
-        status: v.string(),
-        detail: v.optional(v.string()),
-      }),
-    ),
-  },
-  handler: async (ctx, { results }) => {
-    const followedAt = new Date().toISOString();
-    for (const r of results) {
-      await ctx.db.insert("xFollows", { ...r, followedAt });
-    }
-  },
-});
-
-/** Today's follow count (daily cap) + all previously-followed target ids (dedup). */
-export const followStats = internalQuery({
-  args: {},
-  returns: v.object({ todayCount: v.number(), followedIds: v.array(v.string()) }),
-  handler: async (ctx) => {
-    const startOfDay = new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
-    const all = await ctx.db.query("xFollows").withIndex("by_followedAt").collect();
-    const todayCount = all.filter(
-      (r) => r.status === "followed" && r.followedAt >= startOfDay,
-    ).length;
-    const followedIds = [
-      ...new Set(all.filter((r) => r.status === "followed").map((r) => r.targetId)),
-    ];
-    return { todayCount, followedIds };
   },
 });

@@ -118,7 +118,6 @@ export default function NetworkDiscovery() {
   const estimateBuild = useAction(api.network.estimateBuild);
   const build = useAction(api.network.build);
   const addToWatchlist = useMutation(api.network.addToWatchlist);
-  const followAccounts = useAction(api.xFollow.followAccounts);
 
   const [buildState, setBuildState] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);
@@ -134,7 +133,6 @@ export default function NetworkDiscovery() {
   const [minOverlap, setMinOverlap] = useState(2); // default to the enriched core
   const [filter, setFilter] = useState("");
   const [actionState, setActionState] = useState("");
-  const [confirmFollow, setConfirmFollow] = useState(false);
 
   const accounts: WebAccount[] = useMemo(() => {
     if (!run?.accounts) return [];
@@ -205,24 +203,6 @@ export default function NetworkDiscovery() {
       note: `via network: ${run?.seeds.join(" + ")}`,
     });
     setActionState(`Watchlist — added ${r.added}, skipped ${r.skipped} (already there).`);
-  };
-
-  const onFollow = async () => {
-    if (!selectedAccounts.length) return;
-    setConfirmFollow(false);
-    setActionState(`Following ${selectedAccounts.length}… (paced, ~2s each)`);
-    try {
-      const r = await followAccounts({
-        targets: selectedAccounts.map((a) => ({ id: a.id, username: a.username })),
-      });
-      setActionState(
-        `Followed ${r.followed}, failed ${r.failed}, skipped ${r.skipped}` +
-          (r.stoppedEarly ? " — stopped early (cap/rate-limit)." : ".") +
-          ` Daily cap remaining: ${r.capRemaining}.`,
-      );
-    } catch (e) {
-      setActionState(`Follow failed — ${e instanceof Error ? e.message : String(e)}`);
-    }
   };
 
   const toggle = (id: string) =>
@@ -395,43 +375,10 @@ export default function NetworkDiscovery() {
             >
               Add to watchlist
             </button>
-            <button
-              onClick={() => setConfirmFollow(true)}
-              disabled={selected.size === 0}
-              className="text-sm bg-[var(--color-accent)] text-white rounded px-3 py-1.5 hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
-            >
-              Follow on X
-            </button>
             {actionState && (
               <span className="text-sm text-[var(--color-text-secondary)]">{actionState}</span>
             )}
           </div>
-
-          {confirmFollow && (
-            <div className="border border-[var(--color-accent)] rounded p-4 mb-3 text-sm">
-              <p className="mb-2">
-                Follow these <strong>{selectedAccounts.length}</strong> accounts on X?
-                Paced ~2s each, capped per day. Already-followed accounts are skipped.
-              </p>
-              <p className="text-[var(--color-text-secondary)] mb-3 break-words">
-                {selectedAccounts.map((a) => `@${a.username}`).join(", ")}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => void onFollow()}
-                  className="bg-[var(--color-accent)] text-white rounded px-4 py-2 hover:bg-[var(--color-accent-hover)]"
-                >
-                  Confirm follow
-                </button>
-                <button
-                  onClick={() => setConfirmFollow(false)}
-                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
 
           <ul className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded">
             {visible.map((a) => (

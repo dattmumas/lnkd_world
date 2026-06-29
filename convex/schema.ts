@@ -194,16 +194,4 @@ export default defineSchema({
   })
     .index("by_seedId", ["seedId"])
     .index("by_fetchedAt", ["fetchedAt"]),
-
-  // Log of accounts followed via the mass-follow action (convex/xFollow.ts) —
-  // powers dedup (don't re-follow) and the daily-cap counter.
-  xFollows: defineTable({
-    targetId: v.string(),
-    username: v.optional(v.string()),
-    status: v.string(), // "followed" | "failed"
-    detail: v.optional(v.string()), // error text on failure
-    followedAt: v.string(),
-  })
-    .index("by_followedAt", ["followedAt"])
-    .index("by_targetId", ["targetId"]),
 });

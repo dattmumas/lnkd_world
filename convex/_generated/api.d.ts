@@ -35,7 +35,6 @@ import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 import type * as versions from "../versions.js";
-import type * as xFollow from "../xFollow.js";
 import type * as xTrends from "../xTrends.js";
 
 import type {
@@ -72,7 +71,6 @@ declare const fullApi: ApiFromModules<{
   stats: typeof stats;
   users: typeof users;
   versions: typeof versions;
-  xFollow: typeof xFollow;
   xTrends: typeof xTrends;
 }>;
 
