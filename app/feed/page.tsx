@@ -15,7 +15,7 @@ const CARDS = [
     slug: "science",
     title: "Science News",
     blurb: "Fresh stories worth sharing, combed from your science sites — each with an angle.",
-    accent: "#d97706",
+    accent: "#059669",
   },
   {
     slug: "x-trends",

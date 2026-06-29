@@ -30,6 +30,23 @@ interface NewsItem {
   summary: string;
   source: string;
   dateMs: number;
+  image: string;
+}
+
+// Pull a representative image URL from an RSS/Atom item block.
+function extractImage(block: string): string {
+  const pats = [
+    /<media:content[^>]+url="([^"]+)"[^>]*(?:medium|type)="image/i,
+    /<media:thumbnail[^>]+url="([^"]+)"/i,
+    /<enclosure[^>]+url="([^"]+)"[^>]*type="image/i,
+    /<media:content[^>]+url="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i,
+    /<img[^>]+src="([^"]+)"/i,
+  ];
+  for (const re of pats) {
+    const m = block.match(re);
+    if (m && /^https?:\/\//i.test(m[1])) return m[1].replace(/&amp;/g, "&");
+  }
+  return "";
 }
 
 function decode(s: string): string {
@@ -76,7 +93,14 @@ function parseFeed(xml: string, source: string): NewsItem[] {
     const dateStr =
       tag(b, "pubDate") || tag(b, "updated") || tag(b, "published") || tag(b, "dc:date");
     const dateMs = Date.parse(dateStr) || 0;
-    out.push({ title, link, summary: summary.slice(0, 400), source, dateMs });
+    out.push({
+      title,
+      link,
+      summary: summary.slice(0, 400),
+      source,
+      dateMs,
+      image: extractImage(b),
+    });
   }
   return out;
 }
@@ -159,43 +183,59 @@ function renderNews(picked: { item: NewsItem; angle: string; tweet: string }[], 
       const date = item.dateMs
         ? new Date(item.dateMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })
         : "";
-      const tweetBlock = tweet
-        ? `<div class="tweet"><div class="tweet-head"><span>✎ Suggested tweet</span><button class="copy" data-copy="${esc(tweet)}">Copy</button></div><div class="tweet-body">${esc(tweet)}</div></div>`
+      const thumb = item.image
+        ? `<img class="thumb" src="${esc(item.image)}" alt="" loading="lazy" onerror="this.remove()">`
         : "";
-      const angleBlock = angle ? `<div class="angle"><b>Why share:</b> ${esc(angle)}</div>` : "";
-      return `<div class="item">
-        <div class="kicker">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
-        <h2><a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}</a></h2>
-        ${item.summary ? `<p>${esc(item.summary)}</p>` : ""}
-        ${angleBlock}
-        ${tweetBlock}
-        <div class="src"><a href="${esc(item.link)}" target="_blank" rel="noopener">Read ↗</a></div>
-      </div>`;
+      const synopsis = item.summary ? `<p class="synopsis">${esc(item.summary)}</p>` : "";
+      const angleBlock = angle
+        ? `<div class="angle"><span class="angle-l">Why share</span>${esc(angle)}</div>`
+        : "";
+      const tweetBlock = tweet
+        ? `<div class="tweet"><div class="tweet-h"><span class="tweet-l">Suggested tweet</span><button class="copy" data-copy="${esc(tweet)}">Copy</button></div><div class="tweet-b">${esc(tweet)}</div></div>`
+        : "";
+      return `<article class="card">
+        ${thumb}
+        <div class="body">
+          <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
+          <h2 class="title"><a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}</a></h2>
+          ${synopsis}
+          ${angleBlock}
+          ${tweetBlock}
+          <div class="foot"><a class="read" href="${esc(item.link)}" target="_blank" rel="noopener">Read full story ↗</a></div>
+        </div>
+      </article>`;
     })
     .join("\n");
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
   :root{color-scheme:light}*{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1c1917;background:#faf8f5;line-height:1.5}
-  .wrap{max-width:760px;margin:0 auto;padding:24px 20px 56px}
-  header{border-bottom:2px solid #e7e1d8;padding-bottom:14px;margin-bottom:6px}
-  .kick{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b45309}
-  h1{font-size:24px;margin:6px 0 2px}.meta{font-size:13px;color:#78716c}
-  .item{background:#fff;border:1px solid #ece6dd;border-left:4px solid #d97706;border-radius:10px;padding:16px 18px;margin:14px 0}
-  .item .kicker{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;margin-bottom:6px}
-  .item h2{font-size:17px;margin:0 0 6px;line-height:1.3}
-  .item h2 a{color:#1c1917;text-decoration:none}.item h2 a:hover{text-decoration:underline}
-  .item p{margin:6px 0;font-size:14px;color:#44403c}
-  .angle{font-size:13.5px;margin-top:8px;color:#1c1917}.angle b{color:#92400e}
-  .src{margin-top:10px;font-size:12.5px}.src a{color:#b45309;text-decoration:none}.src a:hover{text-decoration:underline}
-  .tweet{margin-top:12px;background:#fbfaf8;border:1px solid #ece6dd;border-radius:8px;padding:10px 12px}
-  .tweet-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#92400e;margin-bottom:7px}
-  .tweet-body{white-space:pre-line;font-size:13.5px;line-height:1.5}
-  button.copy{appearance:none;border:1px solid #d6cfc4;background:#fff;color:#1c1917;font-size:11px;font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
-  button.copy:hover{background:#f5f1ea}
-  footer{margin-top:26px;font-size:12px;color:#a8a29e;border-top:1px solid #e7e1d8;padding-top:14px}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:780px;margin:0 auto;padding:28px 20px 64px}
+  header{margin-bottom:20px}
+  .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8}
+  h1{font-size:27px;margin:5px 0 3px;letter-spacing:-.015em;font-weight:700}
+  .sub{font-size:13.5px;color:#94a3b8}
+  .card{display:flex;gap:16px;background:#fff;border:1px solid #e8eaee;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 1px 2px rgba(15,23,42,.04),0 2px 6px rgba(15,23,42,.03)}
+  .thumb{width:150px;height:114px;flex-shrink:0;border-radius:12px;object-fit:cover;background:#eef2f6}
+  .body{min-width:0;flex:1}
+  .src{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:5px}
+  .title{margin:0 0 7px;font-size:17px;line-height:1.32;font-weight:700;letter-spacing:-.01em}
+  .title a{color:#0f172a;text-decoration:none}.title a:hover{color:#059669}
+  .synopsis{margin:0 0 10px;font-size:14px;color:#52606d;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .angle{font-size:13.5px;color:#334155;background:#f1f6f4;border-radius:10px;padding:9px 12px;margin:10px 0}
+  .angle-l{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#059669;margin-bottom:3px}
+  .tweet{margin-top:10px;background:#fafbfc;border:1px solid #e8eaee;border-radius:12px;padding:11px 13px}
+  .tweet-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+  .tweet-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
+  .tweet-b{white-space:pre-line;font-size:13.5px;color:#1e293b;line-height:1.55}
+  button.copy{appearance:none;border:1px solid #d8dde3;background:#fff;color:#0f172a;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:8px;cursor:pointer}
+  button.copy:hover{background:#f1f5f9}
+  .foot{margin-top:11px}
+  .read{font-size:13px;font-weight:600;color:#059669;text-decoration:none}.read:hover{text-decoration:underline}
+  footer{margin-top:30px;font-size:12px;color:#94a3b8;border-top:1px solid #e8eaee;padding-top:16px}
+  @media(max-width:560px){.card{flex-direction:column}.thumb{width:100%;height:180px}}
   </style></head><body><div class="wrap">
-  <header><div class="kick">Science News · worth sharing</div><h1>Science News</h1><div class="meta">${esc(when)} · combed from your sources</div></header>
-  ${cards || '<p class="meta">No stories cleared the bar this run.</p>'}
+  <header><div class="eyebrow">On Label · Science</div><h1>Worth Sharing</h1><div class="sub">${esc(when)} · curated from your sources</div></header>
+  ${cards || '<p class="sub">No stories cleared the bar this run.</p>'}
   <footer>Curated by Opus 4.8 from your RSS sources. Suggested tweets are drafts — nothing is posted.</footer>
   </div>
   <script>document.addEventListener('click',function(e){var b=e.target.closest('button.copy');if(!b)return;var t=b.getAttribute('data-copy')||'';function ok(){var p=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=p;},1500);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(ok);}else{ok();}});</script>
