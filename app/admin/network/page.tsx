@@ -109,6 +109,7 @@ function BuildForm({
 interface Estimate {
   seeds: { handle: string; following: number; cached: boolean }[];
   billableFollowing: number;
+  estCalls: number;
   estDollars: number;
 }
 
@@ -275,10 +276,10 @@ export default function NetworkDiscovery() {
               </>
             ) : (
               <>
-                This build will read{" "}
-                <strong>{estimate.billableFollowing.toLocaleString()}</strong>{" "}
-                accounts ≈ <strong>${estimate.estDollars.toFixed(2)}</strong> in API
-                credits.
+                This build pulls{" "}
+                <strong>{estimate.billableFollowing.toLocaleString()}</strong> follows
+                (~{estimate.estCalls} getXAPI calls) ≈{" "}
+                <strong>${estimate.estDollars.toFixed(3)}</strong>.
               </>
             )}
           </p>
@@ -299,7 +300,7 @@ export default function NetworkDiscovery() {
             >
               {estimate.estDollars === 0
                 ? "Build (free)"
-                : `Build for ~$${estimate.estDollars.toFixed(2)}`}
+                : `Build for ~$${estimate.estDollars.toFixed(3)}`}
             </button>
             <button
               onClick={() => {

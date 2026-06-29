@@ -9,12 +9,8 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
-import {
-  resolveUser,
-  fetchFollowingIds,
-  hydrateUsers,
-  type XUser,
-} from "./lib/xfeed";
+import type { XUser } from "./lib/xfeed";
+import { gxUserInfo, gxFollowing, GX_PAGE_SIZE } from "./lib/getxapi";
 
 /**
  * X "network discovery" — given 2+ seed handles, build a deduped web of the
@@ -22,6 +18,9 @@ import {
  * Saved as a `networkRuns` snapshot and surfaced at /admin/network, where the
  * admin can add accounts to the Creators watchlist or follow them en masse
  * (convex/xFollow.ts).
+ *
+ * Reads go through getXAPI (convex/lib/getxapi.ts) — per-call billing with full
+ * user objects in the following list, ~700× cheaper than the official X API.
  */
 
 // X username, no leading @, lowercase (matches convex/creators.ts).
@@ -30,8 +29,6 @@ function normalizeHandle(raw: string): string {
 }
 
 // One account in a built web (serialized into networkRuns.accounts as JSON).
-// Long-tail (overlap 1) rows stay lean — handle/name only, enriched=false — so we
-// never pay the rich-object cost for accounts that aren't surfaced.
 interface WebAccount {
   id: string;
   username: string;
@@ -40,17 +37,35 @@ interface WebAccount {
   followers: number;
   overlap: number; // how many seeds follow this account
   seeds: string[]; // which seed handles follow it
-  enriched: boolean; // whether bio/follower count were fetched
+  enriched: boolean; // kept for the UI; always true (getXAPI returns full objects)
+}
+
+// Compact follow record cached per seed (getXAPI returns these inline — no enrich).
+interface CompactFollow {
+  id: string;
+  username: string;
+  name: string;
+  followers: number;
+  description: string;
+}
+function compact(u: XUser): CompactFollow {
+  return {
+    id: u.id,
+    username: u.username,
+    name: u.name,
+    followers: u.public_metrics?.followers_count ?? 0,
+    description: u.description ?? "",
+  };
 }
 
 // Cached seed entry (annotated explicitly at runQuery sites to break the same-file
 // circular type inference between buildInternal/estimateBuild and cachedSeeds).
-type CachedSeed = { seedId: string; idsJson: string; truncated: boolean };
+type CachedSeed = { seedId: string; followsJson: string; truncated: boolean };
 
 const MAX_RUNS = 20; // keep the most recent N saved runs
 const MIN_OVERLAP = 2; // the web is accounts followed by 2+ seeds (the actual connections)
-const ENRICH_MAX = 1000; // cap hydrated/stored accounts (≤10 batch calls) to bound cost
-const COST_PER_READ = 0.01; // empirical pay-per-use rate (~$0.009–0.01 per user object)
+const MAX_SHARED = 1000; // cap stored shared accounts (top by overlap)
+const COST_PER_CALL = 0.001; // getXAPI per-call price
 const CACHE_TTL_DAYS = 7; // reuse a seed's cached following list within this window
 const SEED_CACHE_CAP = 100; // max cached seed lists kept (prune oldest)
 
@@ -66,8 +81,8 @@ export const buildInternal = internalAction({
         throw new Error("Provide at least 2 distinct seed handles.");
       }
 
-      // Resolve each seed to its user id (and collect ids to exclude from the web).
-      const seedUsers = await Promise.all(seeds.map((h) => resolveUser(h)));
+      // Resolve each seed (getXAPI) for its id — used to exclude seeds from the web.
+      const seedUsers = await Promise.all(seeds.map((h) => gxUserInfo(h)));
       const seedIds = new Set(seedUsers.map((u) => u.id));
 
       // Use cached following lists where fresh; only pull (and cache) what's missing.
@@ -78,64 +93,54 @@ export const buildInternal = internalAction({
           });
       const cacheBySeed = new Map(cached.map((c) => [c.seedId, c]));
 
-      // id -> set of seed handles that follow it.
-      const web = new Map<string, Set<string>>();
+      // id -> { account, set of seed handles that follow it }. getXAPI's following
+      // list carries full profiles, so we keep one account record per id directly.
+      const web = new Map<string, { acc: CompactFollow; seeds: Set<string> }>();
       let truncated = false;
       for (let i = 0; i < seeds.length; i++) {
         const handle = seeds[i];
         const sid = seedUsers[i].id;
         const hit = cacheBySeed.get(sid);
-        let ids: string[];
+        let follows: CompactFollow[];
         if (hit) {
-          ids = JSON.parse(hit.idsJson) as string[];
+          follows = JSON.parse(hit.followsJson) as CompactFollow[];
           if (hit.truncated) truncated = true;
         } else {
-          const pulled = await fetchFollowingIds(sid);
-          ids = pulled.ids;
+          const pulled = await gxFollowing(handle);
+          follows = pulled.users.map(compact);
           if (pulled.truncated) truncated = true;
           await ctx.runMutation(internal.network.cacheSeed, {
             seedId: sid,
             handle,
-            idsJson: JSON.stringify(ids),
-            count: ids.length,
+            followsJson: JSON.stringify(follows),
+            count: follows.length,
             truncated: pulled.truncated,
           });
         }
-        for (const id of ids) {
-          if (seedIds.has(id)) continue; // a seed following another seed — skip
-          const s = web.get(id) ?? new Set<string>();
-          s.add(handle);
-          web.set(id, s);
+        for (const acc of follows) {
+          if (seedIds.has(acc.id)) continue; // a seed following another seed — skip
+          const entry = web.get(acc.id) ?? { acc, seeds: new Set<string>() };
+          entry.seeds.add(handle);
+          web.set(acc.id, entry);
         }
       }
 
-      // The web is the INTERSECTION: accounts followed by 2+ seeds, top by overlap
-      // (capped). We enrich and store exactly this set — nothing else is surfaced.
-      const shared = [...web.entries()]
-        .filter(([, s]) => s.size >= MIN_OVERLAP)
-        .sort((a, b) => b[1].size - a[1].size)
-        .slice(0, ENRICH_MAX);
-      const hydrated =
-        shared.length > 0
-          ? await hydrateUsers(shared.map(([id]) => id))
-          : new Map<string, XUser>();
-
-      const accounts: WebAccount[] = shared
-        .map(([id, s]) => {
-          const full = hydrated.get(id);
-          return {
-            id,
-            username: full?.username ?? "",
-            name: full?.name ?? "",
-            description: full?.description ?? "",
-            followers: full?.public_metrics?.followers_count ?? 0,
-            overlap: s.size,
-            seeds: [...s],
-            enriched: !!full,
-          };
-        })
-        .filter((a) => a.username) // drop suspended/deleted (failed to hydrate)
-        .sort((a, b) => b.overlap - a.overlap || b.followers - a.followers);
+      // The web is the INTERSECTION: accounts followed by 2+ seeds, top by overlap.
+      const accounts: WebAccount[] = [...web.values()]
+        .filter((e) => e.seeds.size >= MIN_OVERLAP)
+        .map(({ acc, seeds: s }) => ({
+          id: acc.id,
+          username: acc.username,
+          name: acc.name,
+          description: acc.description,
+          followers: acc.followers,
+          overlap: s.size,
+          seeds: [...s],
+          enriched: true,
+        }))
+        .filter((a) => a.username) // drop items returned without a handle (protected/suspended)
+        .sort((a, b) => b.overlap - a.overlap || b.followers - a.followers)
+        .slice(0, MAX_SHARED);
 
       const status = accounts.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.network.store, {
@@ -221,7 +226,7 @@ export const cachedSeeds = internalQuery({
   returns: v.array(
     v.object({
       seedId: v.string(),
-      idsJson: v.string(),
+      followsJson: v.string(),
       truncated: v.boolean(),
     }),
   ),
@@ -229,14 +234,14 @@ export const cachedSeeds = internalQuery({
     const cutoff = new Date(
       Date.now() - CACHE_TTL_DAYS * 24 * 3600 * 1000,
     ).toISOString();
-    const out: { seedId: string; idsJson: string; truncated: boolean }[] = [];
+    const out: { seedId: string; followsJson: string; truncated: boolean }[] = [];
     for (const seedId of seedIds) {
       const row = await ctx.db
         .query("seedFollows")
         .withIndex("by_seedId", (q) => q.eq("seedId", seedId))
         .first();
       if (row && row.fetchedAt >= cutoff) {
-        out.push({ seedId, idsJson: row.idsJson, truncated: row.truncated });
+        out.push({ seedId, followsJson: row.followsJson, truncated: row.truncated });
       }
     }
     return out;
@@ -248,7 +253,7 @@ export const cacheSeed = internalMutation({
   args: {
     seedId: v.string(),
     handle: v.string(),
-    idsJson: v.string(),
+    followsJson: v.string(),
     count: v.number(),
     truncated: v.boolean(),
   },
@@ -276,9 +281,10 @@ export const cacheSeed = internalMutation({
 });
 
 /**
- * Cheap pre-flight (~2 user reads): resolve the seeds and report how many
- * accounts a build will pull and the rough cost, so the UI can confirm BEFORE
- * spending. The bulk pull is what costs money, so always estimate first.
+ * Cheap pre-flight (one getXAPI user/info per seed): report each seed's following
+ * count, which seeds are cached, and the rough cost in getXAPI calls, so the UI
+ * can confirm before pulling. getXAPI bills per call (~70 follows/call), so the
+ * cost is the number of paginated following calls for the uncached seeds.
  */
 export const estimateBuild = action({
   args: { seeds: v.array(v.string()), forceRefresh: v.optional(v.boolean()) },
@@ -291,13 +297,14 @@ export const estimateBuild = action({
       }),
     ),
     billableFollowing: v.number(),
+    estCalls: v.number(),
     estDollars: v.number(),
   }),
   handler: async (ctx, { seeds: rawSeeds, forceRefresh }) => {
     await ctx.runQuery(internal.network._assertAdmin, {});
     const seeds = [...new Set(rawSeeds.map(normalizeHandle).filter(Boolean))];
     if (seeds.length < 2) throw new Error("Provide at least 2 distinct seed handles.");
-    const users = await Promise.all(seeds.map((h) => resolveUser(h)));
+    const users = await Promise.all(seeds.map((h) => gxUserInfo(h)));
     const cached: CachedSeed[] = forceRefresh
       ? []
       : await ctx.runQuery(internal.network.cachedSeeds, {
@@ -309,14 +316,20 @@ export const estimateBuild = action({
       following: u.public_metrics?.following_count ?? 0,
       cached: cachedIds.has(u.id), // cached seeds are reused for free
     }));
-    // Only uncached seeds incur a pull, so only they are billable.
     const billableFollowing = list
       .filter((x) => !x.cached)
       .reduce((s, x) => s + x.following, 0);
+    // 1 resolve call/seed + ceil(following/70) following calls for each uncached seed.
+    const estCalls =
+      users.length +
+      list
+        .filter((x) => !x.cached)
+        .reduce((s, x) => s + Math.max(1, Math.ceil(x.following / GX_PAGE_SIZE)), 0);
     return {
       seeds: list,
       billableFollowing,
-      estDollars: Math.round(billableFollowing * COST_PER_READ * 100) / 100,
+      estCalls,
+      estDollars: Math.round(estCalls * COST_PER_CALL * 1000) / 1000,
     };
   },
 });

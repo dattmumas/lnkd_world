@@ -187,7 +187,7 @@ export default defineSchema({
   seedFollows: defineTable({
     seedId: v.string(), // the seed's X user id
     handle: v.string(), // normalized handle (for display)
-    idsJson: v.string(), // JSON string[] of followed account ids
+    followsJson: v.string(), // JSON of full follow objects (id/username/name/followers/…)
     count: v.number(), // number of accounts followed
     truncated: v.boolean(), // the pull hit the page cap / a rate limit
     fetchedAt: v.string(), // ISO timestamp — drives TTL freshness

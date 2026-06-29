@@ -1,0 +1,120 @@
+/**
+ * GetXAPI (https://api.getxapi.com) helpers for the network-discovery reads.
+ * Chosen over the official X API for this path because it bills per CALL
+ * ($0.001 / ~70 full user objects) instead of per user object (~$0.01), and the
+ * following list already returns full profiles — so no separate enrich step.
+ *
+ * Auth: `Authorization: Bearer <process.env.production>` (the key is stored in
+ * Convex under the env name "production"). Read-only; the follow WRITE stays on
+ * the official X OAuth path (convex/xFollow.ts).
+ */
+import type { XUser } from "./xfeed";
+
+const BASE = "https://api.getxapi.com";
+const PAGE_SIZE = 70; // following_v2 returns ~70/page (used for cost estimates)
+const MAX_PAGES = 100; // safety ceiling on pagination
+const MAX_FOLLOWS = 6000; // storage/cost guard per seed; flagged as truncated beyond
+
+export const GX_PAGE_SIZE = PAGE_SIZE;
+
+interface GxRawUser {
+  id: string | number;
+  userName?: string;
+  name?: string;
+  description?: string | null;
+  followers?: number;
+  following?: number;
+  profilePicture?: string | null;
+  isBlueVerified?: boolean;
+  isVerified?: boolean;
+}
+
+interface GxFollowingResp {
+  following?: GxRawUser[];
+  users?: GxRawUser[];
+  data?: GxRawUser[] | { following?: GxRawUser[] };
+  has_more?: boolean;
+  next_cursor?: string | null;
+}
+
+function gxHeaders(): Record<string, string> {
+  const key = process.env.production;
+  if (!key) {
+    throw new Error("getXAPI key (Convex env 'production') is not set.");
+  }
+  return { Authorization: `Bearer ${key}`, "User-Agent": "lnkd-world" };
+}
+
+// Map a getXAPI user object onto our shared XUser shape.
+function mapUser(u: GxRawUser): XUser {
+  return {
+    id: String(u.id),
+    username: u.userName ?? "",
+    name: u.name ?? "",
+    description: u.description ?? undefined,
+    verified: u.isBlueVerified ?? u.isVerified ?? undefined,
+    public_metrics: {
+      followers_count: u.followers ?? 0,
+      following_count: u.following ?? 0,
+    },
+    profile_image_url: u.profilePicture ?? undefined,
+  };
+}
+
+// Resolve a handle to its profile (id + follower/following counts + bio).
+export async function gxUserInfo(handle: string): Promise<XUser> {
+  const url = new URL(`${BASE}/twitter/user/info`);
+  url.searchParams.set("userName", handle);
+  const res = await fetch(url.toString(), { headers: gxHeaders() });
+  if (!res.ok) {
+    throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { status?: string; msg?: string; data?: GxRawUser };
+  if (!json.data) {
+    throw new Error(`getXAPI user/info failed for @${handle}: ${json.msg ?? "no data"}`);
+  }
+  return mapUser(json.data);
+}
+
+// Pull the accounts a user follows (cursor-paginated), as FULL user objects —
+// getXAPI's list already carries profile fields, so no enrich step is needed.
+export async function gxFollowing(
+  handle: string,
+): Promise<{ users: XUser[]; truncated: boolean }> {
+  const byId = new Map<string, XUser>();
+  let cursor: string | undefined;
+  let truncated = false;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = new URL(`${BASE}/twitter/user/following_v2`);
+    url.searchParams.set("userName", handle);
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const res = await fetch(url.toString(), { headers: gxHeaders() });
+    if (res.status === 429) {
+      truncated = true; // rate-limited mid-pull — keep what we have
+      break;
+    }
+    if (!res.ok) {
+      throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const json = (await res.json()) as GxFollowingResp;
+    const list: GxRawUser[] = Array.isArray(json.following)
+      ? json.following
+      : Array.isArray(json.users)
+        ? json.users
+        : Array.isArray(json.data)
+          ? json.data
+          : (json.data?.following ?? []);
+    for (const u of list) {
+      const m = mapUser(u);
+      if (m.id && !byId.has(m.id)) byId.set(m.id, m);
+    }
+    if (byId.size >= MAX_FOLLOWS) {
+      truncated = true;
+      break;
+    }
+    if (!json.has_more || !json.next_cursor) break;
+    cursor = json.next_cursor;
+    if (page === MAX_PAGES - 1 && json.has_more) truncated = true;
+  }
+  return { users: [...byId.values()], truncated };
+}

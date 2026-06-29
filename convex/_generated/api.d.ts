@@ -23,6 +23,7 @@ import type * as graph from "../graph.js";
 import type * as graphLayout from "../graphLayout.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_getxapi from "../lib/getxapi.js";
 import type * as lib_xfeed from "../lib/xfeed.js";
 import type * as network from "../network.js";
 import type * as now from "../now.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   graphLayout: typeof graphLayout;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/getxapi": typeof lib_getxapi;
   "lib/xfeed": typeof lib_xfeed;
   network: typeof network;
   now: typeof now;
