@@ -194,6 +194,22 @@ export default defineSchema({
     createdAt: v.string(),
   }).index("by_createdAt", ["createdAt"]),
 
+  // Which X account growth tracking follows (convex/growth.ts). Single row.
+  growthConfig: defineTable({
+    handle: v.string(), // the account whose follower growth we snapshot
+    updatedAt: v.string(),
+  }),
+
+  // Daily snapshot of the tracked account's followers, for day-over-day diffs
+  // (convex/growth.ts). Compact follower objects so we can show who joined/left.
+  followerSnapshots: defineTable({
+    handle: v.string(),
+    followsJson: v.string(), // JSON [{id,username,name,followers}]
+    count: v.number(),
+    truncated: v.boolean(),
+    fetchedAt: v.string(),
+  }).index("by_fetchedAt", ["fetchedAt"]),
+
   // Cache of a seed's following list (convex/network.ts) so rebuilding a web —
   // re-running the same seeds, or adding one — reuses paid-for pulls instead of
   // re-charging. Keyed by the seed's X user id; refreshed past the TTL.

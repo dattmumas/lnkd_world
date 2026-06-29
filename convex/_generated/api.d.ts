@@ -22,6 +22,7 @@ import type * as feedPages_replyRadar from "../feedPages/replyRadar.js";
 import type * as feedPages_xTrends from "../feedPages/xTrends.js";
 import type * as graph from "../graph.js";
 import type * as graphLayout from "../graphLayout.js";
+import type * as growth from "../growth.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_getxapi from "../lib/getxapi.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   "feedPages/xTrends": typeof feedPages_xTrends;
   graph: typeof graph;
   graphLayout: typeof graphLayout;
+  growth: typeof growth;
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/getxapi": typeof lib_getxapi;

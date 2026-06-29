@@ -24,4 +24,11 @@ crons.interval(
   internal.earlyFeed.refreshInternal,
 );
 
+// Growth tracking — daily snapshot of the tracked account's followers.
+crons.daily(
+  "growth-snapshot",
+  { hourUTC: 12, minuteUTC: 0 },
+  internal.growth.snapshotInternal,
+);
+
 export default crons;

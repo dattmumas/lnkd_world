@@ -76,6 +76,14 @@ export default function AdminDashboard() {
             Network Discovery
           </Link>
         </li>
+        <li>
+          <Link
+            href="/admin/growth"
+            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          >
+            Growth Tracking
+          </Link>
+        </li>
       </ul>
     </main>
   );
