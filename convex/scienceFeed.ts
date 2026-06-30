@@ -7,34 +7,48 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
+import { gxSearch } from "./lib/getxapi";
 
 /**
- * "Science News" — combs the admin-managed RSS sources (convex/newsSources.ts)
- * for recent stories, then has Opus 4.8 pick the ones worth sharing for On Label
- * (the business of health, longevity & biotech), each with a one-line angle and a
- * suggested tweet. Rendered to HTML stored in `scienceSnapshots`, served at "science".
+ * Combined news briefing rendered as TWO side-by-side columns (served at "science"):
+ *  - Science: stories worth sharing combed from the health/longevity/biotech RSS
+ *    sources (convex/newsSources.ts).
+ *  - Business: the biggest business news, blended from general-business RSS
+ *    (convex/bizSources.ts) and posts from business X accounts (convex/bizAccounts.ts).
+ * Each column is curated by Opus 4.8 with a one-line angle + a suggested tweet.
+ * Rendered to HTML stored in `scienceSnapshots`.
  */
 
-const WINDOW_DAYS = 5;
-const MAX_AGE_MS = WINDOW_DAYS * 24 * 3600 * 1000;
-const MAX_PER_SOURCE = 12; // recent items considered per source
-const MAX_CANDIDATES = 45; // total items handed to the curator
-const FINAL_COUNT = 12; // stories surfaced
+const SCI_WINDOW_DAYS = 5;
+const BIZ_WINDOW_DAYS = 3; // business moves fast
+const SCI_MAX_AGE_MS = SCI_WINDOW_DAYS * 24 * 3600 * 1000;
+const BIZ_MAX_AGE_MS = BIZ_WINDOW_DAYS * 24 * 3600 * 1000;
+const MAX_PER_SOURCE = 12;
+const MAX_CANDIDATES = 45;
+const FINAL_COUNT = 10; // per column
+const HANDLES_PER_QUERY = 15;
 
 const ON_LABEL =
-  "On Label covers the business of health, longevity, and biotech — drug development, deals, clinical data, metabolic health/GLP-1s, peptides, and the science behind the longevity industry. The audience is founders, operators, scientists, and investors in that space.";
+  "On Label covers the business of health, longevity, and biotech — drug development, deals, clinical data, metabolic health/GLP-1s, peptides, and the science behind the longevity industry. The audience is founders, operators, scientists, and investors.";
 
-interface NewsItem {
-  title: string;
+interface FeedItem {
+  kind: "article" | "post";
+  title: string; // headline (article) or "" (post)
+  text: string; // synopsis (article) or tweet text (post)
   link: string;
-  summary: string;
-  source: string;
+  source: string; // source name or @handle
   dateMs: number;
   image: string;
 }
 
-// Pull a representative image URL from an RSS/Atom item block. Entity-decode first
-// so images embedded as encoded HTML (&lt;img src=…&gt;) are found too.
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// ---- RSS parsing ----------------------------------------------------------
+
 function extractImage(block: string): string {
   block = block.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
   const pats = [
@@ -51,8 +65,6 @@ function extractImage(block: string): string {
   return "";
 }
 
-// Strip only real tag-like markup (starts with a letter / "/" / "!"), so text like
-// "5 < 10" survives.
 function stripTags(s: string): string {
   return s.replace(/<\/?[a-zA-Z!][^>]*>/g, " ");
 }
@@ -71,8 +83,6 @@ function decodeEntities(s: string): string {
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
-// CDATA-unwrap, strip literal tags, decode entities, then strip again to catch
-// markup that was entity-encoded (e.g. BioPharma Dive's "&lt;figure&gt;…").
 function decode(s: string): string {
   let t = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
   t = stripTags(t);
@@ -86,17 +96,13 @@ function tag(block: string, name: string): string {
   return m ? decode(m[1]) : "";
 }
 
-// Parse RSS <item> or Atom <entry> blocks into items.
-function parseFeed(xml: string, source: string): NewsItem[] {
+function parseFeed(xml: string, source: string): FeedItem[] {
   const blocks =
-    xml.match(/<item[\s\S]*?<\/item>/gi) ??
-    xml.match(/<entry[\s\S]*?<\/entry>/gi) ??
-    [];
-  const out: NewsItem[] = [];
+    xml.match(/<item[\s\S]*?<\/item>/gi) ?? xml.match(/<entry[\s\S]*?<\/entry>/gi) ?? [];
+  const out: FeedItem[] = [];
   for (const b of blocks) {
     const title = tag(b, "title");
     if (!title) continue;
-    // RSS <link>url</link> or Atom <link href="url"/>.
     let link = tag(b, "link");
     if (!link) {
       const href = b.match(/<link[^>]*href="([^"]+)"/i);
@@ -105,44 +111,129 @@ function parseFeed(xml: string, source: string): NewsItem[] {
     const summary = tag(b, "description") || tag(b, "summary") || tag(b, "content");
     const dateStr =
       tag(b, "pubDate") || tag(b, "updated") || tag(b, "published") || tag(b, "dc:date");
-    const dateMs = Date.parse(dateStr) || 0;
     out.push({
+      kind: "article",
       title,
+      text: summary.slice(0, 400),
       link,
-      summary: summary.slice(0, 400),
       source,
-      dateMs,
+      dateMs: Date.parse(dateStr) || 0,
       image: extractImage(b),
     });
   }
   return out;
 }
 
-async function fetchSource(name: string, url: string): Promise<NewsItem[]> {
+async function fetchSource(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "lnkd-world/1.0 (+https://lnkd.world)", Accept: "application/rss+xml, application/xml, text/xml, */*" },
+    headers: {
+      "User-Agent": "lnkd-world/1.0 (+https://lnkd.world)",
+      Accept: "application/rss+xml, application/xml, text/xml, */*",
+    },
   });
   if (!res.ok) throw new Error(`${res.status}`);
-  const xml = await res.text();
-  return parseFeed(xml, name);
+  return res.text();
 }
+
+// Gather recent RSS items across sources (one bad feed doesn't sink the rest).
+async function gatherRss(
+  sources: { name: string; url: string }[],
+  nowMs: number,
+  maxAge: number,
+): Promise<FeedItem[]> {
+  const items: FeedItem[] = [];
+  for (const s of sources) {
+    try {
+      const parsed = parseFeed(await fetchSource(s.url), s.name);
+      items.push(
+        ...parsed
+          .filter((it) => !it.dateMs || nowMs - it.dateMs <= maxAge)
+          .sort((a, b) => b.dateMs - a.dateMs)
+          .slice(0, MAX_PER_SOURCE),
+      );
+    } catch (err) {
+      console.error(`Source ${s.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return items;
+}
+
+// Posts from the business X accounts (getXAPI), as FeedItems.
+async function fetchPosts(handles: string[]): Promise<FeedItem[]> {
+  const out: FeedItem[] = [];
+  for (const group of chunk(handles, HANDLES_PER_QUERY)) {
+    const q = `(${group.map((h) => `from:${h}`).join(" OR ")}) -is:retweet -is:reply lang:en`;
+    try {
+      const { tweets, users } = await gxSearch(q, {
+        product: "Top",
+        maxAgeMs: BIZ_MAX_AGE_MS,
+        maxTweets: 60,
+      });
+      const byId = new Map(users.map((u) => [u.id, u]));
+      for (const t of tweets) {
+        const u = byId.get(t.author_id);
+        out.push({
+          kind: "post",
+          title: "",
+          text: t.text,
+          link: u
+            ? `https://x.com/${u.username}/status/${t.id}`
+            : `https://x.com/i/status/${t.id}`,
+          source: u ? "@" + u.username : "X",
+          dateMs: Date.parse(t.created_at) || 0,
+          image: "",
+        });
+      }
+    } catch (err) {
+      console.error(`Business posts query failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return out;
+}
+
+function dedupe(items: FeedItem[]): FeedItem[] {
+  const seen = new Set<string>();
+  const out: FeedItem[] = [];
+  for (const it of items) {
+    const k = it.link || it.title || it.text;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(it);
+  }
+  return out;
+}
+
+// ---- Curation -------------------------------------------------------------
 
 interface Curated {
   n: number;
   angle: string;
   tweet: string;
 }
+interface Picked {
+  item: FeedItem;
+  angle: string;
+  tweet: string;
+}
 
-// Opus 4.8 picks the most share-worthy items + a one-line angle and a tweet.
-async function curate(items: NewsItem[]): Promise<Curated[]> {
+function prompt(topic: "science" | "business"): string {
+  if (topic === "science") {
+    return `You curate a "science news worth sharing" briefing. ${ON_LABEL}
+
+From the numbered items pick the ${FINAL_COUNT} most worth sharing to that audience on X — surprising, debate-worthy, or genuinely important to the business/science of health & longevity. Skip generic wellness fluff, press-release filler, and off-topic items.`;
+  }
+  return `You curate a "biggest business news worth sharing" briefing for a sharp, general business audience on X. The items are a mix of news articles and posts from major business accounts.
+
+From the numbered items pick the ${FINAL_COUNT} biggest, most share-worthy business stories — major deals/M&A, market-moving events, big-company news, earnings, the economy, major tech and finance developments. Skip opinion columns, minor updates, and duplicates of the same event.`;
+}
+
+async function curate(items: FeedItem[], topic: "science" | "business"): Promise<Curated[]> {
   const key = process.env.anthropic_api_key;
   if (!key || items.length === 0) return [];
   const list = items
-    .map((it, i) => `[${i}] ${it.title} (${it.source})\n${it.summary}`)
+    .map((it, i) => `[${i}] (${it.source}) ${it.title || it.text.slice(0, 140)}\n${it.text.slice(0, 300)}`)
     .join("\n\n");
-  const system = `You curate a "science news worth sharing" briefing. ${ON_LABEL}
-
-From the numbered items, pick the ${FINAL_COUNT} most worth sharing to that audience on X — surprising, debate-worthy, or genuinely important to the business/science of health & longevity. Skip generic wellness fluff, press-release filler, and off-topic items.
+  const system = `${prompt(topic)}
 
 Return ONLY a JSON array, no prose:
 [{"n": <item number>, "angle": "<one short line on why it's worth sharing>", "tweet": "<a casual, punchy suggested tweet, 2-4 short lines, no hashtags, no em-dashes>"}]
@@ -172,10 +263,20 @@ Order best-first. Output at most ${FINAL_COUNT}.`;
     const parsed = JSON.parse(match[0]) as Curated[];
     return parsed.filter((p) => typeof p.n === "number" && items[p.n]);
   } catch (e) {
-    console.error(`Science curate failed: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`Curate (${topic}) failed: ${e instanceof Error ? e.message : String(e)}`);
     return [];
   }
 }
+
+async function pick(candidates: FeedItem[], topic: "science" | "business"): Promise<Picked[]> {
+  const curated = await curate(candidates, topic);
+  if (curated.length > 0) {
+    return curated.map((c) => ({ item: candidates[c.n], angle: c.angle ?? "", tweet: c.tweet ?? "" }));
+  }
+  return candidates.slice(0, FINAL_COUNT).map((item) => ({ item, angle: "", tweet: "" }));
+}
+
+// ---- Render ---------------------------------------------------------------
 
 function esc(s: string): string {
   return s
@@ -185,75 +286,96 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderNews(picked: { item: NewsItem; angle: string; tweet: string }[], generatedAt: string): string {
+function renderCard({ item, angle, tweet }: Picked): string {
+  const date = item.dateMs
+    ? new Date(item.dateMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "";
+  const angleBlock = angle
+    ? `<div class="angle"><span class="angle-l">Why share</span>${esc(angle)}</div>`
+    : "";
+  const tweetBlock = tweet
+    ? `<div class="tweet"><div class="tweet-h"><span class="tweet-l">Suggested tweet</span><button class="copy" data-copy="${esc(tweet)}">Copy</button></div><div class="tweet-b">${esc(tweet)}</div></div>`
+    : "";
+  if (item.kind === "post") {
+    return `<article class="card">
+      <div class="body">
+        <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
+        <p class="ptext">${esc(item.text)}</p>
+        ${angleBlock}${tweetBlock}
+        <div class="foot"><a class="read" href="${esc(item.link)}" target="_blank" rel="noopener">View on X ↗</a></div>
+      </div>
+    </article>`;
+  }
+  const thumb = item.image
+    ? `<img class="thumb" src="${esc(item.image)}" alt="" loading="lazy" onerror="this.remove()">`
+    : "";
+  const synopsis = item.text ? `<p class="synopsis">${esc(item.text)}</p>` : "";
+  return `<article class="card">
+    ${thumb}
+    <div class="body">
+      <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
+      <h3 class="title"><a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}</a></h3>
+      ${synopsis}${angleBlock}${tweetBlock}
+      <div class="foot"><a class="read" href="${esc(item.link)}" target="_blank" rel="noopener">Read ↗</a></div>
+    </div>
+  </article>`;
+}
+
+function renderNews(science: Picked[], business: Picked[], generatedAt: string): string {
   const when = new Date(generatedAt).toLocaleString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  const cards = picked
-    .map(({ item, angle, tweet }) => {
-      const date = item.dateMs
-        ? new Date(item.dateMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        : "";
-      const thumb = item.image
-        ? `<img class="thumb" src="${esc(item.image)}" alt="" loading="lazy" onerror="this.remove()">`
-        : "";
-      const synopsis = item.summary ? `<p class="synopsis">${esc(item.summary)}</p>` : "";
-      const angleBlock = angle
-        ? `<div class="angle"><span class="angle-l">Why share</span>${esc(angle)}</div>`
-        : "";
-      const tweetBlock = tweet
-        ? `<div class="tweet"><div class="tweet-h"><span class="tweet-l">Suggested tweet</span><button class="copy" data-copy="${esc(tweet)}">Copy</button></div><div class="tweet-b">${esc(tweet)}</div></div>`
-        : "";
-      return `<article class="card">
-        ${thumb}
-        <div class="body">
-          <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
-          <h2 class="title"><a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}</a></h2>
-          ${synopsis}
-          ${angleBlock}
-          ${tweetBlock}
-          <div class="foot"><a class="read" href="${esc(item.link)}" target="_blank" rel="noopener">Read full story ↗</a></div>
-        </div>
-      </article>`;
-    })
-    .join("\n");
+  const col = (cls: string, label: string, items: Picked[]) =>
+    `<section class="col ${cls}"><h2>${label}</h2>${
+      items.map(renderCard).join("\n") || '<p class="empty">Nothing cleared the bar.</p>'
+    }</section>`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
   :root{color-scheme:light}*{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa;line-height:1.55;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:780px;margin:0 auto;padding:28px 20px 64px}
-  header{margin-bottom:20px}
-  .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8}
-  h1{font-size:27px;margin:5px 0 3px;letter-spacing:-.015em;font-weight:700}
-  .sub{font-size:13.5px;color:#94a3b8}
-  .card{display:flex;gap:16px;background:#fff;border:1px solid #e8eaee;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 1px 2px rgba(15,23,42,.04),0 2px 6px rgba(15,23,42,.03)}
-  .thumb{width:150px;height:114px;flex-shrink:0;border-radius:12px;object-fit:cover;background:#eef2f6}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:26px 20px 64px}
+  header{margin-bottom:18px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8}
+  h1{font-size:25px;margin:5px 0 3px;letter-spacing:-.015em;font-weight:700}
+  .sub{font-size:13px;color:#94a3b8}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  .col.sci{--acc:#059669}.col.biz{--acc:#2563eb}
+  .col h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f172a;margin:0 0 4px;padding-bottom:9px;border-bottom:2px solid var(--acc)}
+  .empty{font-size:13px;color:#94a3b8}
+  .card{display:flex;gap:13px;background:#fff;border:1px solid #e8eaee;border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .thumb{width:104px;height:80px;flex-shrink:0;border-radius:10px;object-fit:cover;background:#eef2f6}
   .body{min-width:0;flex:1}
-  .src{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:5px}
-  .title{margin:0 0 7px;font-size:17px;line-height:1.32;font-weight:700;letter-spacing:-.01em}
-  .title a{color:#0f172a;text-decoration:none}.title a:hover{color:#059669}
-  .synopsis{margin:0 0 10px;font-size:14px;color:#52606d;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-  .angle{font-size:13.5px;color:#334155;background:#f1f6f4;border-radius:10px;padding:9px 12px;margin:10px 0}
-  .angle-l{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#059669;margin-bottom:3px}
-  .tweet{margin-top:10px;background:#fafbfc;border:1px solid #e8eaee;border-radius:12px;padding:11px 13px}
-  .tweet-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
-  .tweet-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
-  .tweet-b{white-space:pre-line;font-size:13.5px;color:#1e293b;line-height:1.55}
-  button.copy{appearance:none;border:1px solid #d8dde3;background:#fff;color:#0f172a;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:8px;cursor:pointer}
+  .src{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:5px}
+  .title{margin:0 0 6px;font-size:15px;line-height:1.32;font-weight:700;letter-spacing:-.01em}
+  .title a{color:#0f172a;text-decoration:none}.title a:hover{color:var(--acc)}
+  .ptext{margin:0 0 8px;font-size:14px;color:#1e293b;line-height:1.5;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+  .synopsis{margin:0 0 8px;font-size:13px;color:#52606d;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .angle{font-size:12.5px;color:#334155;background:#f1f5f9;border-radius:9px;padding:8px 11px;margin:9px 0}
+  .angle-l{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin-bottom:3px}
+  .tweet{margin-top:9px;background:#fafbfc;border:1px solid #e8eaee;border-radius:11px;padding:10px 12px}
+  .tweet-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .tweet-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
+  .tweet-b{white-space:pre-line;font-size:13px;color:#1e293b;line-height:1.5}
+  button.copy{appearance:none;border:1px solid #d8dde3;background:#fff;color:#0f172a;font-size:11px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer}
   button.copy:hover{background:#f1f5f9}
-  .foot{margin-top:11px}
-  .read{font-size:13px;font-weight:600;color:#059669;text-decoration:none}.read:hover{text-decoration:underline}
-  footer{margin-top:30px;font-size:12px;color:#94a3b8;border-top:1px solid #e8eaee;padding-top:16px}
-  @media(max-width:560px){.card{flex-direction:column}.thumb{width:100%;height:180px}}
+  .foot{margin-top:9px}
+  .read{font-size:12.5px;font-weight:600;color:var(--acc);text-decoration:none}.read:hover{text-decoration:underline}
+  footer{margin-top:28px;font-size:12px;color:#94a3b8;border-top:1px solid #e8eaee;padding-top:16px}
+  @media(max-width:780px){.cols{grid-template-columns:1fr}}
   </style></head><body><div class="wrap">
-  <header><div class="eyebrow">On Label · Science</div><h1>Worth Sharing</h1><div class="sub">${esc(when)} · curated from your sources</div></header>
-  ${cards || '<p class="sub">No stories cleared the bar this run.</p>'}
-  <footer>Curated by Opus 4.8 from your RSS sources. Suggested tweets are drafts — nothing is posted.</footer>
+  <header><div class="eyebrow">On Label · Daily</div><h1>Science &amp; Business</h1><div class="sub">${esc(when)} · worth sharing</div></header>
+  <div class="cols">
+    ${col("sci", "Science", science)}
+    ${col("biz", "Business", business)}
+  </div>
+  <footer>Curated by Opus 4.8 from your RSS sources and business X accounts. Suggested tweets are drafts — nothing is posted.</footer>
   </div>
   <script>document.addEventListener('click',function(e){var b=e.target.closest('button.copy');if(!b)return;var t=b.getAttribute('data-copy')||'';function ok(){var p=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=p;},1500);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(ok);}else{ok();}});</script>
   </body></html>`;
 }
+
+// ---- Action / storage -----------------------------------------------------
 
 export const refreshInternal = internalAction({
   args: {},
@@ -262,69 +384,34 @@ export const refreshInternal = internalAction({
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
-      const sources: { name: string; url: string }[] = await ctx.runQuery(
+      const sciSources: { name: string; url: string }[] = await ctx.runQuery(
         internal.newsSources.activeSources,
         {},
       );
-      if (sources.length === 0) {
-        await ctx.runMutation(internal.scienceFeed.store, {
-          generatedAt,
-          html: "",
-          status: "empty",
-          count: 0,
-        });
-        return { status: "empty", count: 0 };
-      }
+      const bizSources: { name: string; url: string }[] = await ctx.runQuery(
+        internal.bizSources.activeSources,
+        {},
+      );
+      const bizHandles: string[] = await ctx.runQuery(internal.bizAccounts.activeHandles, {});
 
-      // Gather recent items across sources (one bad feed doesn't sink the rest).
-      const items: NewsItem[] = [];
-      for (const s of sources) {
-        try {
-          const parsed = await fetchSource(s.name, s.url);
-          const recent = parsed
-            .filter((it) => !it.dateMs || nowMs - it.dateMs <= MAX_AGE_MS)
-            .sort((a, b) => b.dateMs - a.dateMs)
-            .slice(0, MAX_PER_SOURCE);
-          items.push(...recent);
-        } catch (err) {
-          console.error(
-            `Science source ${s.name} failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
-      }
-
-      // Dedup by link, newest-first, cap the candidate pool.
-      const seen = new Set<string>();
-      const candidates = items
-        .filter((it) => {
-          const k = it.link || it.title;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        })
+      const sciCandidates = dedupe(await gatherRss(sciSources, nowMs, SCI_MAX_AGE_MS))
         .sort((a, b) => b.dateMs - a.dateMs)
         .slice(0, MAX_CANDIDATES);
 
-      // Opus picks the share-worthy ones; fall back to most-recent on failure.
-      const curated = await curate(candidates);
-      const picked =
-        curated.length > 0
-          ? curated.map((c) => ({
-              item: candidates[c.n],
-              angle: c.angle ?? "",
-              tweet: c.tweet ?? "",
-            }))
-          : candidates.slice(0, FINAL_COUNT).map((item) => ({ item, angle: "", tweet: "" }));
+      const bizArticles = await gatherRss(bizSources, nowMs, BIZ_MAX_AGE_MS);
+      const bizPosts = bizHandles.length ? await fetchPosts(bizHandles) : [];
+      const bizCandidates = dedupe([...bizArticles, ...bizPosts])
+        .sort((a, b) => b.dateMs - a.dateMs)
+        .slice(0, MAX_CANDIDATES);
 
-      const html = renderNews(picked, generatedAt);
-      const status = picked.length > 0 ? "ok" : "empty";
-      await ctx.runMutation(internal.scienceFeed.store, {
-        generatedAt,
-        html,
-        status,
-        count: picked.length,
-      });
-      return { status, count: picked.length };
+      const science = await pick(sciCandidates, "science");
+      const business = await pick(bizCandidates, "business");
+
+      const html = renderNews(science, business, generatedAt);
+      const count = science.length + business.length;
+      const status = count > 0 ? "ok" : "empty";
+      await ctx.runMutation(internal.scienceFeed.store, { generatedAt, html, status, count });
+      return { status, count };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       await ctx.runMutation(internal.scienceFeed.store, {
@@ -334,7 +421,7 @@ export const refreshInternal = internalAction({
         count: 0,
         error: message,
       });
-      throw new Error(`Science feed refresh failed: ${message}`);
+      throw new Error(`News feed refresh failed: ${message}`);
     }
   },
 });

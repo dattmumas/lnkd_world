@@ -3,11 +3,48 @@
 import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import Nav from "@/components/nav";
 
 const field =
   "w-full border border-[var(--color-border)] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]";
+
+function Row({
+  title,
+  subtitle,
+  inactive,
+  onEdit,
+  onDelete,
+}: {
+  title: string;
+  subtitle: string;
+  inactive: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex justify-between items-start">
+      <div className="min-w-0">
+        <p className="font-medium">
+          {title}
+          {inactive && (
+            <span className="ml-2 text-xs text-[var(--color-text-secondary)]">(inactive)</span>
+          )}
+        </p>
+        {subtitle && (
+          <p className="text-sm text-[var(--color-text-secondary)] truncate">{subtitle}</p>
+        )}
+      </div>
+      <div className="flex gap-2 shrink-0 ml-4">
+        <button onClick={onEdit} className="text-sm text-[var(--color-accent)] hover:underline">
+          Edit
+        </button>
+        <button onClick={onDelete} className="text-sm text-red-600 hover:underline">
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function SourceForm({
   initial,
@@ -21,7 +58,6 @@ function SourceForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
   const [active, setActive] = useState(initial?.active ?? true);
-
   return (
     <form
       className="space-y-3 border border-[var(--color-border)] rounded p-4"
@@ -35,42 +71,67 @@ function SourceForm({
         }
       }}
     >
-      <input
-        placeholder="Source name (e.g. STAT News)"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className={field}
-      />
-      <input
-        placeholder="RSS feed URL (https://…/feed/)"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        required
-        className={field}
-      />
+      <input placeholder="Source name" value={name} onChange={(e) => setName(e.target.value)} className={field} />
+      <input placeholder="RSS feed URL" value={url} onChange={(e) => setUrl(e.target.value)} required className={field} />
       {initial && (
         <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-          />
-          Active (included in the feed)
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          Active
         </label>
       )}
       <div className="flex gap-2">
-        <button
-          type="submit"
-          className="bg-[var(--color-accent)] text-white rounded px-4 py-2 text-sm hover:bg-[var(--color-accent-hover)] transition-colors"
-        >
-          {initial ? "Save" : "Add source"}
+        <button type="submit" className="bg-[var(--color-accent)] text-white rounded px-4 py-2 text-sm hover:bg-[var(--color-accent-hover)]">
+          {initial ? "Save" : "Add"}
         </button>
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-          >
+          <button type="button" onClick={onCancel} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]">
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function HandleForm({
+  initial,
+  onSubmit,
+  onCancel,
+}: {
+  initial?: { handle: string; note: string; active: boolean };
+  onSubmit: (data: { handle: string; note: string; active: boolean }) => void;
+  onCancel?: () => void;
+}) {
+  const [handle, setHandle] = useState(initial?.handle ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [active, setActive] = useState(initial?.active ?? true);
+  return (
+    <form
+      className="space-y-3 border border-[var(--color-border)] rounded p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ handle, note, active });
+        if (!initial) {
+          setHandle("");
+          setNote("");
+          setActive(true);
+        }
+      }}
+    >
+      <input placeholder="X handle (e.g. CNBC)" value={handle} onChange={(e) => setHandle(e.target.value)} required className={field} />
+      <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} className={field} />
+      {initial && (
+        <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          Active
+        </label>
+      )}
+      <div className="flex gap-2">
+        <button type="submit" className="bg-[var(--color-accent)] text-white rounded px-4 py-2 text-sm hover:bg-[var(--color-accent-hover)]">
+          {initial ? "Save" : "Add"}
+        </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]">
             Cancel
           </button>
         )}
@@ -80,34 +141,52 @@ function SourceForm({
 }
 
 export default function ManageSources() {
-  const sources = useQuery(api.newsSources.listAll);
-  const create = useMutation(api.newsSources.create);
-  const update = useMutation(api.newsSources.update);
-  const remove = useMutation(api.newsSources.remove);
-  const seedDefaults = useMutation(api.newsSources.seedDefaults);
+  // Science RSS sources
+  const sci = useQuery(api.newsSources.listAll);
+  const sciCreate = useMutation(api.newsSources.create);
+  const sciUpdate = useMutation(api.newsSources.update);
+  const sciRemove = useMutation(api.newsSources.remove);
+  const sciSeed = useMutation(api.newsSources.seedDefaults);
+  // Business RSS sources
+  const biz = useQuery(api.bizSources.listAll);
+  const bizCreate = useMutation(api.bizSources.create);
+  const bizUpdate = useMutation(api.bizSources.update);
+  const bizRemove = useMutation(api.bizSources.remove);
+  const bizSeed = useMutation(api.bizSources.seedDefaults);
+  // Business X accounts
+  const acc = useQuery(api.bizAccounts.listAll);
+  const accCreate = useMutation(api.bizAccounts.create);
+  const accUpdate = useMutation(api.bizAccounts.update);
+  const accRemove = useMutation(api.bizAccounts.remove);
+  const accSeed = useMutation(api.bizAccounts.seedDefaults);
+
   const refresh = useAction(api.scienceFeed.refresh);
-  const [editingId, setEditingId] = useState<Id<"newsSources"> | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [state, setState] = useState("");
 
   const onRefresh = async () => {
     setState("Refreshing…");
     try {
       const r = await refresh();
-      setState(`Done — ${r.count} stor${r.count === 1 ? "y" : "ies"}.`);
+      setState(`Done — ${r.count} item${r.count === 1 ? "" : "s"}.`);
     } catch {
       setState("Refresh failed — check logs.");
     }
   };
 
+  const seedRow = (onSeed: () => void, label: string) => (
+    <button onClick={onSeed} className="text-sm text-[var(--color-accent)] hover:underline">
+      {label}
+    </button>
+  );
+
   return (
     <main className="max-w-3xl mx-auto px-6 py-16 md:py-24">
       <Nav />
-      <div className="flex items-center justify-between mb-8 mt-8">
-        <h1 className="text-3xl font-semibold">Science Sources</h1>
+      <div className="flex items-center justify-between mb-2 mt-8">
+        <h1 className="text-3xl font-semibold">News Sources</h1>
         <div className="flex items-center gap-3">
-          {state && (
-            <span className="text-sm text-[var(--color-text-secondary)]">{state}</span>
-          )}
+          {state && <span className="text-sm text-[var(--color-text-secondary)]">{state}</span>}
           <button
             onClick={() => void onRefresh()}
             className="text-sm border border-[var(--color-border)] rounded px-3 py-1.5 hover:bg-[var(--color-border)]/30"
@@ -116,81 +195,110 @@ export default function ManageSources() {
           </button>
         </div>
       </div>
-
-      <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-        RSS sources combed for the{" "}
-        <a href="/feed/science" className="text-[var(--color-accent)] hover:underline">
-          Science News
-        </a>{" "}
-        feed (Opus picks what&apos;s worth sharing).
+      <p className="text-sm text-[var(--color-text-secondary)] mb-10">
+        Feeds the two columns of the{" "}
+        <a href="/feed/science" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</a>{" "}
+        page. Opus picks what&apos;s worth sharing from each.
       </p>
 
-      <div className="mb-8">
-        <h2 className="text-lg font-medium mb-3">Add source</h2>
-        <SourceForm
-          onSubmit={(d) => void create({ name: d.name, url: d.url })}
-        />
-      </div>
-
-      <h2 className="text-lg font-medium mb-3">Current sources</h2>
-      {sources === undefined ? (
-        <p className="text-[var(--color-text-secondary)]">Loading…</p>
-      ) : sources.length === 0 ? (
-        <div className="space-y-3">
-          <p className="text-[var(--color-text-secondary)]">No sources yet.</p>
-          <button
-            onClick={() => void seedDefaults()}
-            className="text-sm text-[var(--color-accent)] hover:underline"
-          >
-            Load a default set (STAT, Nature, Science Daily, …)
-          </button>
+      {/* Science sources */}
+      <section className="mb-12">
+        <h2 className="text-xl font-semibold mb-1">Science sources</h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">RSS feeds for the Science column.</p>
+        <div className="mb-4">
+          <SourceForm onSubmit={(d) => void sciCreate({ name: d.name, url: d.url })} />
         </div>
-      ) : (
-        <ul className="space-y-4">
-          {sources.map((s) => (
-            <li key={s._id} className="border border-[var(--color-border)] rounded p-4">
-              {editingId === s._id ? (
-                <SourceForm
-                  initial={{ name: s.name, url: s.url, active: s.active !== false }}
-                  onSubmit={(d) => {
-                    void update({ id: s._id, name: d.name, url: d.url, active: d.active });
-                    setEditingId(null);
-                  }}
-                  onCancel={() => setEditingId(null)}
-                />
-              ) : (
-                <div className="flex justify-between items-start">
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {s.name}
-                      {s.active === false && (
-                        <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
-                          (inactive)
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm text-[var(--color-text-secondary)] truncate">{s.url}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0 ml-4">
-                    <button
-                      onClick={() => setEditingId(s._id)}
-                      className="text-sm text-[var(--color-accent)] hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => void remove({ id: s._id })}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+        {sci === undefined ? (
+          <p className="text-[var(--color-text-secondary)]">Loading…</p>
+        ) : sci.length === 0 ? (
+          seedRow(() => void sciSeed(), "Load default science sources")
+        ) : (
+          <ul className="space-y-3">
+            {sci.map((s) => (
+              <li key={s._id} className="border border-[var(--color-border)] rounded p-4">
+                {editing === s._id ? (
+                  <SourceForm
+                    initial={{ name: s.name, url: s.url, active: s.active !== false }}
+                    onSubmit={(d) => {
+                      void sciUpdate({ id: s._id, name: d.name, url: d.url, active: d.active });
+                      setEditing(null);
+                    }}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} onEdit={() => setEditing(s._id)} onDelete={() => void sciRemove({ id: s._id })} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Business sources */}
+      <section className="mb-12">
+        <h2 className="text-xl font-semibold mb-1">Business sources</h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">RSS feeds for the Business column.</p>
+        <div className="mb-4">
+          <SourceForm onSubmit={(d) => void bizCreate({ name: d.name, url: d.url })} />
+        </div>
+        {biz === undefined ? (
+          <p className="text-[var(--color-text-secondary)]">Loading…</p>
+        ) : biz.length === 0 ? (
+          seedRow(() => void bizSeed(), "Load default business sources (BBC, Fortune, WSJ, …)")
+        ) : (
+          <ul className="space-y-3">
+            {biz.map((s) => (
+              <li key={s._id} className="border border-[var(--color-border)] rounded p-4">
+                {editing === s._id ? (
+                  <SourceForm
+                    initial={{ name: s.name, url: s.url, active: s.active !== false }}
+                    onSubmit={(d) => {
+                      void bizUpdate({ id: s._id, name: d.name, url: d.url, active: d.active });
+                      setEditing(null);
+                    }}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} onEdit={() => setEditing(s._id)} onDelete={() => void bizRemove({ id: s._id })} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Business X accounts */}
+      <section>
+        <h2 className="text-xl font-semibold mb-1">Business X accounts</h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">Posts from these accounts also feed the Business column.</p>
+        <div className="mb-4">
+          <HandleForm onSubmit={(d) => void accCreate({ handle: d.handle, note: d.note || undefined })} />
+        </div>
+        {acc === undefined ? (
+          <p className="text-[var(--color-text-secondary)]">Loading…</p>
+        ) : acc.length === 0 ? (
+          seedRow(() => void accSeed(), "Load default business accounts (Bloomberg, WSJ, CNBC, …)")
+        ) : (
+          <ul className="space-y-3">
+            {acc.map((a) => (
+              <li key={a._id} className="border border-[var(--color-border)] rounded p-4">
+                {editing === a._id ? (
+                  <HandleForm
+                    initial={{ handle: a.handle, note: a.note ?? "", active: a.active !== false }}
+                    onSubmit={(d) => {
+                      void accUpdate({ id: a._id, handle: d.handle, note: d.note || undefined, active: d.active });
+                      setEditing(null);
+                    }}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <Row title={`@${a.handle}`} subtitle={a.note ?? ""} inactive={a.active === false} onEdit={() => setEditing(a._id)} onDelete={() => void accRemove({ id: a._id })} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

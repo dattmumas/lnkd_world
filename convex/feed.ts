@@ -13,7 +13,7 @@ const EARLY_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="u
 const TEARDOWN_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa}.wrap{max-width:680px;margin:0 auto;padding:48px 20px}p{color:#64748b}</style></head><body><div class="wrap"><h1 style="font-size:22px">Content Teardown</h1><p>No teardown yet. Add accounts to emulate in <strong>/admin/creators</strong>, then hit “Refresh.” Shows their top-performing posts plus the niche’s.</p></div></body></html>`;
 
 // Shown for "science" before the first refresh.
-const SCIENCE_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa}.wrap{max-width:680px;margin:0 auto;padding:48px 20px}p{color:#64748b}</style></head><body><div class="wrap"><h1 style="font-size:22px">Science News</h1><p>No briefing yet. Manage sources in <strong>/admin/sources</strong>, then hit “Refresh.” Combs your science sites for stories worth sharing.</p></div></body></html>`;
+const SCIENCE_PLACEHOLDER = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa}.wrap{max-width:680px;margin:0 auto;padding:48px 20px}p{color:#64748b}</style></head><body><div class="wrap"><h1 style="font-size:22px">Science &amp; Business</h1><p>No briefing yet. Manage sources in <strong>/admin/sources</strong>, then hit “Refresh.” Combs your science and business sources for stories worth sharing.</p></div></body></html>`;
 
 // Slug allowlist → title + static fallback HTML. Served only to logged-in users.
 const PAGES: Record<string, { title: string; html: string }> = {
@@ -21,7 +21,7 @@ const PAGES: Record<string, { title: string; html: string }> = {
   creators: { title: "Creators", html: CREATORS_PLACEHOLDER },
   early: { title: "Early Engagement", html: EARLY_PLACEHOLDER },
   teardown: { title: "Content Teardown", html: TEARDOWN_PLACEHOLDER },
-  science: { title: "Science News", html: SCIENCE_PLACEHOLDER },
+  science: { title: "Science & Business", html: SCIENCE_PLACEHOLDER },
 };
 
 /**

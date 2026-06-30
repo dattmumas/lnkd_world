@@ -187,8 +187,24 @@ export default defineSchema({
     order: v.number(),
   }).index("by_order", ["order"]),
 
-  // "Science News" snapshots — curated stories worth sharing, combed from the
-  // RSS sources (convex/scienceFeed.ts). Served by feed.getPage for "science".
+  // General business RSS sources for the Business column (convex/bizSources.ts).
+  bizSources: defineTable({
+    name: v.string(),
+    url: v.string(),
+    active: v.optional(v.boolean()),
+    order: v.number(),
+  }).index("by_order", ["order"]),
+
+  // Business X accounts whose posts feed the Business column (convex/bizAccounts.ts).
+  bizAccounts: defineTable({
+    handle: v.string(),
+    note: v.optional(v.string()),
+    active: v.optional(v.boolean()),
+    order: v.number(),
+  }).index("by_order", ["order"]),
+
+  // "Science News" snapshots — now the combined two-column Science + Business feed
+  // (convex/scienceFeed.ts). Served by feed.getPage for "science".
   scienceSnapshots: defineTable({
     generatedAt: v.string(),
     html: v.string(),

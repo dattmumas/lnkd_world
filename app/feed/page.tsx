@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 const CARDS = [
   {
     slug: "science",
-    title: "Science News",
-    blurb: "Fresh stories worth sharing, combed from your science sites — each with an angle.",
+    title: "Science & Business",
+    blurb: "Two side-by-side briefings — science worth sharing + the biggest business news.",
     accent: "#059669",
   },
   {
