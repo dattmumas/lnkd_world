@@ -21,6 +21,16 @@ const DEFAULTS: { name: string; url: string }[] = [
   { name: "Science Daily — Health", url: "https://www.sciencedaily.com/rss/health_medicine.xml" },
   { name: "EurekAlert! — Medicine", url: "https://www.eurekalert.org/rss/health_medicine.xml" },
   { name: "Medical Xpress", url: "https://medicalxpress.com/rss-feed/" },
+  { name: "Nature Reviews Drug Discovery", url: "https://www.nature.com/nrd.rss" },
+  { name: "Nature Aging", url: "https://www.nature.com/nataging.rss" },
+  { name: "Science Daily — Top Health", url: "https://www.sciencedaily.com/rss/top/health.xml" },
+  { name: "KFF Health News", url: "https://kffhealthnews.org/feed/" },
+  { name: "ScienceAlert", url: "https://www.sciencealert.com/feed" },
+  { name: "Neuroscience News", url: "https://neurosciencenews.com/feed/" },
+  { name: "New Atlas — Health", url: "https://newatlas.com/health-wellbeing/index.rss" },
+  { name: "Ars Technica — Science", url: "https://feeds.arstechnica.com/arstechnica/science" },
+  { name: "SciTechDaily", url: "https://scitechdaily.com/feed/" },
+  { name: "Quanta Magazine", url: "https://api.quantamagazine.org/feed/" },
 ];
 
 export const listAll = query({

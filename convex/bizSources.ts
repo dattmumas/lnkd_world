@@ -18,6 +18,16 @@ const DEFAULTS: { name: string; url: string }[] = [
   { name: "NYT Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
   { name: "CNBC Business", url: "https://www.cnbc.com/id/10001147/device/rss/rss.html" },
   { name: "Guardian Business", url: "https://www.theguardian.com/uk/business/rss" },
+  { name: "CNBC Top News", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html" },
+  { name: "CNBC Finance", url: "https://www.cnbc.com/id/10000664/device/rss/rss.html" },
+  { name: "NYT Economy", url: "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml" },
+  { name: "NYT DealBook", url: "https://rss.nytimes.com/services/xml/rss/nyt/DealBook.xml" },
+  { name: "BBC Economy", url: "https://feeds.bbci.co.uk/news/business/economy/rss.xml" },
+  { name: "Guardian Economics", url: "https://www.theguardian.com/business/economics/rss" },
+  { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" },
+  { name: "Axios", url: "https://api.axios.com/feed/" },
+  { name: "Quartz", url: "https://qz.com/rss" },
+  { name: "MarketWatch", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories" },
 ];
 
 export const listAll = query({

@@ -24,6 +24,16 @@ const DEFAULTS: { handle: string; note?: string }[] = [
   { handle: "TheEconomist" },
   { handle: "Forbes" },
   { handle: "FortuneMagazine" },
+  { handle: "Reuters" },
+  { handle: "BusinessInsider" },
+  { handle: "MarketWatch" },
+  { handle: "barronsonline", note: "Barron's" },
+  { handle: "axios" },
+  { handle: "CNBCnow", note: "CNBC breaking" },
+  { handle: "DeItaone", note: "Walter Bloomberg — breaking markets" },
+  { handle: "NickTimiraos", note: "WSJ / Fed" },
+  { handle: "andrewrsorkin", note: "NYT DealBook" },
+  { handle: "KobeissiLetter", note: "macro/markets" },
 ];
 
 export const listAll = query({
