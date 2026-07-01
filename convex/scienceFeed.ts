@@ -9,6 +9,13 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import { gxSearch } from "./lib/getxapi";
+import {
+  newsBaseScore,
+  externalIdFor,
+  tweetIdFromLink,
+  HALF_LIFE_HOURS,
+  type QueueItemPayload,
+} from "./lib/queueScore";
 
 /**
  * Combined news briefing rendered as TWO side-by-side columns (served at "science"):
@@ -472,6 +479,39 @@ function renderNews(science: Picked[], business: Picked[], generatedAt: string):
 
 // ---- Action / storage -----------------------------------------------------
 
+// Map a column's top ranked picks (the ones with drafted tweets) to unified-queue
+// payloads (convex/feedItems.ts). X posts in the business blend become "x-post"
+// items keyed by tweet ID so they dedup against the other feeds.
+function queueItems(picks: Picked[], feed: "science" | "biz"): QueueItemPayload[] {
+  const label = feed === "science" ? "science" : "business";
+  return picks.slice(0, TWEET_TOP_N).map((p, i) => {
+    const tweetId = p.item.kind === "post" ? tweetIdFromLink(p.item.link) : null;
+    const kind = tweetId ? ("x-post" as const) : ("article" as const);
+    return {
+      kind,
+      externalId: tweetId
+        ? externalIdFor("x-post", tweetId)
+        : externalIdFor("article", p.item.link),
+      feed,
+      title: p.item.title || undefined,
+      text: p.item.text || p.item.title,
+      link: p.item.link,
+      imageUrl: p.item.image || undefined,
+      source: p.item.source,
+      authorUsername: p.item.source.startsWith("@")
+        ? p.item.source.slice(1).toLowerCase()
+        : undefined,
+      draft: p.tweet || undefined,
+      draftKind: p.tweet ? ("post" as const) : undefined,
+      angle: p.angle || undefined,
+      baseScore: newsBaseScore(i + 1),
+      halfLifeHours: HALF_LIFE_HOURS[feed],
+      scoreReason: `#${i + 1} in today's ${label} ranking`,
+      publishedAt: p.item.dateMs || 0,
+    };
+  });
+}
+
 export const refreshInternal = internalAction({
   args: {},
   returns: v.object({ status: v.string(), count: v.number() }),
@@ -522,6 +562,21 @@ export const refreshInternal = internalAction({
       const count = science.length + business.length;
       const status = count > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.scienceFeed.store, { generatedAt, html, status, count });
+      // Emit the top-ranked items of each column into the unified queue
+      // (best-effort — never sinks the feed). The tab keeps the full ~150-row
+      // ranking; the queue only wants the take-worthy top.
+      try {
+        await ctx.runMutation(internal.feedItems.upsertBatch, {
+          items: [
+            ...queueItems(science, "science"),
+            ...queueItems(business, "biz"),
+          ],
+        });
+      } catch (err) {
+        console.error(
+          `News queue emit failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       return { status, count };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

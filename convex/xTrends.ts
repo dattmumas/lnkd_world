@@ -15,6 +15,7 @@ import {
   type RankedPost,
 } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
+import { itemFromRankedPost, trendsBaseScore } from "./lib/queueScore";
 
 /**
  * "Trending on X" — pulls real posts from the X API (recent search) and ranks
@@ -140,6 +141,21 @@ export const refreshInternal = internalAction({
         await ctx.runMutation(internal.xTrends.recordSeen, {
           ids: selected.map((p) => p.tweet.id),
         });
+      }
+      // Emit into the unified queue (best-effort — never sinks the feed).
+      try {
+        await ctx.runMutation(internal.feedItems.upsertBatch, {
+          items: selected.map((p, i) =>
+            itemFromRankedPost(p, "x-trends", {
+              baseScore: trendsBaseScore(i + 1),
+              scoreReason: `Trending #${i + 1}${p.authorNiche ? ` · ${p.authorNiche}` : ""}`,
+            }),
+          ),
+        });
+      } catch (err) {
+        console.error(
+          `xTrends queue emit failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
       return { status, count: selected.length };
     } catch (e) {

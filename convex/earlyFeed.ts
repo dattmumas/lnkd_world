@@ -10,6 +10,7 @@ import { requireAdmin, requireSubscriber } from "./lib/auth";
 import { query } from "./_generated/server";
 import { renderHtml, type RankedPost, type XUser } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
+import { earlyBaseScore, externalIdFor, HALF_LIFE_HOURS } from "./lib/queueScore";
 
 /**
  * "Early Engagement" — the newest posts from your Creators watchlist, refreshed
@@ -130,6 +131,37 @@ export const refreshInternal = internalAction({
         status,
         count: picked.length,
       });
+      // Emit into the unified queue (best-effort — never sinks the feed).
+      // The upsert dedups against prior 20-min runs and acted-on items.
+      try {
+        await ctx.runMutation(internal.feedItems.upsertBatch, {
+          items: cards.map((c) => ({
+            kind: "x-post" as const,
+            externalId: externalIdFor("x-post", c.tweetId),
+            feed: "early",
+            text: c.text,
+            link: c.permalink,
+            source: "@" + c.username,
+            authorUsername: c.username.toLowerCase(),
+            authorName: c.name,
+            authorAvatar: c.avatar || undefined,
+            authorFollowers: c.followers,
+            authorVerified: c.verified,
+            replies: c.replies,
+            reposts: c.reposts,
+            likes: c.likes,
+            views: c.views,
+            baseScore: earlyBaseScore(c.followers),
+            halfLifeHours: HALF_LIFE_HOURS.early,
+            scoreReason: `Fresh from @${c.username} — reply window open`,
+            publishedAt: Date.parse(c.createdAt) || 0,
+          })),
+        });
+      } catch (err) {
+        console.error(
+          `Early queue emit failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       return { status, count: picked.length };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

@@ -242,6 +242,92 @@ export default defineSchema({
     .index("by_createdAt", ["createdAt"])
     .index("by_status_createdAt", ["status", "createdAt"]),
 
+  // Unified engagement queue: normalized cross-feed candidates, one row per
+  // unique tweet/article (convex/feedItems.ts). Every feed pipeline emits its
+  // picks here in addition to its HTML snapshot; the queue (convex/queue.ts)
+  // serves them priority-ordered. Ms-epoch timestamps (decay arithmetic).
+  feedItems: defineTable({
+    kind: v.union(v.literal("x-post"), v.literal("article")),
+    externalId: v.string(), // "x:<tweetId>" | "url:<normalized link>" — dedup key
+    sourceFeeds: v.array(v.string()), // feeds that emitted it — merged on dedup
+    primaryFeed: v.string(), // feed whose scoring currently governs this row
+
+    title: v.optional(v.string()), // articles only
+    text: v.string(), // tweet text or article synopsis
+    link: v.string(),
+    imageUrl: v.optional(v.string()),
+    source: v.string(), // RSS source name or "@handle"
+
+    authorUsername: v.optional(v.string()), // lowercased, no @
+    authorName: v.optional(v.string()),
+    authorAvatar: v.optional(v.string()),
+    authorFollowers: v.optional(v.number()),
+    authorVerified: v.optional(v.boolean()),
+    authorNiche: v.optional(v.string()),
+
+    replies: v.optional(v.number()),
+    reposts: v.optional(v.number()),
+    likes: v.optional(v.number()),
+    quotes: v.optional(v.number()),
+    bookmarkCount: v.optional(v.number()),
+    views: v.optional(v.number()),
+
+    draft: v.optional(v.string()), // drafted tweet or reply from the models
+    draftKind: v.optional(v.union(v.literal("reply"), v.literal("post"))),
+    angle: v.optional(v.string()), // "why share" line (science feed)
+
+    // priority = baseScore × 2^(−age/halfLife) × affinityMult (lib/queueScore.ts)
+    baseScore: v.number(),
+    halfLifeHours: v.number(),
+    affinityMult: v.number(),
+    scoreReason: v.string(), // human-readable "why it's here"
+
+    status: v.union(
+      v.literal("queued"),
+      v.literal("engaged"),
+      v.literal("skipped"),
+      v.literal("expired"),
+    ),
+    publishedAt: v.number(), // decay anchor (falls back to first-seen when unknown)
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_externalId", ["externalId"])
+    .index("by_status_publishedAt", ["status", "publishedAt"])
+    .index("by_publishedAt", ["publishedAt"]),
+
+  // Queue actions — insert-only event log (convex/queue.ts). Author/source are
+  // denormalized so affinity aggregation never needs a join.
+  itemActions: defineTable({
+    itemId: v.id("feedItems"),
+    externalId: v.string(),
+    action: v.union(
+      v.literal("open"),
+      v.literal("copy_draft"),
+      v.literal("engaged"),
+      v.literal("skipped"),
+    ),
+    kind: v.string(),
+    primaryFeed: v.string(),
+    authorUsername: v.optional(v.string()),
+    source: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_item", ["itemId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // Per-author / per-source behavior aggregates (convex/queue.ts) — smoothed
+  // into a score multiplier by lib/queueScore.affinityMultiplier. Counters are
+  // decayed daily (exponential forgetting) so old behavior fades.
+  affinities: defineTable({
+    subjectType: v.union(v.literal("author"), v.literal("source")),
+    subject: v.string(), // lowercased handle or source name
+    engaged: v.number(),
+    skipped: v.number(),
+    opened: v.number(),
+    updatedAt: v.number(),
+  }).index("by_subject", ["subjectType", "subject"]),
+
   // A saved "follower web" built from 2+ seed handles (convex/network.ts):
   // the accounts the seeds follow, deduped and ranked by seed-overlap.
   networkRuns: defineTable({

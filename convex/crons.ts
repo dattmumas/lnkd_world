@@ -45,4 +45,19 @@ crons.daily(
   internal.scienceFeed.refreshInternal,
 );
 
+// Unified queue retention — expire decayed items, drop old rows and actions.
+crons.daily(
+  "prune-feed-items",
+  { hourUTC: 10, minuteUTC: 0 },
+  internal.feedItems.prune,
+);
+
+// Affinity forgetting — decay behavior counters (~30-day half-life) so old
+// engagement patterns stop steering the queue.
+crons.daily(
+  "decay-affinities",
+  { hourUTC: 10, minuteUTC: 15 },
+  internal.queue.decayAffinities,
+);
+
 export default crons;

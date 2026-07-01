@@ -14,6 +14,7 @@ import {
   type XUser,
 } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
+import { itemFromRankedPost, creatorsBaseScore } from "./lib/queueScore";
 
 /**
  * Curated "Creators" feed — recent posts from the admin's list of X handles
@@ -111,6 +112,21 @@ export const refreshInternal = internalAction({
         status,
         count: picked.length,
       });
+      // Emit into the unified queue (best-effort — never sinks the feed).
+      try {
+        await ctx.runMutation(internal.feedItems.upsertBatch, {
+          items: picked.map((p, i) =>
+            itemFromRankedPost(p, "creators", {
+              baseScore: creatorsBaseScore(i, picked.length),
+              scoreReason: `Top engagement from your list (last ${WINDOW_HOURS}h)`,
+            }),
+          ),
+        });
+      } catch (err) {
+        console.error(
+          `Creators queue emit failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       return { status, count: picked.length };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
