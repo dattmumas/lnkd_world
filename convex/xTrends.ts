@@ -166,15 +166,18 @@ export const store = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const old = await ctx.db
+    // Keep the last 3 snapshots, but never prune the most recent "ok" one —
+    // getPage serves the latest ok, so a run of failed refreshes must not delete it.
+    const all = await ctx.db
       .query("xTrendsSnapshots")
       .withIndex("by_createdAt")
       .order("asc")
       .take(100);
-    if (old.length > 14) {
-      for (const snap of old.slice(0, old.length - 14)) {
-        await ctx.db.delete(snap._id);
-      }
+    const latestOkId = [...all].reverse().find((s) => s.status === "ok")?._id;
+    for (const snap of all
+      .slice(0, Math.max(0, all.length - 3))
+      .filter((s) => s._id !== latestOkId)) {
+      await ctx.db.delete(snap._id);
     }
     return await ctx.db.insert("xTrendsSnapshots", {
       generatedAt: args.generatedAt,

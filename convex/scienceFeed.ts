@@ -16,7 +16,8 @@ import { gxSearch } from "./lib/getxapi";
  *    sources (convex/newsSources.ts).
  *  - Business: the biggest business news, blended from general-business RSS
  *    (convex/bizSources.ts) and posts from business X accounts (convex/bizAccounts.ts).
- * Each column is curated by Opus 4.8 with a one-line angle + a suggested tweet.
+ * Every recent article in each column is ranked by importance by Sonnet 4.6
+ * (best-first) with a one-line angle; the top few also get a suggested tweet.
  * Rendered to HTML stored in `scienceSnapshots`.
  */
 
@@ -24,9 +25,9 @@ const SCI_WINDOW_DAYS = 5;
 const BIZ_WINDOW_DAYS = 3; // business moves fast
 const SCI_MAX_AGE_MS = SCI_WINDOW_DAYS * 24 * 3600 * 1000;
 const BIZ_MAX_AGE_MS = BIZ_WINDOW_DAYS * 24 * 3600 * 1000;
-const MAX_PER_SOURCE = 12;
-const MAX_CANDIDATES = 45;
-const FINAL_COUNT = 10; // per column
+const MAX_PER_SOURCE = 20;
+const MAX_CANDIDATES = 150; // ~all recent articles per column, ranked in full
+const TWEET_TOP_N = 10; // only the top N ranked items get a drafted tweet
 const HANDLES_PER_QUERY = 15;
 
 const ON_LABEL =
@@ -151,24 +152,29 @@ async function gatherRss(
   nowMs: number,
   maxAge: number,
 ): Promise<{ items: FeedItem[]; health: SourceHealth[] }> {
-  const items: FeedItem[] = [];
-  const health: SourceHealth[] = [];
-  for (const s of sources) {
-    try {
-      const parsed = parseFeed(await fetchSource(s.url), s.name);
-      const recent = parsed
-        .filter((it) => !it.dateMs || nowMs - it.dateMs <= maxAge)
-        .sort((a, b) => b.dateMs - a.dateMs)
-        .slice(0, MAX_PER_SOURCE);
-      items.push(...recent);
-      health.push({ url: s.url, name: s.name, ok: true, items: recent.length });
-    } catch (err) {
-      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 80);
-      console.error(`Source ${s.name} failed: ${msg}`);
-      health.push({ url: s.url, name: s.name, ok: false, items: 0, error: msg });
-    }
-  }
-  return { items, health };
+  // Fetch all sources concurrently — one slow/dead feed no longer delays the rest.
+  const results = await Promise.all(
+    sources.map(async (s) => {
+      try {
+        const parsed = parseFeed(await fetchSource(s.url), s.name);
+        const recent = parsed
+          .filter((it) => !it.dateMs || nowMs - it.dateMs <= maxAge)
+          .sort((a, b) => b.dateMs - a.dateMs)
+          .slice(0, MAX_PER_SOURCE);
+        const health: SourceHealth = { url: s.url, name: s.name, ok: true, items: recent.length };
+        return { items: recent, health };
+      } catch (err) {
+        const msg = (err instanceof Error ? err.message : String(err)).slice(0, 80);
+        console.error(`Source ${s.name} failed: ${msg}`);
+        const health: SourceHealth = { url: s.url, name: s.name, ok: false, items: 0, error: msg };
+        return { items: [] as FeedItem[], health };
+      }
+    }),
+  );
+  return {
+    items: results.flatMap((r) => r.items),
+    health: results.map((r) => r.health),
+  };
 }
 
 // Posts from the business X accounts (getXAPI), as FeedItems.
@@ -218,10 +224,14 @@ function dedupe(items: FeedItem[]): FeedItem[] {
 
 // ---- Curation -------------------------------------------------------------
 
-interface Curated {
+interface TopPick {
   n: number;
   angle: string;
   tweet: string;
+}
+interface RankResult {
+  order: number[]; // every item index, most important first
+  top: TopPick[]; // angle + tweet for the top TWEET_TOP_N only
 }
 interface Picked {
   item: FeedItem;
@@ -233,24 +243,28 @@ function prompt(topic: "science" | "business"): string {
   if (topic === "science") {
     return `You curate a "science news worth sharing" briefing. ${ON_LABEL}
 
-From the numbered items pick the ${FINAL_COUNT} most worth sharing to that audience on X — surprising, debate-worthy, or genuinely important to the business/science of health & longevity. Skip generic wellness fluff, press-release filler, and off-topic items.`;
+Rank EVERY numbered item from most to least worth sharing to that audience on X. Rank highest the items that are surprising, debate-worthy, or genuinely important to the business/science of health & longevity; rank lowest generic wellness fluff, press-release filler, and off-topic items. Do not drop any item.`;
   }
   return `You curate a "biggest business news worth sharing" briefing for a sharp, general business audience on X. The items are a mix of news articles and posts from major business accounts.
 
-From the numbered items pick the ${FINAL_COUNT} biggest, most share-worthy business stories — major deals/M&A, market-moving events, big-company news, earnings, the economy, major tech and finance developments. Skip opinion columns, minor updates, and duplicates of the same event.`;
+Rank EVERY numbered item from most to least share-worthy. Rank highest major deals/M&A, market-moving events, big-company news, earnings, the economy, and major tech and finance developments; rank lowest opinion columns, minor updates, and duplicates of the same event. Do not drop any item.`;
 }
 
-async function curate(items: FeedItem[], topic: "science" | "business"): Promise<Curated[]> {
+// Ask the model for a full importance ordering (just index numbers — cheap to
+// emit even for 150 items) plus an angle + tweet for only the top few. Prose for
+// the long tail isn't rendered (compact rows show none), so we don't pay to
+// generate it — this keeps the call fast enough to run on every refresh.
+async function rank(items: FeedItem[], topic: "science" | "business"): Promise<RankResult | null> {
   const key = process.env.anthropic_api_key;
-  if (!key || items.length === 0) return [];
+  if (!key || items.length === 0) return null;
   const list = items
     .map((it, i) => `[${i}] (${it.source}) ${it.title || it.text.slice(0, 140)}\n${it.text.slice(0, 300)}`)
     .join("\n\n");
   const system = `${prompt(topic)}
 
-Return ONLY a JSON array, no prose:
-[{"n": <item number>, "angle": "<one short line on why it's worth sharing>", "tweet": "<a casual, punchy suggested tweet, 2-4 short lines, no hashtags, no em-dashes>"}]
-Order best-first. Output at most ${FINAL_COUNT}.`;
+Return ONLY a JSON object, no prose:
+{"order": [<every item number, most important first>], "top": [{"n": <item number>, "angle": "<one short line on why it's worth sharing>", "tweet": "<casual, punchy tweet, 2-4 short lines, no hashtags, no em-dashes>"}]}
+"order" must list all ${items.length} item numbers exactly once. "top" gives an angle + tweet for ONLY the ${TWEET_TOP_N} most important items (the first ${TWEET_TOP_N} of "order").`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -261,9 +275,9 @@ Order best-first. Output at most ${FINAL_COUNT}.`;
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 3000,
-        thinking: { type: "adaptive" },
+        model: "claude-sonnet-4-6",
+        max_tokens: 6000,
+        thinking: { type: "disabled" },
         system,
         messages: [{ role: "user", content: list }],
       }),
@@ -271,22 +285,43 @@ Order best-first. Output at most ${FINAL_COUNT}.`;
     if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 160)}`);
     const json = (await res.json()) as { content?: { type: string; text?: string }[] };
     const text = (json.content ?? []).filter((b) => b.type === "text").map((b) => b.text).join("");
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) return [];
-    const parsed = JSON.parse(match[0]) as Curated[];
-    return parsed.filter((p) => typeof p.n === "number" && items[p.n]);
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const parsed = JSON.parse(match[0]) as Partial<RankResult>;
+    const order = (parsed.order ?? []).filter((n) => typeof n === "number" && items[n]);
+    if (order.length === 0) return null;
+    const top = (parsed.top ?? []).filter((t) => typeof t?.n === "number" && items[t.n]);
+    return { order, top };
   } catch (e) {
-    console.error(`Curate (${topic}) failed: ${e instanceof Error ? e.message : String(e)}`);
-    return [];
+    console.error(`Rank (${topic}) failed: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
   }
 }
 
+// Order all candidates best-first from the model's ranking, attaching angle +
+// tweet to the top items. Any indices the model omits are appended in date order
+// so nothing is dropped; on failure everything shows in date order.
 async function pick(candidates: FeedItem[], topic: "science" | "business"): Promise<Picked[]> {
-  const curated = await curate(candidates, topic);
-  if (curated.length > 0) {
-    return curated.map((c) => ({ item: candidates[c.n], angle: c.angle ?? "", tweet: c.tweet ?? "" }));
+  const ranked = await rank(candidates, topic);
+  if (!ranked) {
+    return candidates.map((item) => ({ item, angle: "", tweet: "" }));
   }
-  return candidates.slice(0, FINAL_COUNT).map((item) => ({ item, angle: "", tweet: "" }));
+  const extras = new Map<number, { angle: string; tweet: string }>();
+  for (const t of ranked.top) {
+    extras.set(t.n, { angle: t.angle ?? "", tweet: t.tweet ?? "" });
+  }
+  const used = new Set<number>();
+  const out: Picked[] = [];
+  for (const n of ranked.order) {
+    if (used.has(n)) continue;
+    used.add(n);
+    const extra = extras.get(n);
+    out.push({ item: candidates[n], angle: extra?.angle ?? "", tweet: extra?.tweet ?? "" });
+  }
+  candidates.forEach((item, i) => {
+    if (!used.has(i)) out.push({ item, angle: "", tweet: "" });
+  });
+  return out;
 }
 
 // ---- Render ---------------------------------------------------------------
@@ -299,18 +334,25 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderCard({ item, angle, tweet }: Picked): string {
-  const date = item.dateMs
-    ? new Date(item.dateMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+function fmtDate(dateMs: number): string {
+  return dateMs
+    ? new Date(dateMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : "";
+}
+
+// Full rich card for the top-ranked items (these carry a drafted tweet).
+function renderCard({ item, angle, tweet }: Picked, rank: number): string {
+  const date = fmtDate(item.dateMs);
+  const badge = `<span class="rank">${rank}</span>`;
   const angleBlock = angle
     ? `<div class="angle"><span class="angle-l">Why share</span>${esc(angle)}</div>`
     : "";
   const tweetBlock = tweet
-    ? `<div class="tweet"><div class="tweet-h"><span class="tweet-l">Suggested tweet</span><button class="copy" data-copy="${esc(tweet)}">Copy</button></div><div class="tweet-b">${esc(tweet)}</div></div>`
+    ? `<details class="tweet"><summary><span class="tweet-l">Draft tweet</span></summary><div class="tweet-b">${esc(tweet)}</div><button class="copy" data-copy="${esc(tweet)}">Copy</button></details>`
     : "";
   if (item.kind === "post") {
     return `<article class="card">
+      ${badge}
       <div class="body">
         <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
         <p class="ptext">${esc(item.text)}</p>
@@ -324,6 +366,7 @@ function renderCard({ item, angle, tweet }: Picked): string {
     : "";
   const synopsis = item.text ? `<p class="synopsis">${esc(item.text)}</p>` : "";
   return `<article class="card">
+    ${badge}
     ${thumb}
     <div class="body">
       <div class="src">${esc(item.source)}${date ? " · " + esc(date) : ""}</div>
@@ -334,16 +377,41 @@ function renderCard({ item, angle, tweet }: Picked): string {
   </article>`;
 }
 
+// Compact one-line row for the long tail below the top-ranked items.
+function renderRow({ item }: Picked, rank: number): string {
+  const date = fmtDate(item.dateMs);
+  const label = item.title || item.text.slice(0, 120);
+  return `<a class="row" href="${esc(item.link)}" target="_blank" rel="noopener">
+    <span class="rank rank-sm">${rank}</span>
+    <span class="row-body">
+      <span class="row-meta">${esc(item.source)}${date ? " · " + esc(date) : ""}</span>
+      <span class="row-title">${esc(label)}</span>
+    </span>
+    <span class="row-arrow">↗</span>
+  </a>`;
+}
+
 function renderNews(science: Picked[], business: Picked[], generatedAt: string): string {
   const when = new Date(generatedAt).toLocaleString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  const col = (cls: string, label: string, items: Picked[]) =>
-    `<section class="col ${cls}"><h2>${label}</h2>${
-      items.map(renderCard).join("\n") || '<p class="empty">Nothing cleared the bar.</p>'
-    }</section>`;
+  const total = science.length + business.length;
+  const col = (cls: string, label: string, items: Picked[]) => {
+    const heading = `<h2>${label} <span class="count">${items.length}</span></h2>`;
+    if (items.length === 0) {
+      return `<section class="col ${cls}">${heading}<p class="empty">Nothing cleared the bar.</p></section>`;
+    }
+    const top = items.slice(0, TWEET_TOP_N).map((p, i) => renderCard(p, i + 1)).join("\n");
+    const rest = items.slice(TWEET_TOP_N);
+    const more = rest.length
+      ? `<div class="more">More</div>${rest
+          .map((p, i) => renderRow(p, TWEET_TOP_N + i + 1))
+          .join("\n")}`
+      : "";
+    return `<section class="col ${cls}">${heading}${top}${more}</section>`;
+  };
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
   :root{color-scheme:light}*{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f7f8fa;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -354,8 +422,10 @@ function renderNews(science: Picked[], business: Picked[], generatedAt: string):
   .sub{font-size:13px;color:#94a3b8}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
   .col.sci{--acc:#059669}.col.biz{--acc:#2563eb}
-  .col h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f172a;margin:0 0 4px;padding-bottom:9px;border-bottom:2px solid var(--acc)}
+  .col h2{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f172a;margin:0 0 4px;padding-bottom:9px;border-bottom:2px solid var(--acc)}
+  .count{font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,#fff);border-radius:999px;padding:1px 8px}
   .empty{font-size:13px;color:#94a3b8}
+  .rank{flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:700;color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,#fff)}
   .card{display:flex;gap:13px;background:#fff;border:1px solid #e8eaee;border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
   .thumb{width:104px;height:80px;flex-shrink:0;border-radius:10px;object-fit:cover;background:#eef2f6}
   .body{min-width:0;flex:1}
@@ -366,23 +436,35 @@ function renderNews(science: Picked[], business: Picked[], generatedAt: string):
   .synopsis{margin:0 0 8px;font-size:13px;color:#52606d;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .angle{font-size:12.5px;color:#334155;background:#f1f5f9;border-radius:9px;padding:8px 11px;margin:9px 0}
   .angle-l{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin-bottom:3px}
-  .tweet{margin-top:9px;background:#fafbfc;border:1px solid #e8eaee;border-radius:11px;padding:10px 12px}
-  .tweet-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  details.tweet{margin-top:9px;background:#fafbfc;border:1px solid #e8eaee;border-radius:11px;padding:8px 12px}
+  details.tweet summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+  details.tweet summary::-webkit-details-marker{display:none}
+  details.tweet summary::before{content:"▸";color:#94a3b8;font-size:10px;transition:transform .15s}
+  details.tweet[open] summary::before{transform:rotate(90deg)}
   .tweet-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
-  .tweet-b{white-space:pre-line;font-size:13px;color:#1e293b;line-height:1.5}
-  button.copy{appearance:none;border:1px solid #d8dde3;background:#fff;color:#0f172a;font-size:11px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer}
+  .tweet-b{white-space:pre-line;font-size:13px;color:#1e293b;line-height:1.5;margin-top:8px}
+  button.copy{appearance:none;border:1px solid #d8dde3;background:#fff;color:#0f172a;font-size:11px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer;margin-top:8px}
   button.copy:hover{background:#f1f5f9}
+  .more{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin:18px 0 2px;padding-top:10px;border-top:1px dashed #d8dde3}
+  .row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #eef1f4;text-decoration:none;color:inherit}
+  .row:hover{background:#fbfcfd}
+  .rank-sm{width:20px;height:20px;font-size:11px;background:transparent;color:#94a3b8}
+  .row-body{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+  .row-meta{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8}
+  .row-title{font-size:13px;font-weight:600;line-height:1.3;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row:hover .row-title{color:var(--acc)}
+  .row-arrow{flex-shrink:0;font-size:12px;color:#94a3b8}
   .foot{margin-top:9px}
   .read{font-size:12.5px;font-weight:600;color:var(--acc);text-decoration:none}.read:hover{text-decoration:underline}
   footer{margin-top:28px;font-size:12px;color:#94a3b8;border-top:1px solid #e8eaee;padding-top:16px}
   @media(max-width:780px){.cols{grid-template-columns:1fr}}
   </style></head><body><div class="wrap">
-  <header><div class="eyebrow">On Label · Daily</div><h1>Science &amp; Business</h1><div class="sub">${esc(when)} · worth sharing</div></header>
+  <header><div class="eyebrow">On Label · Daily</div><h1>Science &amp; Business</h1><div class="sub">${esc(when)} · ${total} stories ranked by importance</div></header>
   <div class="cols">
     ${col("sci", "Science", science)}
     ${col("biz", "Business", business)}
   </div>
-  <footer>Curated by Opus 4.8 from your RSS sources and business X accounts. Suggested tweets are drafts — nothing is posted.</footer>
+  <footer>All recent articles from your RSS sources and business X accounts, ranked by importance by Sonnet 4.6. Suggested tweets are drafts — nothing is posted.</footer>
   </div>
   <script>document.addEventListener('click',function(e){var b=e.target.closest('button.copy');if(!b)return;var t=b.getAttribute('data-copy')||'';function ok(){var p=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=p;},1500);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(ok);}else{ok();}});</script>
   </body></html>`;
@@ -464,15 +546,18 @@ export const store = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const old = await ctx.db
+    // Keep the last 3 snapshots, but never prune the most recent "ok" one —
+    // getPage serves the latest ok, so a run of failed refreshes must not delete it.
+    const all = await ctx.db
       .query("scienceSnapshots")
       .withIndex("by_createdAt")
       .order("asc")
       .take(100);
-    if (old.length > 14) {
-      for (const snap of old.slice(0, old.length - 14)) {
-        await ctx.db.delete(snap._id);
-      }
+    const latestOkId = [...all].reverse().find((s) => s.status === "ok")?._id;
+    for (const snap of all
+      .slice(0, Math.max(0, all.length - 3))
+      .filter((s) => s._id !== latestOkId)) {
+      await ctx.db.delete(snap._id);
     }
     return await ctx.db.insert("scienceSnapshots", {
       ...args,

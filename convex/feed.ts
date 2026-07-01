@@ -38,43 +38,44 @@ export const getPage = query({
 
     // Serve the most recent *ok* snapshot — not just the newest row — so a failed
     // refresh (e.g. a transient getXAPI error) doesn't regress the page to the
-    // static placeholder while good older snapshots still exist.
+    // static placeholder while good older snapshots still exist. The
+    // by_status_createdAt index returns that row in a single read.
     let html: string | null = null;
     if (slug === "x-trends") {
-      const recent = await ctx.db
+      const latest = await ctx.db
         .query("xTrendsSnapshots")
-        .withIndex("by_createdAt")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
         .order("desc")
-        .take(15);
-      html = recent.find((s) => s.status === "ok")?.html ?? null;
+        .first();
+      html = latest?.html ?? null;
     } else if (slug === "creators") {
-      const recent = await ctx.db
+      const latest = await ctx.db
         .query("creatorsSnapshots")
-        .withIndex("by_createdAt")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
         .order("desc")
-        .take(15);
-      html = recent.find((s) => s.status === "ok")?.html ?? null;
+        .first();
+      html = latest?.html ?? null;
     } else if (slug === "early") {
-      const recent = await ctx.db
+      const latest = await ctx.db
         .query("earlySnapshots")
-        .withIndex("by_createdAt")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
         .order("desc")
-        .take(15);
-      html = recent.find((s) => s.status === "ok")?.html ?? null;
+        .first();
+      html = latest?.html ?? null;
     } else if (slug === "teardown") {
-      const recent = await ctx.db
+      const latest = await ctx.db
         .query("teardownSnapshots")
-        .withIndex("by_createdAt")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
         .order("desc")
-        .take(15);
-      html = recent.find((s) => s.status === "ok")?.html ?? null;
+        .first();
+      html = latest?.html ?? null;
     } else if (slug === "science") {
-      const recent = await ctx.db
+      const latest = await ctx.db
         .query("scienceSnapshots")
-        .withIndex("by_createdAt")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
         .order("desc")
-        .take(15);
-      html = recent.find((s) => s.status === "ok")?.html ?? null;
+        .first();
+      html = latest?.html ?? null;
     }
 
     return { slug, title: page.title, html: html ?? page.html };

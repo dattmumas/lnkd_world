@@ -5,7 +5,7 @@ Personal site focused on philosophy and politics. Branding is **LNKD**.
 ## Stack
 
 - **Framework**: Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
-- **Backend**: Convex (deployment: `perfect-ox-364`)
+- **Backend**: Convex (dev deployment: `perfect-ox-364` · **prod deployment: `steady-butterfly-270`**)
 - **Auth**: `@convex-dev/auth` with Password provider (email/password)
 - **Deploy**: Cloudflare Workers via `@opennextjs/cloudflare`
 - **DNS**: Cloudflare

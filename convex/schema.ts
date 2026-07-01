@@ -137,7 +137,9 @@ export default defineSchema({
     count: v.number(),
     error: v.optional(v.string()),
     createdAt: v.string(),
-  }).index("by_createdAt", ["createdAt"]),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // Tweet IDs already surfaced in the Trending on X feed — excluded on refresh
   // so the same post isn't shown twice (convex/xTrends.ts). Pruned by age.
@@ -165,7 +167,9 @@ export default defineSchema({
     count: v.number(),
     error: v.optional(v.string()),
     createdAt: v.string(),
-  }).index("by_createdAt", ["createdAt"]),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // "Early Engagement" snapshots — newest posts from the Creators list, refreshed
   // frequently (convex/earlyFeed.ts) so you can reply early. Served at "early".
@@ -177,7 +181,9 @@ export default defineSchema({
     count: v.number(),
     error: v.optional(v.string()),
     createdAt: v.string(),
-  }).index("by_createdAt", ["createdAt"]),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // Admin-managed RSS sources for the Science News feed (convex/newsSources.ts).
   newsSources: defineTable({
@@ -219,7 +225,9 @@ export default defineSchema({
     count: v.number(),
     error: v.optional(v.string()),
     createdAt: v.string(),
-  }).index("by_createdAt", ["createdAt"]),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // "Content Teardown" snapshots — top-performing posts from your list + niche
   // (convex/teardown.ts). Served by feed.getPage for slug "teardown".
@@ -230,7 +238,9 @@ export default defineSchema({
     count: v.number(),
     error: v.optional(v.string()),
     createdAt: v.string(),
-  }).index("by_createdAt", ["createdAt"]),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // A saved "follower web" built from 2+ seed handles (convex/network.ts):
   // the accounts the seeds follow, deduped and ranked by seed-overlap.
