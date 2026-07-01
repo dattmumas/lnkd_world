@@ -85,6 +85,7 @@ export const upsertBatch = internalMutation({
           quotes: it.quotes ?? existing.quotes,
           bookmarkCount: it.bookmarkCount ?? existing.bookmarkCount,
           views: it.views ?? existing.views,
+          imageUrl: existing.imageUrl ?? it.imageUrl,
           draft: existing.draft ?? it.draft,
           draftKind: existing.draft ? existing.draftKind : it.draftKind,
           angle: existing.angle ?? it.angle,

@@ -55,14 +55,15 @@ export function QueueFeed() {
       .sort((a, b) => b.priority - a.priority);
   }, [data, removed, now]);
 
-  // "Act now": time-critical feeds still inside ~2 half-lives (reply window /
-  // rising conversation). Everything else is today's material.
-  const actNow = items.filter(
-    (r) =>
-      (r.primaryFeed === "early" || r.primaryFeed === "x-trends") &&
-      now - r.publishedAt < 2 * r.halfLifeHours * 3_600_000,
+  // Two queues: Business & Science news (post a take) and Tweets (reply).
+  // Early-engagement items carry the highest base score, so fresh watched-
+  // creator posts sit on top of the tweets queue until their window closes.
+  const business = items.filter(
+    (r) => r.primaryFeed === "science" || r.primaryFeed === "biz",
   );
-  const today = items.filter((r) => !actNow.includes(r));
+  const tweets = items.filter(
+    (r) => r.primaryFeed !== "science" && r.primaryFeed !== "biz",
+  );
 
   const retire = (id: QueueItem["id"], action: "engaged" | "skipped") => {
     setRemoved((s) => new Set(s).add(id));
@@ -83,7 +84,11 @@ export function QueueFeed() {
     void act({ itemId: item.id, action: "copy_draft" }).catch(() => {});
   };
 
-  const card = (r: QueueItem) => (
+  const card = (r: QueueItem) => {
+    const replyWindowOpen =
+      r.primaryFeed === "early" &&
+      now - r.publishedAt < 2 * r.halfLifeHours * 3_600_000;
+    return (
     <li
       key={r.id}
       className="border border-[var(--color-border)] rounded-lg bg-white p-4"
@@ -92,6 +97,11 @@ export function QueueFeed() {
         <span className="font-semibold text-[var(--color-accent)] uppercase tracking-wide">
           {FEED_LABEL[r.primaryFeed] ?? r.primaryFeed}
         </span>
+        {replyWindowOpen && (
+          <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+            reply window open
+          </span>
+        )}
         <span>· {r.scoreReason}</span>
         <span>· {age(r.publishedAt, now)} ago</span>
       </div>
@@ -103,6 +113,15 @@ export function QueueFeed() {
             src={r.authorAvatar.replace("_normal", "_bigger")}
             alt=""
             className="w-10 h-10 rounded-full shrink-0"
+            loading="lazy"
+          />
+        )}
+        {r.kind === "article" && r.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={r.imageUrl}
+            alt=""
+            className="w-24 h-20 rounded-lg object-cover shrink-0 bg-[var(--color-border)]"
             loading="lazy"
           />
         )}
@@ -127,6 +146,15 @@ export function QueueFeed() {
             <p className="text-sm mt-1 whitespace-pre-wrap break-words line-clamp-4">
               {r.text}
             </p>
+          )}
+          {r.kind === "x-post" && r.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={r.imageUrl}
+              alt=""
+              className="mt-2 rounded-lg border border-[var(--color-border)] w-full max-h-72 object-cover"
+              loading="lazy"
+            />
           )}
           {(r.replies ?? 0) + (r.reposts ?? 0) + (r.likes ?? 0) > 0 && (
             <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-secondary)]">
@@ -181,28 +209,24 @@ export function QueueFeed() {
         </div>
       </div>
     </li>
-  );
-
-  const section = (label: string, list: QueueItem[]) =>
-    list.length > 0 && (
-      <section className="mb-8">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] border-b border-[var(--color-border)] pb-2 mb-3">
-          {label} <span className="text-[var(--color-accent)]">{list.length}</span>
-        </h2>
-        <ul className="space-y-3">{list.map(card)}</ul>
-      </section>
     );
+  };
+
+  const column = (label: string, hint: string, list: QueueItem[]) => (
+    <section className="min-w-0">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] border-b-2 border-[var(--color-accent)] pb-2 mb-3">
+        {label} <span className="text-[var(--color-accent)]">{list.length}</span>
+      </h2>
+      {list.length === 0 ? (
+        <p className="text-[var(--color-text-secondary)] text-sm">{hint}</p>
+      ) : (
+        <ul className="space-y-3">{list.map(card)}</ul>
+      )}
+    </section>
+  );
 
   if (data === undefined) {
     return <p className="text-[var(--color-text-secondary)] text-sm">Loading…</p>;
-  }
-  if (items.length === 0) {
-    return (
-      <p className="text-[var(--color-text-secondary)] text-sm">
-        Queue is clear. New items land here as the feeds refresh — early posts
-        within ~20 minutes, news and trends daily.
-      </p>
-    );
   }
   return (
     <div>
@@ -210,8 +234,18 @@ export function QueueFeed() {
         Everything worth engaging with, best first. Engaged and skipped items
         never come back.
       </p>
-      {section("Act now", actNow)}
-      {section("Today", today)}
+      <div className="grid lg:grid-cols-2 gap-8 items-start">
+        {column(
+          "Business & Science",
+          "No stories queued. The news feeds refresh daily.",
+          business,
+        )}
+        {column(
+          "Tweets",
+          "Nothing to reply to right now. Fresh watchlist posts land within ~20 minutes.",
+          tweets,
+        )}
+      </div>
     </div>
   );
 }

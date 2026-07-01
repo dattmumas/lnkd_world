@@ -46,11 +46,13 @@ export const EXPIRE_HALF_LIVES = 8;
 // ---- Base scores --------------------------------------------------------------
 
 /**
- * Early-reply items: being fresh from a watched creator IS the value, so the
- * base is flat-high with a small reach bonus (log-scaled followers, capped).
+ * Early-reply items: being fresh from a watched creator IS the value — the
+ * best content in the tweets queue — so the base tops the trending ceiling
+ * (95) with a small reach bonus (log-scaled followers, capped). A fresh early
+ * post outranks everything; the 0.75h half-life retires it just as fast.
  */
 export function earlyBaseScore(followers: number): number {
-  return 88 + Math.min(7, Math.log10(Math.max(followers, 0) + 1));
+  return 95 + Math.min(5, Math.log10(Math.max(followers, 0) + 1));
 }
 
 /** Opus-curated trending posts: 95, 90, 85 … floor 50 by curation rank. */
@@ -186,6 +188,7 @@ export function itemFromRankedPost(
     link: u
       ? `https://x.com/${u.username}/status/${p.tweet.id}`
       : `https://x.com/i/status/${p.tweet.id}`,
+    imageUrl: p.tweet.media_url,
     source: u ? "@" + u.username : "X",
     authorUsername: u?.username.toLowerCase(),
     authorName: u?.name,

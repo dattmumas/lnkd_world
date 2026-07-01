@@ -177,6 +177,7 @@ interface GxTweet {
   bookmarkCount?: number;
   viewCount?: number | string;
   author?: GxRawUser;
+  media?: { type?: string; url?: string | null }[];
 }
 
 interface GxSearchResp {
@@ -188,12 +189,17 @@ interface GxSearchResp {
 // Map a getXAPI tweet (+ inline author) onto our shared Tweet/XUser shapes.
 function mapTweet(t: GxTweet): { tweet: Tweet; user?: XUser } {
   const a = t.author;
+  // First attached photo (video entries carry a preview in `url` too).
+  const media = (t.media ?? []).find(
+    (m) => m.url && /^https:\/\/pbs\.twimg\.com\//.test(m.url),
+  );
   return {
     tweet: {
       id: String(t.id),
       text: t.text ?? "",
       created_at: t.createdAt ?? "",
       author_id: a ? String(a.id) : "",
+      media_url: media?.url ?? undefined,
       public_metrics: {
         reply_count: t.replyCount ?? 0,
         retweet_count: t.retweetCount ?? 0,

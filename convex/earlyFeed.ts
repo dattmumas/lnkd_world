@@ -111,6 +111,7 @@ export const refreshInternal = internalAction({
             username: u?.username ?? "",
             name: u?.name ?? "",
             avatar: u?.profile_image_url ?? "",
+            media: p.tweet.media_url ?? "",
             followers: u?.public_metrics?.followers_count ?? 0,
             verified: !!u?.verified,
             permalink: u
@@ -141,6 +142,7 @@ export const refreshInternal = internalAction({
             feed: "early",
             text: c.text,
             link: c.permalink,
+            imageUrl: c.media || undefined,
             source: "@" + c.username,
             authorUsername: c.username.toLowerCase(),
             authorName: c.name,

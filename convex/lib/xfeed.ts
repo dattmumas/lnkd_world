@@ -18,6 +18,7 @@ export interface Tweet {
   created_at: string;
   author_id: string;
   public_metrics: PublicMetrics;
+  media_url?: string; // first attached photo (pbs.twimg.com), if any
 }
 export interface XUser {
   id: string;
