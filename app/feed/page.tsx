@@ -1,78 +1,64 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import AuthGuard from "@/components/auth-guard";
+import { FeedFrame } from "@/components/feed-frame";
+import { EarlyFeed } from "@/components/early-feed";
 
-export const metadata: Metadata = {
-  title: "Signal Feed — LNKD",
-  description:
-    "Health, longevity & startup signal — science news, what's trending on X, your watchlist, and audience research.",
-};
-
-const CARDS = [
-  {
-    slug: "science",
-    title: "Science & Business",
-    blurb: "Two side-by-side briefings — science worth sharing + the biggest business news.",
-    accent: "#059669",
-  },
-  {
-    slug: "x-trends",
-    title: "Trending on X",
-    blurb: "What's trending across startups, health & longevity — expand for the posts.",
-    accent: "#2563eb",
-  },
-  {
-    slug: "creators",
-    title: "Creators",
-    blurb: "Top recent posts from the X accounts on your list.",
-    accent: "#7c3aed",
-  },
-  {
-    slug: "early",
-    title: "Early Engagement",
-    blurb: "Freshest posts from your watchlist — get in early. Updates every ~20 min.",
-    accent: "#dc2626",
-  },
-  {
-    slug: "teardown",
-    title: "Content Teardown",
-    blurb: "Top-performing posts from your list + the niche — study what earns follows.",
-    accent: "#0891b2",
-  },
+const FEEDS = [
+  { slug: "science", label: "Science & Business" },
+  { slug: "x-trends", label: "Trending on X" },
+  { slug: "early", label: "Early Engagement" },
+  { slug: "creators", label: "Creators" },
+  { slug: "teardown", label: "Content Teardown" },
 ];
+
+function FeedTabs() {
+  const [active, setActive] = useState("science");
+
+  // Deep-link / persist via the URL hash (no page nav — instant switching).
+  useEffect(() => {
+    const h = window.location.hash.replace("#", "");
+    if (FEEDS.some((f) => f.slug === h)) setActive(h);
+  }, []);
+
+  const select = (slug: string) => {
+    setActive(slug);
+    history.replaceState(null, "", `#${slug}`);
+  };
+
+  return (
+    <>
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] mb-5">
+        {FEEDS.map((f) => (
+          <button
+            key={f.slug}
+            onClick={() => select(f.slug)}
+            className={`shrink-0 px-3.5 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              active === f.slug
+                ? "border-[var(--color-accent)] text-[var(--color-text)]"
+                : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {active === "early" ? <EarlyFeed /> : <FeedFrame slug={active} />}
+    </>
+  );
+}
 
 export default function FeedPage() {
   return (
     <div className="min-h-screen flex flex-col max-w-5xl mx-auto px-6">
       <Nav />
-      <main className="flex-1 py-12">
+      <main className="flex-1 py-6">
         <AuthGuard role="subscriber">
-          <h1 className="text-3xl font-semibold mb-2">Signal Feed</h1>
-          <p className="text-[var(--color-text-secondary)] mb-8">
-            Snapshots from a local pipeline. Drafts shown are suggestions, not posted.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {CARDS.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/feed/${c.slug}`}
-                className="block rounded-xl border border-[var(--color-border)] bg-white overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition"
-              >
-                <div className="h-1.5" style={{ background: c.accent }} />
-                <div className="p-5">
-                  <h2 className="text-base font-semibold mb-2">{c.title}</h2>
-                  <p className="text-sm text-[var(--color-text-secondary)] mb-3">
-                    {c.blurb}
-                  </p>
-                  <span className="text-sm font-semibold" style={{ color: c.accent }}>
-                    Open →
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <FeedTabs />
         </AuthGuard>
       </main>
       <Footer />
