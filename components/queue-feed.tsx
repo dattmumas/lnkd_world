@@ -91,7 +91,7 @@ export function QueueFeed() {
     return (
     <li
       key={r.id}
-      className="border border-[var(--color-border)] rounded-lg bg-white p-4"
+      className="border border-[var(--color-border)] rounded-lg bg-white p-5"
     >
       <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] flex-wrap">
         <span className="font-semibold text-[var(--color-accent)] uppercase tracking-wide">
@@ -102,8 +102,9 @@ export function QueueFeed() {
             reply window open
           </span>
         )}
-        <span>· {r.scoreReason}</span>
-        <span>· {age(r.publishedAt, now)} ago</span>
+        {/* Early items: the chip + author row already say it all. */}
+        {r.primaryFeed !== "early" && <span>{r.scoreReason}</span>}
+        <span className="ml-auto shrink-0">{age(r.publishedAt, now)} ago</span>
       </div>
 
       <div className="flex gap-3 mt-2">
@@ -170,17 +171,19 @@ export function QueueFeed() {
             </p>
           )}
           {r.draft && (
-            <details className="mt-2 border border-[var(--color-border)] rounded p-2 bg-[var(--color-bg)]">
-              <summary className="text-xs font-semibold cursor-pointer text-[var(--color-text-secondary)]">
+            <details className="mt-3 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)]">
+              <summary className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider cursor-pointer text-[var(--color-text-secondary)] select-none">
                 Draft {r.draftKind === "reply" ? "reply" : "tweet"}
               </summary>
-              <p className="text-sm mt-2 whitespace-pre-wrap">{r.draft}</p>
-              <button
-                onClick={() => copyDraft(r)}
-                className="text-xs mt-2 border border-[var(--color-border)] rounded px-2 py-1 hover:bg-[var(--color-border)]/30"
-              >
-                {copied === r.id ? "Copied!" : "Copy"}
-              </button>
+              <div className="px-3 pb-3">
+                <p className="text-sm whitespace-pre-wrap">{r.draft}</p>
+                <button
+                  onClick={() => copyDraft(r)}
+                  className="text-xs mt-2 border border-[var(--color-border)] rounded px-2.5 py-1 bg-white hover:bg-[var(--color-border)]/30"
+                >
+                  {copied === r.id ? "Copied!" : "Copy"}
+                </button>
+              </div>
             </details>
           )}
           <div className="flex items-center gap-4 mt-3 text-sm">
@@ -220,7 +223,7 @@ export function QueueFeed() {
       {list.length === 0 ? (
         <p className="text-[var(--color-text-secondary)] text-sm">{hint}</p>
       ) : (
-        <ul className="space-y-3">{list.map(card)}</ul>
+        <ul className="space-y-4">{list.map(card)}</ul>
       )}
     </section>
   );
@@ -234,7 +237,7 @@ export function QueueFeed() {
         Everything worth engaging with, best first. Engaged and skipped items
         never come back.
       </p>
-      <div className="grid lg:grid-cols-2 gap-8 items-start">
+      <div className="grid lg:grid-cols-2 gap-10 items-start">
         {column(
           "Business & Science",
           "No stories queued. The news feeds refresh daily.",

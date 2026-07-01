@@ -68,7 +68,7 @@ function FeedTabs() {
 
 export default function FeedPage() {
   return (
-    <div className="min-h-screen flex flex-col max-w-5xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col max-w-[1400px] mx-auto px-6">
       <Nav />
       <main className="flex-1 py-6">
         <AuthGuard role="subscriber">
