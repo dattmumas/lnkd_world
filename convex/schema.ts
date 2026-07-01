@@ -187,6 +187,13 @@ export default defineSchema({
     order: v.number(),
   }).index("by_order", ["order"]),
 
+  // Last news-refresh per-source health (convex/scienceFeed.ts) — which sources
+  // returned items vs failed/blocked. Single latest row; shown in /admin/sources.
+  feedHealth: defineTable({
+    data: v.string(), // JSON { checkedAt, sources:{url:{name,ok,items,error?}}, accounts:{handle:count} }
+    checkedAt: v.string(),
+  }).index("by_checkedAt", ["checkedAt"]),
+
   // General business RSS sources for the Business column (convex/bizSources.ts).
   bizSources: defineTable({
     name: v.string(),

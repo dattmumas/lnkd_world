@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Nav from "@/components/nav";
@@ -12,12 +12,14 @@ function Row({
   title,
   subtitle,
   inactive,
+  badge,
   onEdit,
   onDelete,
 }: {
   title: string;
   subtitle: string;
   inactive: boolean;
+  badge?: React.ReactNode;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -33,6 +35,7 @@ function Row({
         {subtitle && (
           <p className="text-sm text-[var(--color-text-secondary)] truncate">{subtitle}</p>
         )}
+        {badge && <div className="mt-1">{badge}</div>}
       </div>
       <div className="flex gap-2 shrink-0 ml-4">
         <button onClick={onEdit} className="text-sm text-[var(--color-accent)] hover:underline">
@@ -43,6 +46,37 @@ function Row({
         </button>
       </div>
     </div>
+  );
+}
+
+interface Health {
+  checkedAt: string;
+  sources: Record<string, { name: string; ok: boolean; items: number; error?: string }>;
+  accounts: Record<string, number>;
+}
+
+function SrcBadge({ st }: { st?: Health["sources"][string] }) {
+  if (!st) return <span className="text-xs text-[var(--color-text-secondary)]">not checked yet</span>;
+  if (!st.ok)
+    return (
+      <span className="text-xs text-red-600" title={st.error}>
+        ✗ failed{st.error ? ` · ${st.error.slice(0, 44)}` : ""}
+      </span>
+    );
+  if (st.items === 0)
+    return <span className="text-xs text-amber-600">✓ fetched · no recent items</span>;
+  return (
+    <span className="text-xs text-green-600">
+      ✓ {st.items} item{st.items === 1 ? "" : "s"}
+    </span>
+  );
+}
+
+function AccBadge({ n }: { n?: number }) {
+  return (
+    <span className={`text-xs ${n ? "text-green-600" : "text-[var(--color-text-secondary)]"}`}>
+      {n ?? 0} recent post{n === 1 ? "" : "s"}
+    </span>
   );
 }
 
@@ -161,6 +195,14 @@ export default function ManageSources() {
   const accSeed = useMutation(api.bizAccounts.seedDefaults);
 
   const refresh = useAction(api.scienceFeed.refresh);
+  const healthJson = useQuery(api.scienceFeed.getHealth);
+  const health = useMemo<Health | null>(() => {
+    try {
+      return healthJson ? (JSON.parse(healthJson) as Health) : null;
+    } catch {
+      return null;
+    }
+  }, [healthJson]);
   const [editing, setEditing] = useState<string | null>(null);
   const [state, setState] = useState("");
 
@@ -195,10 +237,16 @@ export default function ManageSources() {
           </button>
         </div>
       </div>
-      <p className="text-sm text-[var(--color-text-secondary)] mb-10">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-2">
         Feeds the two columns of the{" "}
         <a href="/feed/science" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</a>{" "}
-        page. Opus picks what&apos;s worth sharing from each.
+        page. Opus picks what&apos;s worth sharing from each. Each source shows how it
+        did on the last refresh — prune or swap the ones that fail.
+      </p>
+      <p className="text-xs text-[var(--color-text-secondary)] mb-10">
+        {health
+          ? `Sources last checked ${new Date(health.checkedAt).toLocaleString()}.`
+          : "No refresh recorded yet — hit “Refresh feed now.”"}
       </p>
 
       {/* Science sources */}
@@ -226,7 +274,7 @@ export default function ManageSources() {
                     onCancel={() => setEditing(null)}
                   />
                 ) : (
-                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} onEdit={() => setEditing(s._id)} onDelete={() => void sciRemove({ id: s._id })} />
+                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} badge={<SrcBadge st={health?.sources?.[s.url]} />} onEdit={() => setEditing(s._id)} onDelete={() => void sciRemove({ id: s._id })} />
                 )}
               </li>
             ))}
@@ -259,7 +307,7 @@ export default function ManageSources() {
                     onCancel={() => setEditing(null)}
                   />
                 ) : (
-                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} onEdit={() => setEditing(s._id)} onDelete={() => void bizRemove({ id: s._id })} />
+                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} badge={<SrcBadge st={health?.sources?.[s.url]} />} onEdit={() => setEditing(s._id)} onDelete={() => void bizRemove({ id: s._id })} />
                 )}
               </li>
             ))}
@@ -292,7 +340,7 @@ export default function ManageSources() {
                     onCancel={() => setEditing(null)}
                   />
                 ) : (
-                  <Row title={`@${a.handle}`} subtitle={a.note ?? ""} inactive={a.active === false} onEdit={() => setEditing(a._id)} onDelete={() => void accRemove({ id: a._id })} />
+                  <Row title={`@${a.handle}`} subtitle={a.note ?? ""} inactive={a.active === false} badge={<AccBadge n={health?.accounts?.[a.handle]} />} onEdit={() => setEditing(a._id)} onDelete={() => void accRemove({ id: a._id })} />
                 )}
               </li>
             ))}

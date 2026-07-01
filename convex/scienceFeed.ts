@@ -3,6 +3,7 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  query,
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -135,27 +136,39 @@ async function fetchSource(url: string): Promise<string> {
   return res.text();
 }
 
-// Gather recent RSS items across sources (one bad feed doesn't sink the rest).
+interface SourceHealth {
+  url: string;
+  name: string;
+  ok: boolean;
+  items: number; // recent items contributed
+  error?: string;
+}
+
+// Gather recent RSS items across sources (one bad feed doesn't sink the rest),
+// recording per-source health so /admin/sources can show what actually works.
 async function gatherRss(
   sources: { name: string; url: string }[],
   nowMs: number,
   maxAge: number,
-): Promise<FeedItem[]> {
+): Promise<{ items: FeedItem[]; health: SourceHealth[] }> {
   const items: FeedItem[] = [];
+  const health: SourceHealth[] = [];
   for (const s of sources) {
     try {
       const parsed = parseFeed(await fetchSource(s.url), s.name);
-      items.push(
-        ...parsed
-          .filter((it) => !it.dateMs || nowMs - it.dateMs <= maxAge)
-          .sort((a, b) => b.dateMs - a.dateMs)
-          .slice(0, MAX_PER_SOURCE),
-      );
+      const recent = parsed
+        .filter((it) => !it.dateMs || nowMs - it.dateMs <= maxAge)
+        .sort((a, b) => b.dateMs - a.dateMs)
+        .slice(0, MAX_PER_SOURCE);
+      items.push(...recent);
+      health.push({ url: s.url, name: s.name, ok: true, items: recent.length });
     } catch (err) {
-      console.error(`Source ${s.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 80);
+      console.error(`Source ${s.name} failed: ${msg}`);
+      health.push({ url: s.url, name: s.name, ok: false, items: 0, error: msg });
     }
   }
-  return items;
+  return { items, health };
 }
 
 // Posts from the business X accounts (getXAPI), as FeedItems.
@@ -394,18 +407,34 @@ export const refreshInternal = internalAction({
       );
       const bizHandles: string[] = await ctx.runQuery(internal.bizAccounts.activeHandles, {});
 
-      const sciCandidates = dedupe(await gatherRss(sciSources, nowMs, SCI_MAX_AGE_MS))
+      const sci = await gatherRss(sciSources, nowMs, SCI_MAX_AGE_MS);
+      const biz = await gatherRss(bizSources, nowMs, BIZ_MAX_AGE_MS);
+      const bizPosts = bizHandles.length ? await fetchPosts(bizHandles) : [];
+
+      const sciCandidates = dedupe(sci.items)
         .sort((a, b) => b.dateMs - a.dateMs)
         .slice(0, MAX_CANDIDATES);
-
-      const bizArticles = await gatherRss(bizSources, nowMs, BIZ_MAX_AGE_MS);
-      const bizPosts = bizHandles.length ? await fetchPosts(bizHandles) : [];
-      const bizCandidates = dedupe([...bizArticles, ...bizPosts])
+      const bizCandidates = dedupe([...biz.items, ...bizPosts])
         .sort((a, b) => b.dateMs - a.dateMs)
         .slice(0, MAX_CANDIDATES);
 
       const science = await pick(sciCandidates, "science");
       const business = await pick(bizCandidates, "business");
+
+      // Per-source / per-account health, so /admin/sources can show what works.
+      const sources: Record<string, { name: string; ok: boolean; items: number; error?: string }> = {};
+      for (const h of [...sci.health, ...biz.health]) {
+        sources[h.url] = { name: h.name, ok: h.ok, items: h.items, error: h.error };
+      }
+      const accounts: Record<string, number> = {};
+      for (const p of bizPosts) {
+        const k = p.source.replace(/^@/, "").toLowerCase();
+        accounts[k] = (accounts[k] ?? 0) + 1;
+      }
+      await ctx.runMutation(internal.scienceFeed.storeHealth, {
+        data: JSON.stringify({ checkedAt: generatedAt, sources, accounts }),
+        checkedAt: generatedAt,
+      });
 
       const html = renderNews(science, business, generatedAt);
       const count = science.length + business.length;
@@ -449,6 +478,30 @@ export const store = internalMutation({
       ...args,
       createdAt: new Date().toISOString(),
     });
+  },
+});
+
+/** Replace the single feed-health record with the latest run's results. */
+export const storeHealth = internalMutation({
+  args: { data: v.string(), checkedAt: v.string() },
+  handler: async (ctx, args) => {
+    const old = await ctx.db.query("feedHealth").collect();
+    for (const r of old) await ctx.db.delete(r._id);
+    await ctx.db.insert("feedHealth", args);
+  },
+});
+
+/** Admin: latest per-source health JSON (or null before the first run). */
+export const getHealth = query({
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const row = await ctx.db
+      .query("feedHealth")
+      .withIndex("by_checkedAt")
+      .order("desc")
+      .first();
+    return row?.data ?? null;
   },
 });
 
