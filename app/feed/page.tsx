@@ -47,7 +47,8 @@ function FeedTabs() {
         ))}
       </div>
 
-      {active === "early" ? <EarlyFeed /> : <FeedFrame slug={active} />}
+      {/* key per slug so each tab has its own state (refresh, iframe) — no bleed */}
+      {active === "early" ? <EarlyFeed /> : <FeedFrame key={active} slug={active} />}
     </>
   );
 }
