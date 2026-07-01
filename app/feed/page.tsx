@@ -20,8 +20,13 @@ function FeedTabs() {
 
   // Deep-link / persist via the URL hash (no page nav — instant switching).
   useEffect(() => {
-    const h = window.location.hash.replace("#", "");
-    if (FEEDS.some((f) => f.slug === h)) setActive(h);
+    const fromHash = () => {
+      const h = window.location.hash.replace("#", "");
+      if (FEEDS.some((f) => f.slug === h)) setActive(h);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
   }, []);
 
   const select = (slug: string) => {

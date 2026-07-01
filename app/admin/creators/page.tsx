@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -120,9 +121,9 @@ export default function ManageCreators() {
 
       <p className="text-sm text-[var(--color-text-secondary)] mb-6">
         Posts from these X accounts power the{" "}
-        <a href="/feed/creators" className="text-[var(--color-accent)] hover:underline">
+        <Link href="/feed/creators" className="text-[var(--color-accent)] hover:underline">
           Creators feed
-        </a>{" "}
+        </Link>{" "}
         (top recent, last 24h).
       </p>
 

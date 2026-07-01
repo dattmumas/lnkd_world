@@ -9,7 +9,7 @@
     "preview": "npx opennextjs-cloudflare preview",
     "deploy": "npx opennextjs-cloudflare deploy",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "sync": "npx tsx scripts/sync.ts",
     "sync:prod": "npx tsx scripts/sync.ts --prod",
     "sync:watch": "npx tsx scripts/watch.ts",

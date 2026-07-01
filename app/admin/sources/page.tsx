@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Nav from "@/components/nav";
@@ -239,7 +240,7 @@ export default function ManageSources() {
       </div>
       <p className="text-sm text-[var(--color-text-secondary)] mb-2">
         Feeds the two columns of the{" "}
-        <a href="/feed/science" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</a>{" "}
+        <Link href="/feed/science" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</Link>{" "}
         page. Opus picks what&apos;s worth sharing from each. Each source shows how it
         did on the last refresh — prune or swap the ones that fail.
       </p>

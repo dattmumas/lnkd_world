@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
 export const nodes = query({
   handler: async (ctx) => {
@@ -163,19 +164,22 @@ export const recomputeBacklinks = mutation({
 
     // Build forward link map: slug → outgoing slugs
     const forwardLinks = new Map<string, string[]>();
-    const allDocs: Array<{ _id: string; slug: string; table: "posts" | "readings" | "bookmarks" }> = [];
+    const allDocs: Array<{
+      _id: Id<"posts"> | Id<"readings"> | Id<"bookmarks">;
+      slug: string;
+    }> = [];
 
     for (const p of posts) {
       forwardLinks.set(p.slug, p.wikilinksResolved ?? []);
-      allDocs.push({ _id: p._id as string, slug: p.slug, table: "posts" });
+      allDocs.push({ _id: p._id, slug: p.slug });
     }
     for (const r of readings) {
       forwardLinks.set(r.slug, r.wikilinksResolved ?? []);
-      allDocs.push({ _id: r._id as string, slug: r.slug, table: "readings" });
+      allDocs.push({ _id: r._id, slug: r.slug });
     }
     for (const b of bookmarks) {
       forwardLinks.set(b.slug, b.wikilinksResolved ?? []);
-      allDocs.push({ _id: b._id as string, slug: b.slug, table: "bookmarks" });
+      allDocs.push({ _id: b._id, slug: b.slug });
     }
 
     // Invert: compute backlinks
@@ -191,7 +195,7 @@ export const recomputeBacklinks = mutation({
     // Patch each document with its computed backlinks
     for (const doc of allDocs) {
       const bl = backlinks.get(doc.slug) ?? [];
-      await ctx.db.patch(doc._id as any, { backlinks: bl });
+      await ctx.db.patch(doc._id, { backlinks: bl });
     }
 
     return { updated: allDocs.length };
