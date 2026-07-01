@@ -6,8 +6,10 @@ import Footer from "@/components/footer";
 import AuthGuard from "@/components/auth-guard";
 import { FeedFrame } from "@/components/feed-frame";
 import { EarlyFeed } from "@/components/early-feed";
+import { QueueFeed } from "@/components/queue-feed";
 
 const FEEDS = [
+  { slug: "queue", label: "Queue" },
   { slug: "science", label: "Science & Business" },
   { slug: "x-trends", label: "Trending on X" },
   { slug: "early", label: "Early Engagement" },
@@ -16,7 +18,7 @@ const FEEDS = [
 ];
 
 function FeedTabs() {
-  const [active, setActive] = useState("science");
+  const [active, setActive] = useState("queue");
 
   // Deep-link / persist via the URL hash (no page nav — instant switching).
   useEffect(() => {
@@ -53,7 +55,13 @@ function FeedTabs() {
       </div>
 
       {/* key per slug so each tab has its own state (refresh, iframe) — no bleed */}
-      {active === "early" ? <EarlyFeed /> : <FeedFrame key={active} slug={active} />}
+      {active === "queue" ? (
+        <QueueFeed />
+      ) : active === "early" ? (
+        <EarlyFeed />
+      ) : (
+        <FeedFrame key={active} slug={active} />
+      )}
     </>
   );
 }
