@@ -22,7 +22,7 @@ function fmt(n: number): string {
   return String(n);
 }
 
-const th = "text-left text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] px-3 py-2";
+const th = "text-left gc-label px-3 py-2";
 const td = "px-3 py-2 text-sm";
 
 /** One posted-post row with an expandable views sparkline. */
@@ -47,13 +47,13 @@ function PostRow({ post }: { post: XPost }) {
         <td className={td}>
           {post.postedAt != null ? new Date(post.postedAt).toLocaleDateString() : "—"}
         </td>
-        <td className={`${td} text-right`}>{post.latestViews != null ? fmt(post.latestViews) : "—"}</td>
-        <td className={`${td} text-right font-medium`}>
+        <td className={`${td} text-right gc-num`}>{post.latestViews != null ? fmt(post.latestViews) : "—"}</td>
+        <td className={`${td} text-right gc-num font-semibold`}>
           {post.latestProfileClicks ?? "—"}
         </td>
-        <td className={`${td} text-right`}>{post.latestLikes ?? "—"}</td>
-        <td className={`${td} text-right`}>{post.latestReplies ?? "—"}</td>
-        <td className={`${td} text-right`}>{post.latestReposts ?? "—"}</td>
+        <td className={`${td} text-right gc-num`}>{post.latestLikes ?? "—"}</td>
+        <td className={`${td} text-right gc-num`}>{post.latestReplies ?? "—"}</td>
+        <td className={`${td} text-right gc-num`}>{post.latestReposts ?? "—"}</td>
       </tr>
       {open && (
         <tr className="border-t border-[var(--color-border)] bg-[var(--color-bg)]">
@@ -168,7 +168,7 @@ export function AnalyticsTab() {
 
       {/* Pillar comparison */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+        <h2 className="gc-label mb-2">
           Pillar comparison — where the account actually grows
         </h2>
         <div className="border border-[var(--color-border)] rounded-lg bg-white overflow-x-auto">
@@ -189,13 +189,13 @@ export function AnalyticsTab() {
               {(pillarStats ?? []).map((s) => (
                 <tr key={s.pillar} className="border-t border-[var(--color-border)]">
                   <td className={`${td} font-medium`}>{PILLAR_LABEL[s.pillar]}</td>
-                  <td className={`${td} text-right`}>{s.posts}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics ? fmt(s.avgViews) : "—"}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics ? s.avgProfileClicks : "—"}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics ? s.avgLikes : "—"}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics ? s.avgReplies : "—"}</td>
-                  <td className={`${td} text-right`}>{s.withMetrics ? s.avgReposts : "—"}</td>
+                  <td className={`${td} text-right gc-num`}>{s.posts}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics ? fmt(s.avgViews) : "—"}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics ? s.avgProfileClicks : "—"}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics ? s.avgLikes : "—"}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics ? s.avgReplies : "—"}</td>
+                  <td className={`${td} text-right gc-num`}>{s.withMetrics ? s.avgReposts : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -205,7 +205,7 @@ export function AnalyticsTab() {
 
       {/* Per-post table */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+        <h2 className="gc-label mb-2">
           Posted ({posted.length})
         </h2>
         {posted.length === 0 ? (
@@ -241,7 +241,7 @@ export function AnalyticsTab() {
 
       {/* Reply ROI */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+        <h2 className="gc-label mb-2">
           Reply ROI — replies engaged (solid) vs follower delta (dashed)
         </h2>
         <div className="border border-[var(--color-border)] rounded-lg bg-white p-4">
@@ -283,7 +283,7 @@ export function AnalyticsTab() {
 
       {/* Best time to post */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+        <h2 className="gc-label mb-2">
           Best time to post (your data, local time)
         </h2>
         <div className="border border-[var(--color-border)] rounded-lg bg-white p-4">
@@ -303,11 +303,11 @@ export function AnalyticsTab() {
               <div className="flex gap-6 flex-wrap">
                 {windows.map((w, i) => (
                   <div key={w.label}>
-                    <div className="text-lg font-semibold">
-                      {i === 0 && "🥇 "}
+                    <div className="flex items-center gap-2 text-lg font-semibold">
                       {w.label}
+                      {i === 0 && <span className="gc-chip gc-chip-ok">best</span>}
                     </div>
-                    <div className="text-xs text-[var(--color-text-secondary)]">
+                    <div className="gc-num text-[11px] text-[var(--color-text-secondary)]">
                       avg engagement {w.avgEngagement} · {w.posts} posts
                     </div>
                   </div>
@@ -320,7 +320,7 @@ export function AnalyticsTab() {
 
       {/* Your replies */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+        <h2 className="gc-label mb-2">
           Your replies ({myReplies?.length ?? "…"}, last 30d) — tracked from X hourly
         </h2>
         <div className="border border-[var(--color-border)] rounded-lg bg-white overflow-x-auto">
@@ -370,8 +370,8 @@ export function AnalyticsTab() {
                         "—"
                       )}
                     </td>
-                    <td className={`${td} text-right`}>{r.likes}</td>
-                    <td className={`${td} text-right`}>
+                    <td className={`${td} text-right gc-num`}>{r.likes}</td>
+                    <td className={`${td} text-right gc-num`}>
                       {r.views != null ? fmt(r.views) : "—"}
                     </td>
                     <td className={td}>
@@ -391,7 +391,7 @@ export function AnalyticsTab() {
       {/* Attribution */}
       <div className="grid lg:grid-cols-2 gap-6 items-start">
         <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+          <h2 className="gc-label mb-2">
             Conversions — you replied, they followed (30d)
           </h2>
           <div className="border border-[var(--color-border)] rounded-lg bg-white p-4">
@@ -433,7 +433,7 @@ export function AnalyticsTab() {
           </div>
         </div>
         <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+          <h2 className="gc-label mb-2">
             Reply targets — who you engage, and who follows back (30d)
           </h2>
           <div className="border border-[var(--color-border)] rounded-lg bg-white overflow-x-auto">
@@ -471,13 +471,13 @@ export function AnalyticsTab() {
                           </span>
                         )}
                       </td>
-                      <td className={`${td} text-right`}>{t.engagedCount}</td>
+                      <td className={`${td} text-right gc-num`}>{t.engagedCount}</td>
                       <td className={td}>
                         {new Date(t.lastEngagedAt).toLocaleDateString()}
                       </td>
                       <td className={td}>
                         {t.followsNow ? (
-                          <span className="text-emerald-700 font-medium">✓ yes</span>
+                          <span className="text-[var(--gc-ok)] font-medium">✓ yes</span>
                         ) : (
                           <span className="text-[var(--color-text-secondary)]">—</span>
                         )}
@@ -514,7 +514,7 @@ export function AnalyticsTab() {
         <div className="border border-[var(--color-border)] rounded-lg bg-white p-5">
           {shownReview ? (
             <div className="prose prose-sm max-w-none">
-              <Markdown content={shownReview.markdown} />
+              <Markdown content={shownReview.markdown} math={false} />
             </div>
           ) : (
             <p className="text-sm text-[var(--color-text-secondary)]">

@@ -5,6 +5,8 @@
 @theme {
   --font-playfair: var(--font-playfair);
   --font-lora: var(--font-lora);
+  --font-plexsans: var(--font-plex-sans);
+  --font-plexmono: var(--font-plex-mono);
 
   --color-bg: #FAFAF8;
   --color-text: #1A1A1A;
@@ -174,4 +176,156 @@ h1, h2, h3, h4, h5, h6 {
     rgba(0, 0, 0, 0.03) 2px,
     rgba(0, 0, 0, 0.03) 4px
   );
+}
+
+/* ==========================================================================
+   GROWTH CONSOLE — scoped light ops theme ("daylight instrument")
+   .growth-console wraps /admin/growth. Remapping the site's --color-* vars
+   here retunes every var()-based class in child components (Nav included)
+   without touching their markup: cool workshop paper instead of cream,
+   viridian signal instead of navy, IBM Plex instead of serifs.
+   ========================================================================== */
+
+.growth-console {
+  --color-bg: #EDEFEC;
+  --color-text: #161A18;
+  --color-text-secondary: #5C6560;
+  --color-accent: #0E6B4F;
+  --color-accent-hover: #0A523D;
+  --color-border: #D5DAD5;
+
+  /* Status semantics: green = alive/good, amber = due, red = fault. */
+  --gc-ok: #0E6B4F;
+  --gc-ok-bg: #E1EFE8;
+  --gc-due: #8A6100;
+  --gc-due-bg: #F7EDD3;
+  --gc-fault: #B23A2E;
+  --gc-fault-bg: #F7E4E0;
+
+  /* Pillar identity — fixed everywhere (pipeline, composer, analytics). */
+  --gc-health: #2F7D5B;
+  --gc-finance: #1B3A5C;
+  --gc-startup: #B85C1E;
+
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-plex-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* No serifs in the console — the editorial voice stays on the public site. */
+.growth-console h1,
+.growth-console h2,
+.growth-console h3,
+.growth-console h4,
+.growth-console h5,
+.growth-console h6 {
+  font-family: inherit;
+}
+
+/* Instrument corners: hairline borders and 4px radii, no soft cards. */
+.growth-console .rounded-lg,
+.growth-console .rounded {
+  border-radius: 4px;
+}
+
+.growth-console :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Data voice — numerals, timestamps, handles, table figures. */
+.gc-num {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono eyebrow for section headers and column labels. */
+.gc-label {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Status chips (cron health, reply window, due/auto markers). */
+.gc-chip {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.gc-chip-plain { background: #fff; color: var(--color-text-secondary); }
+.gc-chip-ok    { background: var(--gc-ok-bg);    color: var(--gc-ok);    border-color: color-mix(in srgb, var(--gc-ok) 35%, transparent); }
+.gc-chip-due   { background: var(--gc-due-bg);   color: var(--gc-due);   border-color: color-mix(in srgb, var(--gc-due) 35%, transparent); }
+.gc-chip-fault { background: var(--gc-fault-bg); color: var(--gc-fault); border-color: color-mix(in srgb, var(--gc-fault) 35%, transparent); }
+
+.gc-pillar-health  { background: color-mix(in srgb, var(--gc-health) 9%, white);  color: var(--gc-health);  border-color: color-mix(in srgb, var(--gc-health) 35%, transparent); }
+.gc-pillar-finance { background: color-mix(in srgb, var(--gc-finance) 9%, white); color: var(--gc-finance); border-color: color-mix(in srgb, var(--gc-finance) 35%, transparent); }
+.gc-pillar-startup { background: color-mix(in srgb, var(--gc-startup) 9%, white); color: var(--gc-startup); border-color: color-mix(in srgb, var(--gc-startup) 35%, transparent); }
+
+/* Alert banners (due-now strip, recycle strip, post errors). */
+.gc-banner-due   { background: var(--gc-due-bg);   border: 1px solid color-mix(in srgb, var(--gc-due) 30%, transparent);   border-radius: 4px; }
+.gc-banner-ok    { background: var(--gc-ok-bg);    border: 1px solid color-mix(in srgb, var(--gc-ok) 30%, transparent);    border-radius: 4px; }
+.gc-banner-fault { background: var(--gc-fault-bg); border: 1px solid color-mix(in srgb, var(--gc-fault) 30%, transparent); border-radius: 4px; }
+
+/* Console tabs — the instrument strip. */
+.gc-tab {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  padding: 8px 14px;
+  border-bottom: 2px solid transparent;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.gc-tab:hover { color: var(--color-text); }
+.gc-tab-active { color: var(--color-text); border-bottom-color: var(--color-accent); }
+.gc-tab-count {
+  font-weight: 400;
+  color: var(--color-accent);
+  margin-left: 6px;
+}
+
+/* Machine-status dot beside the title: is anything failing? */
+.gc-live-dot { width: 8px; height: 8px; border-radius: 9999px; flex-shrink: 0; }
+.gc-live-dot.ok    { background: var(--gc-ok); animation: gc-pulse 2.5s ease-in-out infinite; }
+.gc-live-dot.fault { background: var(--gc-fault); }
+.gc-live-dot.idle  { background: var(--color-border); }
+
+@keyframes gc-pulse {
+  50% { opacity: 0.35; }
+}
+
+/* Decay meter — the queue's priority formula (2^(−age/half-life)) made
+   visible. The fill drains as the item's engagement window closes; it ticks
+   with the queue's existing 60s re-score. */
+.gc-decay-track {
+  height: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.gc-decay-fill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 1s linear;
+}
+.gc-decay-fill.low { background: var(--gc-due); }
+
+@media (prefers-reduced-motion: reduce) {
+  .growth-console *,
+  .growth-console *::before,
+  .growth-console *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

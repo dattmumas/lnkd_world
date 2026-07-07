@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import Nav from "@/components/nav";
 import { QueueFeed } from "@/components/queue-feed";
 import { DealsFeed } from "@/components/deals-feed";
@@ -21,9 +23,21 @@ const TABS = [
  * content pipeline (Pipeline), performance + reply ROI + weekly review
  * (Analytics), and the engagement queue (Queue). All engagement and posting is
  * human — the system preps, times, drafts, and measures.
+ *
+ * Wrapped in .growth-console (globals.css): a scoped light ops theme that
+ * remaps the site's CSS variables, so child components restyle without edits.
  */
 export default function GrowthDashboard() {
   const [active, setActive] = useState("overview");
+  // Same subscriptions the tabs hold — Convex dedupes, so the count is free.
+  const queue = useQuery(api.queue.getQueue);
+  const crons = useQuery(api.cronHealth.list);
+  const machine =
+    crons === undefined || crons.length === 0
+      ? "idle"
+      : crons.every((c) => c.ok)
+        ? "ok"
+        : "fault";
 
   // Deep-link / persist via the URL hash (no page nav — instant switching).
   useEffect(() => {
@@ -42,31 +56,44 @@ export default function GrowthDashboard() {
   };
 
   return (
-    <main className="max-w-[1400px] mx-auto px-6 pb-16">
-      <Nav />
-      <h1 className="text-3xl font-semibold mt-8 mb-4">Growth</h1>
+    <div className="growth-console">
+      <main className="max-w-[1400px] mx-auto px-6 pb-16">
+        <Nav />
+        <div className="flex items-center gap-2.5 mt-8 mb-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Growth</h1>
+          <span
+            className={`gc-live-dot ${machine}`}
+            title={
+              machine === "fault"
+                ? "A cron failed — details in the health strip on Overview"
+                : machine === "ok"
+                  ? "All crons reporting ok"
+                  : "Waiting for cron reports"
+            }
+          />
+        </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] mb-5">
-        {TABS.map((t) => (
-          <button
-            key={t.slug}
-            onClick={() => select(t.slug)}
-            className={`shrink-0 px-3.5 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              active === t.slug
-                ? "border-[var(--color-accent)] text-[var(--color-text)]"
-                : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+        <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] mb-5">
+          {TABS.map((t) => (
+            <button
+              key={t.slug}
+              onClick={() => select(t.slug)}
+              className={`gc-tab ${active === t.slug ? "gc-tab-active" : ""}`}
+            >
+              {t.label}
+              {t.slug === "queue" && (queue?.length ?? 0) > 0 && (
+                <span className="gc-tab-count">{queue!.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
 
-      {active === "overview" && <OverviewTab />}
-      {active === "queue" && <QueueFeed />}
-      {active === "deals" && <DealsFeed />}
-      {active === "pipeline" && <PipelineTab />}
-      {active === "analytics" && <AnalyticsTab />}
-    </main>
+        {active === "overview" && <OverviewTab />}
+        {active === "queue" && <QueueFeed />}
+        {active === "deals" && <DealsFeed />}
+        {active === "pipeline" && <PipelineTab />}
+        {active === "analytics" && <AnalyticsTab />}
+      </main>
+    </div>
   );
 }

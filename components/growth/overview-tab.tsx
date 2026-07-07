@@ -7,6 +7,7 @@ import type { FunctionReturnType } from "convex/server";
 import { LineChart } from "./follower-chart";
 import { PostCard } from "./post-card";
 import { Composer } from "./composer";
+import { decodeInline } from "@/convex/lib/rss";
 
 type XPost = FunctionReturnType<typeof api.xPosts.board>[number];
 
@@ -24,7 +25,11 @@ function fmt(n: number): string {
 function Delta({ value }: { value: number | null }) {
   if (value == null) return <span className="text-[var(--color-text-secondary)]">—</span>;
   const cls =
-    value > 0 ? "text-green-600" : value < 0 ? "text-red-600" : "text-[var(--color-text-secondary)]";
+    value > 0
+      ? "text-[var(--gc-ok)]"
+      : value < 0
+        ? "text-[var(--gc-fault)]"
+        : "text-[var(--color-text-secondary)]";
   return (
     <span className={cls}>
       {value > 0 ? "+" : ""}
@@ -36,8 +41,8 @@ function Delta({ value }: { value: number | null }) {
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border border-[var(--color-border)] rounded-lg bg-white p-4">
-      <div className="text-2xl font-semibold">{children}</div>
-      <div className="text-xs text-[var(--color-text-secondary)] mt-1">{label}</div>
+      <div className="gc-num text-2xl font-medium">{children}</div>
+      <div className="gc-label mt-1.5">{label}</div>
     </div>
   );
 }
@@ -51,9 +56,7 @@ function FollowerList({
 }) {
   return (
     <div>
-      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
-        {title}
-      </h3>
+      <h3 className="gc-label mb-2">{title}</h3>
       <ul className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded bg-white max-h-72 overflow-y-auto">
         {people.map((f) => (
           <li key={f.username} className="flex items-center justify-between p-2.5 text-sm">
@@ -66,7 +69,7 @@ function FollowerList({
               {f.name}{" "}
               <span className="text-[var(--color-text-secondary)]">@{f.username}</span>
             </a>
-            <span className="text-xs text-[var(--color-text-secondary)] shrink-0 ml-2">
+            <span className="gc-num text-xs text-[var(--color-text-secondary)] shrink-0 ml-2">
               {fmt(f.followers)}
             </span>
           </li>
@@ -117,11 +120,7 @@ function HealthStrip({ now }: { now: number }) {
                 ? `last ok ${r.lastOkAt ? agoShort(r.lastOkAt, now) : "never"} ago${r.meta ? ` · ${r.meta}` : ""}`
                 : `failed: ${r.lastError ?? "unknown"}`
             }
-            className={`text-[11px] font-medium rounded px-1.5 py-0.5 border ${
-              bad
-                ? "text-red-700 bg-red-50 border-red-200"
-                : "text-emerald-700 bg-emerald-50 border-emerald-200"
-            }`}
+            className={`gc-chip ${bad ? "gc-chip-fault" : "gc-chip-ok"}`}
           >
             {r.name} · {r.lastOkAt ? agoShort(r.lastOkAt, now) : "—"}
           </span>
@@ -171,9 +170,7 @@ function SettingsCard() {
 
   return (
     <div className="border border-[var(--color-border)] rounded-lg bg-white p-4 space-y-3">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
-        Fast polling & alerts
-      </h2>
+      <h2 className="gc-label">Fast polling & alerts</h2>
       <div className="flex items-center gap-2 text-sm">
         <span className="text-[var(--color-text-secondary)]">Active</span>
         <select
@@ -331,16 +328,12 @@ export function OverviewTab() {
       {/* Growth chart + tracked handle */}
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 border border-[var(--color-border)] rounded-lg bg-white p-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-3">
-            Follower growth
-          </h2>
+          <h2 className="gc-label mb-3">Follower growth</h2>
           <LineChart series={chartPoints} formatY={fmt} />
         </div>
         <div className="space-y-4">
         <div className="border border-[var(--color-border)] rounded-lg bg-white p-4 space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
-            Tracking
-          </h2>
+          <h2 className="gc-label">Tracking</h2>
           <form
             className="flex items-center gap-2"
             onSubmit={(e) => {
@@ -386,8 +379,8 @@ export function OverviewTab() {
 
       {/* Due now */}
       {due.length > 0 && (
-        <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">
+        <div className="gc-banner-due p-3">
+          <p className="font-plexmono text-[11px] font-semibold uppercase tracking-wider text-[var(--gc-due)] mb-2">
             Due now — copy, post on X, then mark posted
           </p>
           {editing && <Composer key={editing._id} editing={editing} onClose={() => setEditing(null)} />}
@@ -402,9 +395,7 @@ export function OverviewTab() {
       {/* Queue preview */}
       <div>
         <div className="flex items-baseline justify-between mb-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
-            Top of the engagement queue
-          </h2>
+          <h2 className="gc-label">Top of the engagement queue</h2>
           <a href="#queue" className="text-xs text-[var(--color-accent)] hover:underline">
             Open queue →
           </a>
@@ -419,7 +410,7 @@ export function OverviewTab() {
           <ul className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg bg-white">
             {queue.slice(0, 5).map((r) => (
               <li key={r.id} className="flex items-center gap-3 p-3 text-sm">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-accent)] shrink-0">
+                <span className="font-plexmono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] shrink-0">
                   {r.primaryFeed}
                 </span>
                 <span className="truncate flex-1">
@@ -430,7 +421,7 @@ export function OverviewTab() {
                   ) : (
                     <span className="text-[var(--color-text-secondary)]">{r.source}: </span>
                   )}
-                  {r.title ?? r.text}
+                  {decodeInline(r.title ?? r.text)}
                 </span>
                 <a
                   href={r.link}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { playfair, lora } from "@/lib/fonts";
+import { playfair, lora, plexSans, plexMono } from "@/lib/fonts";
 import ClientLayout from "@/components/client-layout";
 import "./globals.css";
 
@@ -38,7 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${lora.variable}`}>
+    <html
+      lang="en"
+      className={`${playfair.variable} ${lora.variable} ${plexSans.variable} ${plexMono.variable}`}
+    >
       <body>
         <ClientLayout>{children}</ClientLayout>
       </body>

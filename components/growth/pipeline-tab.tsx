@@ -86,8 +86,8 @@ export function PipelineTab() {
       {composing && <Composer key={editing?._id ?? "new"} editing={editing} onClose={closeComposer} />}
 
       {recycleCandidates && recycleCandidates.length > 0 && (
-        <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-2">
+        <div className="gc-banner-ok p-3">
+          <p className="font-plexmono text-[11px] font-semibold uppercase tracking-wider text-[var(--gc-ok)] mb-2">
             Evergreen, ready to recycle ({recycleCandidates.length})
           </p>
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -103,9 +103,9 @@ export function PipelineTab() {
           const list = byStatus.get(col.status) ?? [];
           return (
             <section key={col.status} className="min-w-0">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] border-b-2 border-[var(--color-accent)] pb-2 mb-3">
+              <h2 className="gc-label border-b-2 border-[var(--color-accent)] pb-2 mb-3">
                 {col.label}{" "}
-                <span className="text-[var(--color-accent)]">{list.length}</span>
+                <span className="gc-num text-[var(--color-accent)]">{list.length}</span>
               </h2>
               {list.length === 0 ? (
                 <p className="text-xs text-[var(--color-text-secondary)]">{col.hint}</p>

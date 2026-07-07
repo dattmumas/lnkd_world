@@ -22,7 +22,7 @@ function CharCount({ text }: { text: string }) {
   // Approximate: X counts URLs as 23 chars and weights some glyphs differently.
   const n = text.length;
   return (
-    <span className={`text-xs ${n > 280 ? "text-red-600 font-semibold" : "text-[var(--color-text-secondary)]"}`}>
+    <span className={`gc-num text-[11px] ${n > 280 ? "text-[var(--gc-fault)] font-semibold" : "text-[var(--color-text-secondary)]"}`}>
       {n}/280
     </span>
   );
@@ -246,7 +246,7 @@ export function Composer({
       {/* Body + thread parts */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+          <label className="gc-label">
             {kind === "thread" ? "Hook (part 1)" : "Post"}
           </label>
           <CharCount text={body} />
@@ -288,14 +288,12 @@ export function Composer({
           {parts.map((p, i) => (
             <div key={i}>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  Part {i + 2}
-                </label>
+                <label className="gc-label">Part {i + 2}</label>
                 <div className="flex items-center gap-3">
                   <CharCount text={p} />
                   <button
                     onClick={() => setParts(parts.filter((_, j) => j !== i))}
-                    className="text-xs text-[var(--color-text-secondary)] hover:text-red-600"
+                    className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--gc-fault)]"
                   >
                     Remove
                   </button>
@@ -378,7 +376,7 @@ export function Composer({
           </button>
         </div>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[var(--gc-fault)]">{error}</p>}
     </div>
   );
 }

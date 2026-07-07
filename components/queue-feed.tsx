@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { priority } from "@/convex/lib/queueScore";
+import { decodeInline } from "@/convex/lib/rss";
 
 type QueueItem = FunctionReturnType<typeof api.queue.getQueue>[number];
 
@@ -107,23 +108,36 @@ export function QueueFeed() {
     const replyWindowOpen =
       r.primaryFeed === "early" &&
       now - r.publishedAt < 2 * r.halfLifeHours * 3_600_000;
+    // Remaining share of the item's engagement window: priority divided by its
+    // decay-free ceiling leaves exactly 2^(−age/halfLife).
+    const signal = Math.max(
+      0,
+      Math.min(1, r.priority / (r.baseScore * r.affinityMult)),
+    );
     return (
     <li
       key={r.id}
-      className="border border-[var(--color-border)] rounded-lg bg-white p-5"
+      className="border border-[var(--color-border)] rounded-lg bg-white p-5 overflow-hidden"
     >
+      <div
+        className="gc-decay-track -mx-5 -mt-5 mb-3"
+        title={`${Math.round(signal * 100)}% of the engagement window left · half-life ${r.halfLifeHours}h`}
+      >
+        <div
+          className={`gc-decay-fill ${signal < 0.25 ? "low" : ""}`}
+          style={{ width: `${signal * 100}%` }}
+        />
+      </div>
       <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] flex-wrap">
-        <span className="font-semibold text-[var(--color-accent)] uppercase tracking-wide">
+        <span className="font-plexmono text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-wider">
           {FEED_LABEL[r.primaryFeed] ?? r.primaryFeed}
         </span>
         {replyWindowOpen && (
-          <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
-            reply window open
-          </span>
+          <span className="gc-chip gc-chip-due">reply window open</span>
         )}
         {/* Early items: the chip + author row already say it all. */}
         {r.primaryFeed !== "early" && <span>{r.scoreReason}</span>}
-        <span className="ml-auto shrink-0">{age(r.publishedAt, now)} ago</span>
+        <span className="ml-auto shrink-0 gc-num">{age(r.publishedAt, now)} ago</span>
       </div>
 
       <div className="flex gap-3 mt-2">
@@ -161,10 +175,12 @@ export function QueueFeed() {
               {r.source}
             </div>
           )}
-          {r.title && <p className="text-sm font-semibold mt-1">{r.title}</p>}
+          {r.title && (
+            <p className="text-sm font-semibold mt-1">{decodeInline(r.title)}</p>
+          )}
           {r.text && r.text !== r.title && (
             <p className="text-sm mt-1 whitespace-pre-wrap break-words line-clamp-4">
-              {r.text}
+              {decodeInline(r.text)}
             </p>
           )}
           {r.kind === "x-post" && r.imageUrl && (
@@ -177,7 +193,7 @@ export function QueueFeed() {
             />
           )}
           {(r.replies ?? 0) + (r.reposts ?? 0) + (r.likes ?? 0) > 0 && (
-            <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-secondary)]">
+            <div className="flex items-center gap-4 mt-2 text-[11px] gc-num text-[var(--color-text-secondary)]">
               {r.replies != null && <span>{fmt(r.replies)} replies</span>}
               {r.reposts != null && <span>{fmt(r.reposts)} reposts</span>}
               {r.likes != null && <span>{fmt(r.likes)} likes</span>}
@@ -191,7 +207,7 @@ export function QueueFeed() {
           )}
           {r.draft && (
             <details className="mt-3 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)]">
-              <summary className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider cursor-pointer text-[var(--color-text-secondary)] select-none">
+              <summary className="px-3 py-2 gc-label cursor-pointer select-none">
                 Draft {r.draftKind === "reply" ? "reply" : "tweet"}
               </summary>
               <div className="px-3 pb-3">
@@ -217,13 +233,13 @@ export function QueueFeed() {
             </a>
             <button
               onClick={() => retire(r.id, "engaged")}
-              className="text-[var(--color-text-secondary)] hover:text-green-700"
+              className="text-[var(--color-text-secondary)] hover:text-[var(--gc-ok)]"
             >
               Engaged
             </button>
             <button
               onClick={() => retire(r.id, "skipped")}
-              className="text-[var(--color-text-secondary)] hover:text-red-600"
+              className="text-[var(--color-text-secondary)] hover:text-[var(--gc-fault)]"
             >
               Skip
             </button>
@@ -252,8 +268,9 @@ export function QueueFeed() {
 
   const column = (label: string, hint: string, list: QueueItem[]) => (
     <section className="min-w-0">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] border-b-2 border-[var(--color-accent)] pb-2 mb-3">
-        {label} <span className="text-[var(--color-accent)]">{list.length}</span>
+      <h2 className="gc-label border-b-2 border-[var(--color-accent)] pb-2 mb-3">
+        {label}{" "}
+        <span className="gc-num text-[var(--color-accent)]">{list.length}</span>
       </h2>
       {list.length === 0 ? (
         <p className="text-[var(--color-text-secondary)] text-sm">{hint}</p>

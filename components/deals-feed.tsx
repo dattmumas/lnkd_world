@@ -7,8 +7,7 @@ import type { FunctionReturnType } from "convex/server";
 
 type Deal = FunctionReturnType<typeof api.deals.list>[number];
 
-const th =
-  "text-left text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] px-3 py-2 select-none";
+const th = "text-left gc-label px-3 py-2 select-none";
 const td = "px-3 py-2 text-sm";
 const field =
   "border border-[var(--color-border)] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]";
@@ -202,7 +201,7 @@ export function DealsFeed() {
           <option value={90}>Last 90 days</option>
           <option value={0}>All time</option>
         </select>
-        <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
+        <span className="gc-num text-xs text-[var(--color-text-secondary)] ml-auto">
           {rows.length} deals
         </span>
       </div>
@@ -249,16 +248,14 @@ export function DealsFeed() {
                     </div>
                   </td>
                   <td className={`${td} whitespace-nowrap`}>{d.round}</td>
-                  <td className={`${td} text-right font-medium whitespace-nowrap`}>
+                  <td className={`${td} text-right gc-num font-medium whitespace-nowrap`}>
                     <span title={d.amountNote ?? undefined}>{fmtAmount(d)}</span>
                   </td>
                   <td className={`${td} max-w-40 truncate`} title={d.investors.join(", ")}>
                     {d.leadInvestor ?? (d.investors[0] ? `${d.investors[0]}…` : "—")}
                   </td>
                   <td className={td}>
-                    <span className="text-xs border border-[var(--color-border)] rounded px-1.5 py-0.5 whitespace-nowrap">
-                      {d.category}
-                    </span>
+                    <span className="gc-chip gc-chip-plain">{d.category}</span>
                   </td>
                   <td className={td}>
                     <span className="flex gap-1">
@@ -282,7 +279,7 @@ export function DealsFeed() {
                     </span>
                   </td>
                   <td
-                    className={`${td} text-xs text-[var(--color-text-secondary)] whitespace-nowrap`}
+                    className={`${td} gc-num text-xs text-[var(--color-text-secondary)] whitespace-nowrap`}
                     title={`first seen ${new Date(d.firstSeenAt).toLocaleString()}`}
                   >
                     {d.announcedAt != null
@@ -315,7 +312,7 @@ export function DealsFeed() {
                           e.stopPropagation();
                           void setStatus({ id: d._id, status: "dismissed" });
                         }}
-                        className="text-xs text-[var(--color-text-secondary)] hover:text-red-600"
+                        className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--gc-fault)]"
                       >
                         ✕
                       </button>
@@ -337,13 +334,13 @@ export function DealsFeed() {
                     <td colSpan={8} className="px-4 py-3">
                       <div className="grid md:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-1">
+                          <div className="gc-label mb-1">
                             {d.company}
                           </div>
                           <p>{d.companyDesc ?? d.summary}</p>
                         </div>
                         <div>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-1">
+                          <div className="gc-label mb-1">
                             {d.leadInvestor ?? "Investors"}
                           </div>
                           <p>

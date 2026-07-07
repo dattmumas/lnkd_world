@@ -8,9 +8,9 @@ import type { FunctionReturnType } from "convex/server";
 type XPost = FunctionReturnType<typeof api.xPosts.board>[number];
 
 const PILLAR_CHIP: Record<XPost["pillar"], { label: string; cls: string }> = {
-  health: { label: "Health", cls: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-  finance: { label: "Finance", cls: "text-[var(--color-accent)] bg-blue-50 border-blue-200" },
-  startup: { label: "Startup", cls: "text-amber-700 bg-amber-50 border-amber-200" },
+  health: { label: "Health", cls: "gc-pillar-health" },
+  finance: { label: "Finance", cls: "gc-pillar-finance" },
+  startup: { label: "Startup", cls: "gc-pillar-startup" },
 };
 
 const field =
@@ -92,11 +92,9 @@ export function PostCard({
   return (
     <div className="border border-[var(--color-border)] rounded-lg bg-white p-3 space-y-2">
       <div className="flex items-center gap-1.5 flex-wrap text-xs">
-        <span className={`border rounded px-1.5 py-0.5 font-semibold ${chip.cls}`}>
-          {chip.label}
-        </span>
+        <span className={`gc-chip ${chip.cls}`}>{chip.label}</span>
         {isThread && (
-          <span className="border border-[var(--color-border)] rounded px-1.5 py-0.5 text-[var(--color-text-secondary)]">
+          <span className="gc-chip gc-chip-plain">
             thread · {1 + (post.threadParts?.length ?? 0)}
           </span>
         )}
@@ -107,22 +105,16 @@ export function PostCard({
         )}
         {post.status === "scheduled" && auto && !post.postError && (
           <span
-            className={`font-semibold rounded px-1.5 py-0.5 border ${
-              dueNow
-                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                : "text-[var(--color-text-secondary)] border-[var(--color-border)]"
-            }`}
+            className={`gc-chip ${dueNow ? "gc-chip-ok" : "gc-chip-plain"}`}
             title="Posts through the X API at the scheduled time"
           >
             {dueNow ? "posting…" : "auto"}
           </span>
         )}
         {dueNow && (!auto || post.postError) && (
-          <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
-            due now
-          </span>
+          <span className="gc-chip gc-chip-due">due now</span>
         )}
-        <span className="ml-auto text-[var(--color-text-secondary)]">
+        <span className="ml-auto gc-num text-[11px] text-[var(--color-text-secondary)]">
           {post.status === "scheduled" && post.scheduledAt != null
             ? new Date(post.scheduledAt).toLocaleString([], {
                 month: "short",
@@ -142,7 +134,7 @@ export function PostCard({
       <p className="text-sm whitespace-pre-wrap break-words line-clamp-5">{post.body}</p>
 
       {(post.postError || postNowError) && (
-        <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5 flex items-center gap-2">
+        <div className="gc-banner-fault text-xs text-[var(--gc-fault)] px-2 py-1.5 flex items-center gap-2">
           <span className="min-w-0 truncate" title={post.postError ?? postNowError}>
             {post.postError ?? postNowError}
           </span>
@@ -160,7 +152,7 @@ export function PostCard({
       {post.status === "posted" && (
         <div className="text-xs text-[var(--color-text-secondary)]">
           {post.latestViews != null ? (
-            <span className="flex gap-3 flex-wrap">
+            <span className="gc-num text-[11px] flex gap-3 flex-wrap">
               <span>{fmt(post.latestViews)} views</span>
               <span>{fmt(post.latestLikes ?? 0)} likes</span>
               <span>{fmt(post.latestReplies ?? 0)} replies</span>
@@ -169,7 +161,7 @@ export function PostCard({
           ) : post.tweetId ? (
             <span>metrics pending — pulled daily</span>
           ) : (
-            <span className="text-amber-700">
+            <span className="text-[var(--gc-due)]">
               no metrics — add the tweet URL below
             </span>
           )}
@@ -286,7 +278,7 @@ export function PostCard({
                 if (confirm("Delete this post permanently?"))
                   void remove({ id: post._id });
               }}
-              className={`${btn} hover:text-red-600 ml-auto`}
+              className={`${btn} hover:text-[var(--gc-fault)] ml-auto`}
             >
               Delete
             </button>
