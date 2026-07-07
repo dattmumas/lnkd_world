@@ -156,6 +156,15 @@ export default defineSchema({
     note: v.optional(v.string()),
     order: v.number(),
     active: v.optional(v.boolean()),
+    // Which pillar this account belongs to — reply drafts ground in this
+    // pillar's voice profile; attribution groups by it. undefined = health.
+    pillar: v.optional(
+      v.union(v.literal("health"), v.literal("finance"), v.literal("startup")),
+    ),
+    // Fast poll = included in every 5-min early-feed cycle (true reply
+    // targets). false = hourly sweep only (VC firms, outlets, low-priority).
+    // undefined = fast, so existing rows keep their behavior.
+    fastPoll: v.optional(v.boolean()),
   }).index("by_order", ["order"]),
 
   // "Creators" feed snapshots — rendered HTML from the daily refresh
@@ -230,18 +239,6 @@ export default defineSchema({
     .index("by_status_createdAt", ["status", "createdAt"]),
 
   // "Content Teardown" snapshots — top-performing posts from your list + niche
-  // (convex/teardown.ts). Served by feed.getPage for slug "teardown".
-  teardownSnapshots: defineTable({
-    generatedAt: v.string(),
-    html: v.string(),
-    status: v.string(), // "ok" | "empty" | "error"
-    count: v.number(),
-    error: v.optional(v.string()),
-    createdAt: v.string(),
-  })
-    .index("by_createdAt", ["createdAt"])
-    .index("by_status_createdAt", ["status", "createdAt"]),
-
   // Unified engagement queue: normalized cross-feed candidates, one row per
   // unique tweet/article (convex/feedItems.ts). Every feed pipeline emits its
   // picks here in addition to its HTML snapshot; the queue (convex/queue.ts)
@@ -306,6 +303,7 @@ export default defineSchema({
       v.literal("copy_draft"),
       v.literal("engaged"),
       v.literal("skipped"),
+      v.literal("captured"), // turned into a pipeline idea (item stays queued)
     ),
     kind: v.string(),
     primaryFeed: v.string(),
@@ -314,7 +312,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_item", ["itemId"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_action_createdAt", ["action", "createdAt"]),
 
   // Per-author / per-source behavior aggregates (convex/queue.ts) — smoothed
   // into a score multiplier by lib/queueScore.affinityMultiplier. Counters are
@@ -358,6 +357,234 @@ export default defineSchema({
     count: v.number(),
     truncated: v.boolean(),
     fetchedAt: v.string(),
+  }).index("by_fetchedAt", ["fetchedAt"]),
+
+  // Content pipeline for the tracked X account (convex/xPosts.ts) — the growth
+  // dashboard's kanban. NOT the blog `posts` table. Ms-epoch timestamps.
+  xPosts: defineTable({
+    pillar: v.union(v.literal("health"), v.literal("finance"), v.literal("startup")),
+    status: v.union(
+      v.literal("idea"),
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("posted"),
+      v.literal("archived"),
+    ),
+    kind: v.union(v.literal("single"), v.literal("thread")),
+    body: v.string(), // the tweet, or a thread's hook (part 1)
+    threadParts: v.optional(v.array(v.string())), // parts 2..n
+    scheduledAt: v.optional(v.number()),
+    postedAt: v.optional(v.number()),
+    tweetId: v.optional(v.string()),
+    tweetUrl: v.optional(v.string()),
+    isEvergreen: v.optional(v.boolean()),
+    source: v.optional(v.string()), // "manual" | "claude" | "recycle:<id>"
+    // Auto-posting (convex/xPoster.ts): scheduled posts fire via the X API
+    // unless autoPost === false. undefined = on (the default when scheduling).
+    autoPost: v.optional(v.boolean()),
+    postError: v.optional(v.string()), // last API failure; cron skips until cleared
+    postedThreadIds: v.optional(v.array(v.string())), // thread resume state: [root, part2, ...]
+    // Captured source material (queue→idea, beehiiv) — prefills the composer.
+    sourceText: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    // Latest public metrics, denormalized by the xMetrics snapshot so the board
+    // and pillar comparison never join against the time series.
+    latestLikes: v.optional(v.number()),
+    latestReplies: v.optional(v.number()),
+    latestReposts: v.optional(v.number()),
+    latestQuotes: v.optional(v.number()),
+    latestBookmarks: v.optional(v.number()),
+    latestViews: v.optional(v.number()),
+    // non_public_metrics (official X API, own tweets only). Profile clicks are
+    // the strongest pre-follow signal.
+    latestProfileClicks: v.optional(v.number()),
+    latestUrlClicks: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_status_scheduledAt", ["status", "scheduledAt"])
+    .index("by_status_postedAt", ["status", "postedAt"])
+    .index("by_tweetId", ["tweetId"])
+    .index("by_pillar_status", ["pillar", "status"]),
+
+  // Daily public-metrics snapshots per posted xPost (convex/xMetrics.ts).
+  // One row/post/day for ~14 days after posting; pruned past 90 days.
+  xPostMetrics: defineTable({
+    postId: v.id("xPosts"),
+    tweetId: v.string(),
+    fetchedAt: v.number(),
+    likes: v.number(),
+    replies: v.number(),
+    reposts: v.number(),
+    quotes: v.number(),
+    bookmarks: v.number(),
+    views: v.number(),
+    profileClicks: v.optional(v.number()), // non_public_metrics, when available
+    urlClicks: v.optional(v.number()),
+  })
+    .index("by_post_fetchedAt", ["postId", "fetchedAt"])
+    .index("by_fetchedAt", ["fetchedAt"]),
+
+  // Claude-written Sunday growth summaries (convex/weeklyReview.ts).
+  weeklyReviews: defineTable({
+    weekOf: v.string(), // ISO date of the run
+    markdown: v.string(),
+    statsJson: v.string(), // the computed inputs, for debugging/re-render
+    createdAt: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+
+  // Polling/notification settings for the growth system (convex/growthSettings.ts).
+  // Single row. Fast (5-min) watchlist polling and Telegram pushes only run
+  // inside the active-hours window; no row = legacy 20-min polling, no pushes.
+  growthSettings: defineTable({
+    activeStartHour: v.number(), // 0-23, local; start > end = overnight window
+    activeEndHour: v.number(),
+    tzOffsetMinutes: v.number(), // -new Date().getTimezoneOffset(), rewritten on save
+    notifyEnabled: v.optional(v.boolean()), // default true
+    notifyMinFollowers: v.optional(v.number()), // default 0 (whole watchlist)
+    draftReplies: v.optional(v.boolean()), // AI reply drafts (early + trending); default OFF
+    updatedAt: v.number(),
+  }),
+
+  // Attribution: one row per follower gained, persisted from the daily snapshot
+  // diff (convex/growth.ts store). Joined against itemActions.authorUsername to
+  // answer "which reply targets convert" (convex/attribution.ts).
+  followerGains: defineTable({
+    xUserId: v.string(),
+    username: v.string(), // lowercased — matches itemActions.authorUsername
+    name: v.string(),
+    followers: v.number(),
+    gainedAt: v.number(),
+    day: v.string(), // "YYYY-MM-DD"
+  })
+    .index("by_gainedAt", ["gainedAt"])
+    .index("by_username", ["username"]),
+
+  // Ground truth of every reply the tracked account posts on X — on-system or
+  // not (convex/ownReplies.ts, hourly cron). Feeds the daily reply counts,
+  // reply ROI, and attribution; replies to self (thread parts) are excluded.
+  ownReplies: defineTable({
+    tweetId: v.string(), // the reply's own tweet id — dedup key
+    repliedToUsername: v.optional(v.string()), // leading @mention, lowercased
+    repliedToUserId: v.optional(v.string()), // exact join vs followerGains.xUserId
+    inReplyToTweetId: v.optional(v.string()),
+    text: v.string(),
+    likes: v.optional(v.number()), // refreshed while the reply stays in the window
+    views: v.optional(v.number()),
+    createdAt: v.number(), // when the reply was posted (ms)
+    firstSeenAt: v.number(),
+  })
+    .index("by_tweetId", ["tweetId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // Cron health — one row per cron name, upserted every run (convex/cronHealth.ts).
+  // Powers the Overview health strip and throttled Telegram failure alerts.
+  cronHealth: defineTable({
+    name: v.string(),
+    lastRunAt: v.number(),
+    ok: v.boolean(),
+    lastOkAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    lastErrorAt: v.optional(v.number()),
+    lastAlertAt: v.optional(v.number()),
+    meta: v.optional(v.string()),
+  }).index("by_name", ["name"]),
+
+  // Tweets the early feed has already emitted to the queue (convex/earlyFeed.ts).
+  // Tiny marker docs — answering "is this new?" against these costs ~8KB/cycle
+  // vs re-reading full feedItems docs (~50KB, twice). Pruned with feedItems.
+  earlySeen: defineTable({
+    tweetId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_tweetId", ["tweetId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // Materialized active-creator list (convex/creators.ts rebuildCache) — one
+  // ~20KB doc read per 5-min poll instead of .collect()ing 400 full docs.
+  creatorsCache: defineTable({
+    json: v.string(), // [{handle, pillar?, fastPoll?}]
+    updatedAt: v.number(),
+  }),
+
+  // Consumer Deal Radar: one row per unique (company, round) funding event
+  // (convex/deals.ts), fused from RSS deal digests + X announcements
+  // (convex/dealsFeed.ts). Multiple tellings of one deal merge into one row.
+  deals: defineTable({
+    company: v.string(), // display name as extracted
+    companyKey: v.string(), // normalized for dedup (deals.ts normalizeCompanyKey)
+    round: v.string(), // "pre-seed"|"seed"|"series-a".."series-e"|"growth"|"unknown"
+    dedupKey: v.string(), // `${companyKey}|${round}`
+    amountUsd: v.union(v.number(), v.null()), // null = undisclosed
+    amountNote: v.optional(v.string()), // original figure if non-USD, e.g. "€12M"
+    investors: v.array(v.string()),
+    leadInvestor: v.optional(v.string()),
+    category: v.string(), // consumer-health | wellness | cpg | consumer-fintech | ...
+    isConsumer: v.boolean(),
+    confidence: v.number(), // 0..1 from extraction
+    summary: v.string(),
+    companyDesc: v.optional(v.string()), // 1-line what-the-company-does
+    leadDesc: v.optional(v.string()), // 1-line who-the-lead-VC-is
+    sources: v.array(v.object({ name: v.string(), url: v.string() })),
+    announcementTweetId: v.optional(v.string()),
+    status: v.union(v.literal("new"), v.literal("seen"), v.literal("dismissed")),
+    notified: v.boolean(), // Telegram push sent (individually or in a digest)
+    announcedAt: v.optional(v.number()),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_dedupKey", ["dedupKey"])
+    .index("by_companyKey", ["companyKey"])
+    .index("by_firstSeenAt", ["firstSeenAt"])
+    .index("by_isConsumer_firstSeenAt", ["isConsumer", "firstSeenAt"]),
+
+  // Admin-managed RSS sources for the deal radar (convex/dealSources.ts).
+  dealSources: defineTable({
+    name: v.string(),
+    url: v.string(),
+    active: v.optional(v.boolean()),
+    order: v.number(),
+  }).index("by_order", ["order"]),
+
+  // Candidate items already run through deal extraction (convex/dealsFeed.ts).
+  // Hourly runs re-fetch overlapping windows; this makes them near-free.
+  // Keyed like feedItems.externalId. Pruned at 14d.
+  dealSeen: defineTable({
+    externalId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_externalId", ["externalId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // Creators explicitly removed by the admin (convex/creators.ts) — the follow
+  // sync must not resurrect them. Re-adding by hand clears the tombstone.
+  creatorTombstones: defineTable({
+    handle: v.string(),
+    createdAt: v.number(),
+  }).index("by_handle", ["handle"]),
+
+  // beehiiv posts already turned into ideas (convex/beehiiv.ts) — dedup.
+  beehiivSeen: defineTable({
+    postId: v.string(),
+    createdAt: v.number(),
+  }).index("by_postId", ["postId"]),
+
+  // Real-tweet voice grounding for post drafting (convex/voiceProfile.ts):
+  // per pillar, the account's own top posts + the niche's current winners,
+  // refreshed daily. draftWithClaude builds its prompt from these instead of
+  // hand-written style rules.
+  voiceProfiles: defineTable({
+    pillar: v.string(),
+    dataJson: v.string(), // { ownPosts: [...], nicheWinners: [...] }
+    refreshedAt: v.number(),
+  }).index("by_pillar", ["pillar"]),
+
+  // Compact daily follower counts for the growth chart (convex/growth.ts).
+  // followerSnapshots rows carry the full follower list JSON (hundreds of KB),
+  // so the chart reads this one-tiny-row-per-day table instead.
+  followerCounts: defineTable({
+    handle: v.string(),
+    count: v.number(),
+    fetchedAt: v.string(), // ISO, matches followerSnapshots.fetchedAt
   }).index("by_fetchedAt", ["fetchedAt"]),
 
   // Cache of a seed's following list (convex/network.ts) so rebuilding a web —

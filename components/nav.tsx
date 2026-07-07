@@ -62,10 +62,10 @@ export default function Nav() {
             Bonds
           </Link>
           <Link
-            href="/feed"
+            href="/growth"
             className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shrink-0"
           >
-            Feed
+            Growth
           </Link>
           <Link
             href="/bookmarks"

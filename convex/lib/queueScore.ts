@@ -35,6 +35,7 @@ export const HALF_LIFE_HOURS: Record<string, number> = {
   science: 30, // original-take window: ~50% after 30h, ~10% by day 4
   biz: 30,
   creators: 12, // engagement-proven but reply value fades within a day
+  deals: 48, // a funding announcement stays reply/QT-worthy for ~2 days
 };
 
 /** Items below this decayed priority are invisible in the queue. */
@@ -73,6 +74,13 @@ export function newsBaseScore(rank: number): number {
 export function creatorsBaseScore(indexInBatch: number, batchSize: number): number {
   const pct = batchSize > 1 ? (batchSize - 1 - indexInBatch) / (batchSize - 1) : 1;
   return 50 + 35 * pct;
+}
+
+/** Deal-radar items: bigger raises rank higher; undisclosed sits mid-pack.
+ *  $1M→85, $10M→91, $100M→95 (capped) — between creators and trending. */
+export function dealBaseScore(amountUsd: number | null): number {
+  if (!amountUsd || amountUsd <= 0) return 87;
+  return Math.min(95, 85 + Math.max(0, (Math.log10(amountUsd) - 5) * 3));
 }
 
 // ---- Priority -----------------------------------------------------------------

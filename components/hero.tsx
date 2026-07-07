@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const HeroGraph = dynamic(() => import("@/components/hero-graph"), {
+const HeroGraph = dynamic(() => import("@/components/hero-graph-3d"), {
   ssr: false,
 });
 

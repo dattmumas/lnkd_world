@@ -19,6 +19,9 @@ export interface Tweet {
   author_id: string;
   public_metrics: PublicMetrics;
   media_url?: string; // first attached photo (pbs.twimg.com), if any
+  is_reply?: boolean;
+  in_reply_to_tweet_id?: string;
+  in_reply_to_user_id?: string;
 }
 export interface XUser {
   id: string;

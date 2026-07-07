@@ -9,7 +9,6 @@ import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import {
   scorePost,
-  renderHtml,
   suggestReply,
   curateTopPosts,
   type RankedPost,
@@ -115,21 +114,21 @@ export const refreshInternal = internalAction({
       // 2) Opus 4.8 curates the pool down to the top N most relevant to On Label.
       const selected = await curateTopPosts(pool, FINAL_COUNT);
 
-      // 3) AI-suggested reply per selected post (parallel; degrades to no reply).
-      await Promise.all(
-        selected.map(async (p) => {
-          const reply = await suggestReply(p.tweet.text);
-          if (reply) p.reply = reply;
-        }),
-      );
+      // 3) AI-suggested reply per selected post (parallel; degrades to no
+      // reply). Opt-in via growthSettings.draftReplies — reply drafting is
+      // disabled by default to save Anthropic spend.
+      const settings = await ctx.runQuery(internal.growthSettings.getInternal, {});
+      if (settings?.draftReplies === true) {
+        await Promise.all(
+          selected.map(async (p) => {
+            const reply = await suggestReply(p.tweet.text);
+            if (reply) p.reply = reply;
+          }),
+        );
+      }
 
       // 4) Render the curated list (single ranked group, no niche headers).
-      const html = renderHtml([{ niche: "", posts: selected }], {
-        title: "Trending on X",
-        subtitle: `curated for On Label · the business of health & longevity · last ${WINDOW_HOURS}h`,
-        generatedAt,
-        nowMs,
-      });
+      const html = ""; // feed page removed — snapshot is status/health only
       const status = selected.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.xTrends.store, {
         generatedAt,

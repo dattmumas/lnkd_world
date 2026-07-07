@@ -195,6 +195,13 @@ export default function ManageSources() {
   const accRemove = useMutation(api.bizAccounts.remove);
   const accSeed = useMutation(api.bizAccounts.seedDefaults);
 
+  const deal = useQuery(api.dealSources.listAll);
+  const dealCreate = useMutation(api.dealSources.create);
+  const dealUpdate = useMutation(api.dealSources.update);
+  const dealRemove = useMutation(api.dealSources.remove);
+  const dealSeed = useMutation(api.dealSources.seedDefaults);
+  const dealRefresh = useAction(api.dealsFeed.refresh);
+
   const refresh = useAction(api.scienceFeed.refresh);
   const healthJson = useQuery(api.scienceFeed.getHealth);
   const health = useMemo<Health | null>(() => {
@@ -240,7 +247,7 @@ export default function ManageSources() {
       </div>
       <p className="text-sm text-[var(--color-text-secondary)] mb-2">
         Feeds the two columns of the{" "}
-        <Link href="/feed/science" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</Link>{" "}
+        <Link href="/admin/growth#queue" className="text-[var(--color-accent)] hover:underline">Science &amp; Business</Link>{" "}
         page. Opus picks what&apos;s worth sharing from each. Each source shows how it
         did on the last refresh — prune or swap the ones that fail.
       </p>
@@ -342,6 +349,56 @@ export default function ManageSources() {
                   />
                 ) : (
                   <Row title={`@${a.handle}`} subtitle={a.note ?? ""} inactive={a.active === false} badge={<AccBadge n={health?.accounts?.[a.handle]} />} onEdit={() => setEditing(a._id)} onDelete={() => void accRemove({ id: a._id })} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Deal radar sources */}
+      <section className="mt-12">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xl font-semibold">Deal sources</h2>
+          <button
+            onClick={() => {
+              setState("Refreshing deals…");
+              dealRefresh()
+                .then((r) => setState(`Deals done — ${r.extracted} extracted, ${r.newConsumer} new consumer.`))
+                .catch(() => setState("Deal refresh failed — check logs."));
+            }}
+            className="text-sm border border-[var(--color-border)] rounded px-3 py-1.5 hover:bg-[var(--color-border)]/30"
+          >
+            Refresh deals now
+          </button>
+        </div>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+          RSS digests for the{" "}
+          <Link href="/admin/growth#deals" className="text-[var(--color-accent)] hover:underline">Deal Radar</Link>{" "}
+          — funding roundups and deal coverage, extracted into structured deals hourly.
+        </p>
+        <div className="mb-4">
+          <SourceForm onSubmit={(d) => void dealCreate({ name: d.name, url: d.url })} />
+        </div>
+        {deal === undefined ? (
+          <p className="text-[var(--color-text-secondary)]">Loading…</p>
+        ) : deal.length === 0 ? (
+          seedRow(() => void dealSeed(), "Load default deal sources (TechCrunch, Crunchbase, AlleyWatch, …)")
+        ) : (
+          <ul className="space-y-3">
+            {deal.map((s) => (
+              <li key={s._id} className="border border-[var(--color-border)] rounded p-4">
+                {editing === s._id ? (
+                  <SourceForm
+                    initial={{ name: s.name, url: s.url, active: s.active !== false }}
+                    onSubmit={(d) => {
+                      void dealUpdate({ id: s._id, name: d.name, url: d.url, active: d.active });
+                      setEditing(null);
+                    }}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  <Row title={s.name} subtitle={s.url} inactive={s.active === false} badge={<SrcBadge st={health?.sources?.[s.url]} />} onEdit={() => setEditing(s._id)} onDelete={() => void dealRemove({ id: s._id })} />
                 )}
               </li>
             ))}

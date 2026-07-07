@@ -6,25 +6,35 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { requireAdmin, requireSubscriber } from "./lib/auth";
-import { query } from "./_generated/server";
-import { renderHtml, type RankedPost, type XUser } from "./lib/xfeed";
+import { requireAdmin } from "./lib/auth";
+import { type RankedPost, type XUser } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
 import { earlyBaseScore, externalIdFor, HALF_LIFE_HOURS } from "./lib/queueScore";
+import {
+  suggestReplyGrounded,
+  type Pillar,
+  type VoiceProfileData,
+} from "./lib/xvoice";
+import { escapeHtml, sendTelegram, siteUrl, telegramConfigured } from "./lib/telegram";
+import { reportCron } from "./lib/cronReport";
+import { inActiveHours, type GrowthSettings } from "./growthSettings";
 
 /**
- * "Early Engagement" — the newest posts from your Creators watchlist, refreshed
- * frequently (cron) and sorted newest-first, so you can reply early (the most
- * reliable organic-reach lever on X). Served by feed.getPage for slug "early".
- *
- * Lean by design: short window, no engagement ranking, no AI replies — just fresh
- * posts you can jump on. Reuses the Creators list (convex/creators.ts).
+ * "Early Engagement" — the newest posts from your Creators watchlist, polled
+ * fast (5-min cron via `tick`, throttled to ~20 min outside the configured
+ * active hours) so you can reply early: the most reliable organic-reach lever
+ * on X. During active hours, fresh posts get a voice-grounded reply draft and
+ * the hottest new ones push to Telegram. Served by feed.getPage for "early".
  */
 
 const WINDOW_MIN = 120; // surface posts from the last 2 hours
 const MAX_AGE_MS = WINDOW_MIN * 60 * 1000;
 const HANDLES_PER_QUERY = 15; // keep the `from:` query under the length limit
 const TOP_N = 40;
+const DRAFT_MAX_AGE_MIN = 45; // only draft replies for posts still in the window
+const DRAFTS_PER_RUN = 8; // Anthropic cost cap per refresh
+const NOTIFY_PER_RUN = 3; // Telegram anti-spam cap
+const OFF_HOURS_INTERVAL_MIN = 19; // legacy ~20-min cadence outside active hours
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -33,15 +43,29 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export const refreshInternal = internalAction({
-  args: {},
+  args: {
+    drafts: v.optional(v.boolean()), // generate reply drafts for fresh items
+    notify: v.optional(v.boolean()), // Telegram-push the hottest new items
+    includeSlow: v.optional(v.boolean()), // hourly sweep: poll slow-tier accounts too
+  },
   returns: v.object({ status: v.string(), count: v.number() }),
-  handler: async (ctx) => {
+  handler: async (ctx, { drafts, notify, includeSlow }) => {
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
-      const handles: string[] = await ctx.runQuery(
-        internal.creators.activeHandles,
-        {},
+      const creatorList: { handle: string; pillar?: Pillar; fastPoll?: boolean }[] =
+        await ctx.runQuery(internal.creators.activeCreators, {});
+      // Fast-poll accounts ride every cycle; slow-tier (fastPoll === false —
+      // VC firms, outlets) only join the hourly full sweep. Cost control.
+      const polled = includeSlow
+        ? creatorList
+        : creatorList.filter((c) => c.fastPoll !== false);
+      const handles = polled.map((c) => c.handle);
+      const pillarByHandle = new Map(
+        creatorList.map((c) => [c.handle, c.pillar ?? ("health" as Pillar)]),
+      );
+      console.log(
+        `earlyFeed poll: ${handles.length}/${creatorList.length} accounts (${includeSlow ? "full sweep" : "fast tier"})`,
       );
       if (handles.length === 0) {
         await ctx.runMutation(internal.earlyFeed.store, {
@@ -93,13 +117,8 @@ export const refreshInternal = internalAction({
         .sort((a, b) => b.score - a.score)
         .slice(0, TOP_N);
 
-      const html = renderHtml([{ niche: "", posts: picked }], {
-        title: "Early Engagement",
-        subtitle: `newest posts from your list · last ${WINDOW_MIN}m · reply early`,
-        generatedAt,
-        nowMs,
-      });
-      // Structured cards for the interactive native /feed/early view.
+      // Snapshot rows are timestamps + health only now (the feed page is gone);
+      // rendering/storing HTML here was pure write bandwidth.
       const cards = picked
         .map((p) => {
           const u = p.user;
@@ -127,16 +146,77 @@ export const refreshInternal = internalAction({
       const status = picked.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.earlyFeed.store, {
         generatedAt,
-        html,
-        posts: JSON.stringify(cards),
+        html: "",
         status,
         count: picked.length,
       });
+
+      // "Genuinely new" detection via the tiny earlySeen marker table — point
+      // reads on 200-byte docs instead of re-reading full queue rows every
+      // cycle (this was the hottest read path in the system).
+      const seenSet = new Set<string>(
+        await ctx.runQuery(internal.earlyFeed.seenTweets, {
+          tweetIds: cards.map((c) => c.tweetId),
+        }),
+      );
+      const isNew = (c: (typeof cards)[number]) => !seenSet.has(c.tweetId);
+      const newCards = cards.filter(isNew);
+
+      // Voice-grounded reply drafts for the freshest NEW items (best-effort).
+      const draftByTweetId = new Map<string, string>();
+      if (drafts) {
+        try {
+          const candidates = newCards
+            .filter(
+              (c) =>
+                nowMs - (Date.parse(c.createdAt) || 0) < DRAFT_MAX_AGE_MIN * 60_000,
+            )
+            .sort((a, b) => b.followers - a.followers)
+            .slice(0, DRAFTS_PER_RUN);
+
+          // Load each needed pillar profile once (no inline refresh — the
+          // daily cron keeps them warm; missing profile just means no anchor).
+          const profileByPillar = new Map<Pillar, VoiceProfileData | null>();
+          for (const c of candidates) {
+            const pillar = pillarByHandle.get(c.username.toLowerCase()) ?? "health";
+            if (!profileByPillar.has(pillar)) {
+              const row: { dataJson: string } | null = await ctx.runQuery(
+                internal.voiceProfile.getInternal,
+                { pillar },
+              );
+              profileByPillar.set(
+                pillar,
+                row ? (JSON.parse(row.dataJson) as VoiceProfileData) : null,
+              );
+            }
+          }
+
+          await Promise.all(
+            candidates.map(async (c) => {
+              const pillar = pillarByHandle.get(c.username.toLowerCase()) ?? "health";
+              const reply = await suggestReplyGrounded(
+                c.text,
+                { username: c.username, followers: c.followers },
+                profileByPillar.get(pillar) ?? null,
+              );
+              if (reply) draftByTweetId.set(c.tweetId, reply);
+            }),
+          );
+        } catch (err) {
+          console.error(
+            `Early draft generation failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
       // Emit into the unified queue (best-effort — never sinks the feed).
-      // The upsert dedups against prior 20-min runs and acted-on items.
+      // Only NEW items each cycle; known items get their metrics refreshed on
+      // the hourly full sweep — re-emitting all 40 every 5 minutes was pure
+      // read/write bandwidth for cosmetic like-count updates.
+      const emitCards = includeSlow ? cards : newCards;
       try {
         await ctx.runMutation(internal.feedItems.upsertBatch, {
-          items: cards.map((c) => ({
+          items: emitCards.map((c) => ({
             kind: "x-post" as const,
             externalId: externalIdFor("x-post", c.tweetId),
             feed: "early",
@@ -153,17 +233,63 @@ export const refreshInternal = internalAction({
             reposts: c.reposts,
             likes: c.likes,
             views: c.views,
+            draft: draftByTweetId.get(c.tweetId),
+            draftKind: draftByTweetId.has(c.tweetId) ? ("reply" as const) : undefined,
             baseScore: earlyBaseScore(c.followers),
             halfLifeHours: HALF_LIFE_HOURS.early,
             scoreReason: `Fresh from @${c.username} — reply window open`,
             publishedAt: Date.parse(c.createdAt) || 0,
           })),
         });
+        // Mark only after a successful emit — a failed upsert must retry next cycle.
+        if (newCards.length > 0) {
+          await ctx.runMutation(internal.earlyFeed.markSeenTweets, {
+            tweetIds: newCards.map((c) => c.tweetId),
+          });
+        }
       } catch (err) {
         console.error(
           `Early queue emit failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+
+      // Telegram-push the hottest genuinely-new items (best-effort).
+      if (notify && telegramConfigured()) {
+        try {
+          const settings = await ctx.runQuery(internal.growthSettings.getInternal, {});
+          const minFollowers = settings?.notifyMinFollowers ?? 0;
+          const hot = newCards
+            .filter((c) => c.followers >= minFollowers)
+            .sort((a, b) => b.followers - a.followers)
+            .slice(0, NOTIFY_PER_RUN);
+          for (const c of hot) {
+            const ageMin = Math.max(
+              Math.round((nowMs - (Date.parse(c.createdAt) || nowMs)) / 60_000),
+              1,
+            );
+            const draft = draftByTweetId.get(c.tweetId);
+            const dash = siteUrl();
+            const lines = [
+              `🎯 <b>@${escapeHtml(c.username)}</b> · ${c.followers.toLocaleString()} followers · ${ageMin}m ago`,
+              escapeHtml(c.text.slice(0, 300)),
+              draft ? `\n💬 <i>${escapeHtml(draft.slice(0, 300))}</i>` : "",
+              `\n<a href="${c.permalink}">Open on X</a>${dash ? ` · <a href="${dash}/admin/growth#queue">Queue</a>` : ""}`,
+            ].filter(Boolean);
+            await sendTelegram(lines.join("\n"));
+          }
+        } catch (err) {
+          console.error(
+            `Early notify failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      await reportCron(
+        ctx,
+        "early-feed",
+        true,
+        `count=${picked.length} polled=${handles.length}${includeSlow ? "" : " fastOnly"}`,
+      );
       return { status, count: picked.length };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -174,8 +300,94 @@ export const refreshInternal = internalAction({
         count: 0,
         error: message,
       });
+      await reportCron(ctx, "early-feed", false, message);
       throw new Error(`Early feed refresh failed: ${message}`);
     }
+  },
+});
+
+/** Internal: which of these tweets were already emitted (200-byte point reads). */
+export const seenTweets = internalQuery({
+  args: { tweetIds: v.array(v.string()) },
+  returns: v.array(v.string()),
+  handler: async (ctx, { tweetIds }) => {
+    const out: string[] = [];
+    for (const tweetId of tweetIds.slice(0, 100)) {
+      const row = await ctx.db
+        .query("earlySeen")
+        .withIndex("by_tweetId", (q) => q.eq("tweetId", tweetId))
+        .first();
+      if (row) out.push(tweetId);
+    }
+    return out;
+  },
+});
+
+export const markSeenTweets = internalMutation({
+  args: { tweetIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { tweetIds }) => {
+    const now = Date.now();
+    for (const tweetId of tweetIds.slice(0, 100)) {
+      const existing = await ctx.db
+        .query("earlySeen")
+        .withIndex("by_tweetId", (q) => q.eq("tweetId", tweetId))
+        .first();
+      if (!existing) await ctx.db.insert("earlySeen", { tweetId, createdAt: now });
+    }
+    return null;
+  },
+});
+
+/** Internal: when the last refresh ran (any status) — the tick's throttle marker. */
+export const lastSnapshotAt = internalQuery({
+  args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) => {
+    const last = await ctx.db
+      .query("earlySnapshots")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .first();
+    return last?.createdAt ?? null;
+  },
+});
+
+/**
+ * The 5-min cron entry: refresh fast (with drafts + notifications) inside the
+ * configured active hours, throttle to the legacy ~20-min cadence outside them.
+ * No settings row = legacy behavior (20-min, no drafts, no pushes).
+ */
+export const tick = internalAction({
+  args: {},
+  returns: v.object({ ran: v.boolean(), active: v.boolean() }),
+  handler: async (ctx): Promise<{ ran: boolean; active: boolean }> => {
+    const nowMs = Date.now();
+    const settings: GrowthSettings | null = await ctx.runQuery(
+      internal.growthSettings.getInternal,
+      {},
+    );
+    const active: boolean = settings != null && inActiveHours(settings, nowMs);
+    if (!active) {
+      const lastAt: string | null = await ctx.runQuery(
+        internal.earlyFeed.lastSnapshotAt,
+        {},
+      );
+      const lastMs = lastAt ? Date.parse(lastAt) : 0;
+      if (nowMs - lastMs < OFF_HOURS_INTERVAL_MIN * 60_000) {
+        return { ran: false, active };
+      }
+    }
+    const notifyEnabled = settings?.notifyEnabled !== false;
+    const draftReplies = settings?.draftReplies === true; // opt-in (Anthropic spend)
+    // Slow-tier accounts join once an hour (the first tick of each hour during
+    // active hours) and on every off-hours run (already ~20-min cadence).
+    const includeSlow = !active || new Date(nowMs).getUTCMinutes() < 5;
+    const _result: { status: string; count: number } = await ctx.runAction(
+      internal.earlyFeed.refreshInternal,
+      { drafts: active && draftReplies, notify: active && notifyEnabled, includeSlow },
+    );
+    return { ran: true, active };
   },
 });
 
@@ -191,7 +403,7 @@ export const store = internalMutation({
   },
   handler: async (ctx, args) => {
     // Keep the last 3 snapshots, but never prune the most recent "ok" one —
-    // getPage/getLatest serve the latest ok, so a run of failed refreshes must not delete it.
+    // the tick throttle reads the latest row, so failed refreshes must not delete it.
     const all = await ctx.db
       .query("earlySnapshots")
       .withIndex("by_createdAt")
@@ -215,23 +427,6 @@ export const store = internalMutation({
   },
 });
 
-/** Subscriber: latest structured cards for the native /feed/early view. */
-export const getLatest = query({
-  handler: async (ctx) => {
-    await requireSubscriber(ctx);
-    const recent = await ctx.db
-      .query("earlySnapshots")
-      .withIndex("by_status_createdAt", (q) => q.eq("status", "ok"))
-      .order("desc")
-      .take(3);
-    const snap = recent.find((s) => s.posts);
-    return {
-      posts: snap?.posts ?? "[]",
-      generatedAt: snap?.generatedAt ?? null,
-    };
-  },
-});
-
 export const _assertAdmin = internalQuery({
   args: {},
   returns: v.null(),
@@ -247,9 +442,13 @@ export const refresh = action({
   returns: v.object({ ok: v.boolean(), status: v.string(), count: v.number() }),
   handler: async (ctx) => {
     const _admin: null = await ctx.runQuery(internal.earlyFeed._assertAdmin, {});
+    const settings: GrowthSettings | null = await ctx.runQuery(
+      internal.growthSettings.getInternal,
+      {},
+    );
     const result: { status: string; count: number } = await ctx.runAction(
       internal.earlyFeed.refreshInternal,
-      {},
+      { drafts: settings?.draftReplies === true, notify: false, includeSlow: true },
     );
     return { ok: true, status: result.status, count: result.count };
   },

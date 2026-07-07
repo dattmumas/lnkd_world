@@ -9,7 +9,6 @@ import { internal } from "./_generated/api";
 import { requireAdmin } from "./lib/auth";
 import {
   weightedEngagement,
-  renderHtml,
   type RankedPost,
   type XUser,
 } from "./lib/xfeed";
@@ -39,7 +38,6 @@ export const refreshInternal = internalAction({
   returns: v.object({ status: v.string(), count: v.number() }),
   handler: async (ctx) => {
     const generatedAt = new Date().toISOString();
-    const nowMs = Date.now();
     try {
       const handles: string[] = await ctx.runQuery(
         internal.creators.activeHandles,
@@ -99,12 +97,7 @@ export const refreshInternal = internalAction({
         if (picked.length >= TOP_N) break;
       }
 
-      const html = renderHtml([{ niche: "", posts: picked }], {
-        title: "Creators",
-        subtitle: `top recent posts from your list · last ${WINDOW_HOURS}h`,
-        generatedAt,
-        nowMs,
-      });
+      const html = ""; // feed page removed — snapshot is status/health only
       const status = picked.length > 0 ? "ok" : "empty";
       await ctx.runMutation(internal.creators_feed.store, {
         generatedAt,

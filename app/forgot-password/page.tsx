@@ -19,12 +19,6 @@ function ResetDone() {
         >
           View Resources
         </Link>
-        <Link
-          href="/feed"
-          className="text-[var(--color-accent)] hover:underline underline-offset-4"
-        >
-          Open Feed
-        </Link>
       </div>
     </>
   );

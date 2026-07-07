@@ -10,7 +10,10 @@ import { priority, MIN_VISIBLE_PRIORITY } from "./lib/queueScore";
  */
 
 const WINDOW_MS = 7 * 24 * 3_600_000; // queued items older than this can't score
-const READ_CAP = 500; // hard bound; real live-set is a few hundred by pruning
+// Hard read bound. This query re-runs on every feedItems change while the tab
+// is open, so its size is a direct bandwidth multiplier; 250 comfortably
+// covers the ~60 shown after client-side ranking.
+const READ_CAP = 250;
 const PAGE = 60;
 
 /**

@@ -178,6 +178,10 @@ interface GxTweet {
   viewCount?: number | string;
   author?: GxRawUser;
   media?: { type?: string; url?: string | null }[];
+  isReply?: boolean;
+  inReplyToId?: string | number;
+  inReplyToUserId?: string | number;
+  retweeted_tweet?: unknown; // present when the item is a retweet
 }
 
 interface GxSearchResp {
@@ -200,6 +204,9 @@ function mapTweet(t: GxTweet): { tweet: Tweet; user?: XUser } {
       created_at: t.createdAt ?? "",
       author_id: a ? String(a.id) : "",
       media_url: media?.url ?? undefined,
+      is_reply: t.isReply ?? undefined,
+      in_reply_to_tweet_id: t.inReplyToId != null ? String(t.inReplyToId) : undefined,
+      in_reply_to_user_id: t.inReplyToUserId != null ? String(t.inReplyToUserId) : undefined,
       public_metrics: {
         reply_count: t.replyCount ?? 0,
         retweet_count: t.retweetCount ?? 0,
@@ -214,6 +221,71 @@ function mapTweet(t: GxTweet): { tweet: Tweet; user?: XUser } {
 }
 
 const MAX_SEARCH_PAGES = 8; // advanced_search returns ~20 tweets/page
+
+const MAX_TIMELINE_PAGES = 5; // user/tweets returns ~20/page
+
+/**
+ * A user's own timeline, read directly — NOT via search. X's search index
+ * excludes new/low-reputation accounts entirely (a `from:` search can return 0
+ * while the profile has dozens of posts), so all own-account reads must use
+ * this. Retweets are dropped; `includeReplies` switches to the
+ * tweets_and_replies timeline. Logs what it fetched so silent-empty results
+ * are diagnosable from the Convex logs.
+ */
+export async function gxUserTweets(
+  handle: string,
+  opts: { includeReplies?: boolean; maxTweets?: number; maxAgeMs?: number } = {},
+): Promise<{ tweets: Tweet[]; users: XUser[] }> {
+  const endpoint = opts.includeReplies ? "tweets_and_replies" : "tweets";
+  const maxTweets = opts.maxTweets ?? 60;
+  const maxAgeMs = opts.maxAgeMs;
+  const now = Date.now();
+  const tweets: Tweet[] = [];
+  const users = new Map<string, XUser>();
+  let raw = 0;
+  let retweets = 0;
+  let pages = 0;
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_TIMELINE_PAGES && tweets.length < maxTweets; page++) {
+    const url = new URL(`${BASE}/twitter/user/${endpoint}`);
+    url.searchParams.set("userName", handle);
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const res = await gxFetch(url.toString());
+    if (res.status === 429) break;
+    if (!res.ok) {
+      throw new Error(`getXAPI ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const json = (await res.json()) as GxSearchResp;
+    const list = json.tweets ?? [];
+    pages++;
+    if (list.length === 0) break;
+    raw += list.length;
+    let pageAllOld = true;
+    for (const rawTweet of list) {
+      if (rawTweet.retweeted_tweet) {
+        retweets++;
+        continue;
+      }
+      const { tweet, user } = mapTweet(rawTweet);
+      const age = tweet.created_at ? now - Date.parse(tweet.created_at) : 0;
+      const inWindow = !maxAgeMs || !Number.isFinite(age) || age <= maxAgeMs;
+      if (inWindow) pageAllOld = false;
+      if (!inWindow) continue;
+      tweets.push(tweet);
+      if (user && !users.has(user.id)) users.set(user.id, user);
+      if (tweets.length >= maxTweets) break;
+    }
+    // Timelines are reverse-chronological (modulo a pinned tweet on page 1) —
+    // once a whole page falls outside the window, stop paginating.
+    if (maxAgeMs && pageAllOld && page > 0) break;
+    if (!json.has_more || !json.next_cursor) break;
+    cursor = json.next_cursor;
+  }
+  console.log(
+    `gxUserTweets @${handle} ${endpoint}: pages=${pages} raw=${raw} retweetsDropped=${retweets} kept=${tweets.length}${maxAgeMs ? ` window=${Math.round(maxAgeMs / 3_600_000)}h` : ""}`,
+  );
+  return { tweets, users: [...users.values()] };
+}
 
 // Search tweets via getXAPI advanced_search (drop-in for the old X searchRecent).
 // product "Top" = engagement-sorted (best for trending), "Latest" = chronological.

@@ -1,4 +1,8 @@
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "./_generated/server";
 import { v } from "convex/values";
 import {
   priority,
@@ -75,31 +79,38 @@ export const upsertBatch = internalMutation({
             { baseScore: it.baseScore, halfLifeHours: it.halfLifeHours, affinityMult: incomingMult, publishedAt: it.publishedAt || existing.publishedAt },
             now,
           ) > priority(existing, now);
-        await ctx.db.patch(existing._id, {
-          sourceFeeds: existing.sourceFeeds.includes(feed)
-            ? existing.sourceFeeds
-            : [...existing.sourceFeeds, feed],
-          replies: it.replies ?? existing.replies,
-          reposts: it.reposts ?? existing.reposts,
-          likes: it.likes ?? existing.likes,
-          quotes: it.quotes ?? existing.quotes,
-          bookmarkCount: it.bookmarkCount ?? existing.bookmarkCount,
-          views: it.views ?? existing.views,
-          imageUrl: existing.imageUrl ?? it.imageUrl,
-          draft: existing.draft ?? it.draft,
-          draftKind: existing.draft ? existing.draftKind : it.draftKind,
-          angle: existing.angle ?? it.angle,
-          lastSeenAt: now,
-          ...(incomingWins
-            ? {
-                primaryFeed: feed,
-                baseScore: it.baseScore,
-                halfLifeHours: it.halfLifeHours,
-                affinityMult: incomingMult,
-                scoreReason: it.scoreReason,
-              }
-            : {}),
-        });
+
+        // Build the patch from MATERIAL changes only. The early feed re-emits
+        // the same items every 5 minutes; unconditionally patching lastSeenAt
+        // + unchanged metrics was pure write bandwidth (and re-ran every
+        // getQueue subscription each cycle).
+        const patch: Record<string, unknown> = {};
+        if (!existing.sourceFeeds.includes(feed)) {
+          patch.sourceFeeds = [...existing.sourceFeeds, feed];
+        }
+        for (const key of ["replies", "reposts", "likes", "quotes", "bookmarkCount", "views"] as const) {
+          const incoming = it[key];
+          if (incoming != null && incoming !== existing[key]) patch[key] = incoming;
+        }
+        if (!existing.imageUrl && it.imageUrl) patch.imageUrl = it.imageUrl;
+        if (!existing.draft && it.draft) {
+          patch.draft = it.draft;
+          patch.draftKind = it.draftKind;
+        }
+        if (!existing.angle && it.angle) patch.angle = it.angle;
+        if (incomingWins) {
+          patch.primaryFeed = feed;
+          patch.baseScore = it.baseScore;
+          patch.halfLifeHours = it.halfLifeHours;
+          patch.affinityMult = incomingMult;
+          patch.scoreReason = it.scoreReason;
+        }
+        // Bump lastSeenAt only when something changed or it's gone stale —
+        // it's informational, not worth a write per cycle.
+        if (Object.keys(patch).length > 0 || now - existing.lastSeenAt > 3_600_000) {
+          patch.lastSeenAt = now;
+          await ctx.db.patch(existing._id, patch);
+        }
         merged++;
         continue;
       }
@@ -122,6 +133,38 @@ export const upsertBatch = internalMutation({
       inserted++;
     }
     return { inserted, merged };
+  },
+});
+
+/**
+ * Recent x-posts across all feeds — the deal radar classifies watchlist posts
+ * (VC firms announce their deals here) without any extra API spend.
+ */
+export const recentXPosts = internalQuery({
+  args: { sinceMs: v.number() },
+  returns: v.array(
+    v.object({
+      externalId: v.string(),
+      text: v.string(),
+      link: v.string(),
+      source: v.string(),
+      publishedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx, { sinceMs }) => {
+    const rows = await ctx.db
+      .query("feedItems")
+      .withIndex("by_publishedAt", (q) => q.gt("publishedAt", sinceMs))
+      .take(300);
+    return rows
+      .filter((r) => r.kind === "x-post")
+      .map((r) => ({
+        externalId: r.externalId,
+        text: r.text,
+        link: r.link,
+        source: r.source,
+        publishedAt: r.publishedAt,
+      }));
   },
 });
 
@@ -183,6 +226,15 @@ export const prune = internalMutation({
       )
       .take(1000);
     for (const row of oldActions) await ctx.db.delete(row._id);
+
+    // Early-feed emission markers age out with the items they guard.
+    const oldSeen = await ctx.db
+      .query("earlySeen")
+      .withIndex("by_createdAt", (q) =>
+        q.lt("createdAt", now - RETENTION_DAYS * 24 * 3_600_000),
+      )
+      .take(1000);
+    for (const row of oldSeen) await ctx.db.delete(row._id);
 
     return { deleted: old.length, expired, actionsDeleted: oldActions.length };
   },

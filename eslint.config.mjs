@@ -18,6 +18,13 @@ export default defineConfig([
     "obsidian-plugin/**",
   ]),
   {
+    // react-three-fiber JSX (position, args, attach, intensity, …) is not DOM
+    files: ["components/hero-graph-3d.tsx"],
+    rules: {
+      "react/no-unknown-property": "off",
+    },
+  },
+  {
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",

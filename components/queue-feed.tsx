@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { priority } from "@/convex/lib/queueScore";
@@ -38,9 +38,28 @@ function age(publishedAt: number, now: number): string {
 export function QueueFeed() {
   const data = useQuery(api.queue.getQueue);
   const act = useMutation(api.queue.act);
+  const user = useQuery(api.users.currentUser);
+  const refreshEarly = useAction(api.earlyFeed.refresh);
+  const isAdmin = user?.role === "admin";
+  const [refreshState, setRefreshState] = useState("");
+
+  const capture = useMutation(api.xPosts.captureFromQueue);
+
+  const onRefresh = async () => {
+    setRefreshState("Refreshing…");
+    try {
+      // Full watchlist sweep; new items land in the queue reactively.
+      const r = await refreshEarly();
+      setRefreshState(`Done — ${r.count} fresh post${r.count === 1 ? "" : "s"} checked.`);
+    } catch {
+      setRefreshState("Refresh failed — check logs.");
+    }
+    setTimeout(() => setRefreshState(""), 4000);
+  };
 
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const [captured, setCaptured] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -208,6 +227,22 @@ export function QueueFeed() {
             >
               Skip
             </button>
+            <button
+              onClick={() => {
+                setCaptured((s) => new Set(s).add(r.id));
+                capture({ itemId: r.id }).catch(() => {
+                  setCaptured((s) => {
+                    const next = new Set(s);
+                    next.delete(r.id);
+                    return next;
+                  });
+                });
+              }}
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
+              title="Save as a content idea in the pipeline (stays in the queue)"
+            >
+              {captured.has(r.id) ? "Saved as idea ✓" : "→ Idea"}
+            </button>
           </div>
         </div>
       </div>
@@ -233,10 +268,27 @@ export function QueueFeed() {
   }
   return (
     <div>
-      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-        Everything worth engaging with, best first. Engaged and skipped items
-        never come back.
-      </p>
+      <div className="flex items-center gap-3 mb-4">
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          Everything worth engaging with, best first. Engaged and skipped items
+          never come back.
+        </p>
+        {refreshState && (
+          <span className="text-xs text-[var(--color-text-secondary)] ml-auto shrink-0">
+            {refreshState}
+          </span>
+        )}
+        {isAdmin && (
+          <button
+            onClick={() => void onRefresh()}
+            disabled={refreshState === "Refreshing…"}
+            className={`text-sm border border-[var(--color-border)] rounded px-3 py-1.5 bg-white hover:bg-[var(--color-border)]/30 disabled:opacity-50 shrink-0 ${refreshState ? "" : "ml-auto"}`}
+            title="Poll the full watchlist for fresh posts now (new items appear live)"
+          >
+            Refresh
+          </button>
+        )}
+      </div>
       <div className="grid lg:grid-cols-2 gap-10 items-start">
         {column(
           "Business & Science",
