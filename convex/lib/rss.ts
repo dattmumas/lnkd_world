@@ -58,13 +58,14 @@ function decodeEntities(s: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;|&#x27;/g, "'")
-    .replace(/&#8217;|&rsquo;/g, "’")
-    .replace(/&#8216;|&lsquo;/g, "‘")
-    .replace(/&#8211;|&ndash;/g, "–")
-    .replace(/&#8212;|&mdash;/g, "—")
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
     .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+    .replace(/&#[xX]([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)));
 }
 
 export function decode(s: string): string {
@@ -72,7 +73,19 @@ export function decode(s: string): string {
   t = stripTags(t);
   t = decodeEntities(t);
   t = stripTags(t);
-  return t.replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  t = t.replace(/&amp;/g, "&");
+  // Second pass: double-encoding sources (&amp;#x2019;) only reveal their
+  // entities after the &amp; unescape above.
+  t = decodeEntities(t);
+  t = stripTags(t);
+  return t.replace(/\s+/g, " ").trim();
+}
+
+// Entity-decode without tag-stripping or whitespace collapse — safe for
+// displaying already-stored text (queue rows ingested before hex entities
+// were handled, tweet text where newlines must survive).
+export function decodeInline(s: string): string {
+  return decodeEntities(decodeEntities(s).replace(/&amp;/g, "&"));
 }
 
 export function tag(block: string, name: string): string {

@@ -98,13 +98,25 @@ const sanitizeSchema = {
   },
 };
 
-export default function Markdown({ content }: { content: string }) {
+export default function Markdown({
+  content,
+  math = true,
+}: {
+  content: string;
+  // Disable for AI/plain-prose content where "$95k … $3.5M" would otherwise
+  // be parsed as a KaTeX span (e.g. the growth weekly review).
+  math?: boolean;
+}) {
   const processed = preprocessObsidian(content);
 
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeKatex, rehypeHighlight]}
+      remarkPlugins={math ? [remarkGfm, remarkMath] : [remarkGfm]}
+      rehypePlugins={
+        math
+          ? [rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeKatex, rehypeHighlight]
+          : [rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeHighlight]
+      }
       components={{
         h1: ({ children }) => (
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mt-8 mb-3">
