@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
@@ -20,6 +20,85 @@ function fmtAmount(d: Deal): string {
   return `$${Math.round(d.amountUsd / 1000)}K`;
 }
 
+
+/**
+ * Checkbox-dropdown filter: empty selection = "all". Multi-select without the
+ * ctrl-click misery of a native <select multiple>.
+ */
+function MultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string; // plural noun, e.g. "categories"
+  options: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const toggle = (opt: string) => {
+    const next = new Set(selected);
+    if (next.has(opt)) next.delete(opt);
+    else next.add(opt);
+    onChange(next);
+  };
+
+  const summary =
+    selected.size === 0
+      ? `All ${label}`
+      : selected.size <= 2
+        ? [...selected].sort().join(", ")
+        : `${selected.size} ${label}`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`${field} flex items-center gap-2 ${selected.size > 0 ? "border-[var(--color-accent)]" : ""}`}
+      >
+        <span className="max-w-44 truncate">{summary}</span>
+        <span className="text-xs text-[var(--color-text-secondary)]">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 min-w-full max-h-72 overflow-y-auto border border-[var(--color-border)] rounded bg-white shadow-lg py-1">
+          {selected.size > 0 && (
+            <button
+              onClick={() => onChange(new Set())}
+              className="w-full text-left px-3 py-1.5 text-xs text-[var(--color-accent)] hover:bg-[var(--color-bg)]"
+            >
+              Clear ({selected.size})
+            </button>
+          )}
+          {options.map((opt) => (
+            <label
+              key={opt}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm whitespace-nowrap cursor-pointer hover:bg-[var(--color-bg)]"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(opt)}
+                onChange={() => toggle(opt)}
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Inline-editable company name — corrections flow through to the dedup keys. */
 function CompanyName({ deal }: { deal: Deal }) {
@@ -163,17 +242,17 @@ export function DealsFeed() {
   const markAllSeen = useMutation(api.deals.markAllSeen);
 
   const [consumerOnly, setConsumerOnly] = useState(true);
-  const [category, setCategory] = useState("all");
-  const [round, setRound] = useState("all");
+  const [categories, setCategories] = useState<Set<string>>(new Set());
+  const [rounds, setRounds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const categories = useMemo(
+  const categoryOptions = useMemo(
     () => [...new Set((deals ?? []).map((d) => d.category))].sort(),
     [deals],
   );
-  const rounds = useMemo(
+  const roundOptions = useMemo(
     () => [...new Set((deals ?? []).map((d) => d.round))].sort(),
     [deals],
   );
@@ -182,8 +261,8 @@ export function DealsFeed() {
     let list = deals ?? [];
     if (consumerOnly) list = list.filter((d) => d.isConsumer);
     if (!showDismissed) list = list.filter((d) => d.status !== "dismissed");
-    if (category !== "all") list = list.filter((d) => d.category === category);
-    if (round !== "all") list = list.filter((d) => d.round === round);
+    if (categories.size > 0) list = list.filter((d) => categories.has(d.category));
+    if (rounds.size > 0) list = list.filter((d) => rounds.has(d.round));
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -194,7 +273,7 @@ export function DealsFeed() {
       );
     }
     return list;
-  }, [deals, consumerOnly, showDismissed, category, round, search]);
+  }, [deals, consumerOnly, showDismissed, categories, rounds, search]);
 
   const newCount = rows.filter((d) => d.status === "new").length;
 
@@ -227,22 +306,18 @@ export function DealsFeed() {
           onChange={(e) => setSearch(e.target.value)}
           className={`${field} w-72`}
         />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={round} onChange={(e) => setRound(e.target.value)} className={field}>
-          <option value="all">All rounds</option>
-          {rounds.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          label="categories"
+          options={categoryOptions}
+          selected={categories}
+          onChange={setCategories}
+        />
+        <MultiSelect
+          label="rounds"
+          options={roundOptions}
+          selected={rounds}
+          onChange={setRounds}
+        />
         <label className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
           <input
             type="checkbox"
