@@ -119,6 +119,56 @@ export const bulkSetInternal = internalMutation({
   },
 });
 
+/**
+ * Maintenance (CLI): re-tier fast-poll from engagement evidence. The top `keep`
+ * active creators by affinity — accounts whose posts you actually engage with —
+ * stay on the fast 5-min tier; everyone else moves to the every-2h sweep. The
+ * fast tier is the system's dominant getXAPI cost (~26 search calls per 5-min
+ * cycle at ~400 fast accounts vs ~2 at 30).
+ *   npx convex run creators:retierFastPollInternal '{"keep": 30}' --prod
+ */
+export const retierFastPollInternal = internalMutation({
+  args: { keep: v.number() },
+  returns: v.object({
+    fast: v.number(),
+    slow: v.number(),
+    withHistory: v.number(),
+  }),
+  handler: async (ctx, { keep }) => {
+    const all = await ctx.db.query("creators").withIndex("by_order").collect();
+    const active = all.filter((c) => c.active !== false);
+    const scored: { id: (typeof active)[number]["_id"]; fastPoll?: boolean; score: number }[] = [];
+    for (const c of active) {
+      const row = await ctx.db
+        .query("affinities")
+        .withIndex("by_subject", (q) =>
+          q.eq("subjectType", "author").eq("subject", c.handle),
+        )
+        .first();
+      // Raw engagement evidence, not the smoothed rate — tier selection should
+      // reward volume of real engagement, not a lucky 1-for-1.
+      const score = row ? row.engaged * 3 + row.opened - row.skipped : 0;
+      scored.push({ id: c._id, fastPoll: c.fastPoll, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const withHistory = scored.filter((s) => s.score > 0).length;
+    // Only positive evidence earns a fast slot — no-history accounts must not
+    // fill out the expensive tier just because `keep` slots were open.
+    const fastIds = new Set(
+      scored
+        .filter((s) => s.score > 0)
+        .slice(0, keep)
+        .map((s) => s.id),
+    );
+    for (const s of scored) {
+      const fast = fastIds.has(s.id);
+      if ((s.fastPoll ?? true) !== fast) await ctx.db.patch(s.id, { fastPoll: fast });
+    }
+    await rebuildCache(ctx);
+    return { fast: fastIds.size, slow: active.length - fastIds.size, withHistory };
+  },
+});
+
 /** Bulk delete with tombstones (the follow sync must not resurrect these). */
 export const bulkRemove = mutation({
   args: { ids: v.array(v.id("creators")) },
@@ -222,6 +272,11 @@ export const addMissingInternal = internalMutation({
         pillar: "health",
         order: order++,
         active: true,
+        // Slow tier by default — unset fastPoll counts as fast, and the daily
+        // follow sync silently grew the 5-min tier to the whole follow list
+        // (the getXAPI budget blowout of 2026-07). Promote by hand or via
+        // retierFastPollInternal.
+        fastPoll: false,
       });
       added++;
     }
@@ -234,8 +289,8 @@ export const addMissingInternal = internalMutation({
  * Follow sync (daily cron + manual button): every account the tracked handle
  * follows joins the creators watchlist. Additive only — unfollowing on X never
  * removes a creator, and deactivated creators stay deactivated (the dedup is
- * by handle, whatever the active flag). New adds default to the health pillar;
- * retag finance/startup accounts in /admin/creators.
+ * by handle, whatever the active flag). New adds default to the health pillar
+ * and the SLOW poll tier; retag/promote in /admin/creators.
  */
 export const syncFollowsInternal = internalAction({
   args: {},

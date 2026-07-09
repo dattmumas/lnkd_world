@@ -21,10 +21,14 @@ import { inActiveHours, type GrowthSettings } from "./growthSettings";
 
 /**
  * "Early Engagement" — the newest posts from your Creators watchlist, polled
- * fast (5-min cron via `tick`, throttled to ~20 min outside the configured
- * active hours) so you can reply early: the most reliable organic-reach lever
+ * fast (5-min cron via `tick`, active hours ONLY — off-hours ticks are skipped
+ * entirely) so you can reply early: the most reliable organic-reach lever
  * on X. During active hours, fresh posts get a voice-grounded reply draft and
  * the hottest new ones push to Telegram. Served by feed.getPage for "early".
+ *
+ * getXAPI budget: this feed is the system's dominant API spend. Fast tier is
+ * kept to ~30 high-affinity accounts (creators.retierFastPollInternal); the
+ * full watchlist joins only the every-2-hours sweep. ~450 calls/day total.
  */
 
 const WINDOW_MIN = 120; // surface posts from the last 2 hours
@@ -34,7 +38,6 @@ const TOP_N = 40;
 const DRAFT_MAX_AGE_MIN = 45; // only draft replies for posts still in the window
 const DRAFTS_PER_RUN = 8; // Anthropic cost cap per refresh
 const NOTIFY_PER_RUN = 3; // Telegram anti-spam cap
-const OFF_HOURS_INTERVAL_MIN = 19; // legacy ~20-min cadence outside active hours
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -56,7 +59,7 @@ export const refreshInternal = internalAction({
       const creatorList: { handle: string; pillar?: Pillar; fastPoll?: boolean }[] =
         await ctx.runQuery(internal.creators.activeCreators, {});
       // Fast-poll accounts ride every cycle; slow-tier (fastPoll === false —
-      // VC firms, outlets) only join the hourly full sweep. Cost control.
+      // VC firms, outlets) only join the every-2-hours full sweep. Cost control.
       const polled = includeSlow
         ? creatorList
         : creatorList.filter((c) => c.fastPoll !== false);
@@ -211,8 +214,8 @@ export const refreshInternal = internalAction({
 
       // Emit into the unified queue (best-effort — never sinks the feed).
       // Only NEW items each cycle; known items get their metrics refreshed on
-      // the hourly full sweep — re-emitting all 40 every 5 minutes was pure
-      // read/write bandwidth for cosmetic like-count updates.
+      // the every-2-hours full sweep — re-emitting all 40 every 5 minutes was
+      // pure read/write bandwidth for cosmetic like-count updates.
       const emitCards = includeSlow ? cards : newCards;
       try {
         await ctx.runMutation(internal.feedItems.upsertBatch, {
@@ -339,24 +342,12 @@ export const markSeenTweets = internalMutation({
   },
 });
 
-/** Internal: when the last refresh ran (any status) — the tick's throttle marker. */
-export const lastSnapshotAt = internalQuery({
-  args: {},
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx) => {
-    const last = await ctx.db
-      .query("earlySnapshots")
-      .withIndex("by_createdAt")
-      .order("desc")
-      .first();
-    return last?.createdAt ?? null;
-  },
-});
-
 /**
  * The 5-min cron entry: refresh fast (with drafts + notifications) inside the
- * configured active hours, throttle to the legacy ~20-min cadence outside them.
- * No settings row = legacy behavior (20-min, no drafts, no pushes).
+ * configured active hours; outside them (or with no settings row) the tick is
+ * a no-op. Off-hours polling was ~1,000 getXAPI calls/day for posts whose 2h
+ * reply window would be dead before morning — posts from the 2h before the
+ * window opens are still picked up by the first active tick.
  */
 export const tick = internalAction({
   args: {},
@@ -368,24 +359,17 @@ export const tick = internalAction({
       {},
     );
     const active: boolean = settings != null && inActiveHours(settings, nowMs);
-    if (!active) {
-      const lastAt: string | null = await ctx.runQuery(
-        internal.earlyFeed.lastSnapshotAt,
-        {},
-      );
-      const lastMs = lastAt ? Date.parse(lastAt) : 0;
-      if (nowMs - lastMs < OFF_HOURS_INTERVAL_MIN * 60_000) {
-        return { ran: false, active };
-      }
-    }
+    if (!active) return { ran: false, active };
     const notifyEnabled = settings?.notifyEnabled !== false;
     const draftReplies = settings?.draftReplies === true; // opt-in (Anthropic spend)
-    // Slow-tier accounts join once an hour (the first tick of each hour during
-    // active hours) and on every off-hours run (already ~20-min cadence).
-    const includeSlow = !active || new Date(nowMs).getUTCMinutes() < 5;
+    // Slow-tier accounts join a full sweep every 2 hours (the first tick of
+    // even UTC hours). The early window is 2h, so back-to-back sweeps still
+    // see every post; halving sweep frequency halves the biggest search bill.
+    const now = new Date(nowMs);
+    const includeSlow = now.getUTCMinutes() < 5 && now.getUTCHours() % 2 === 0;
     const _result: { status: string; count: number } = await ctx.runAction(
       internal.earlyFeed.refreshInternal,
-      { drafts: active && draftReplies, notify: active && notifyEnabled, includeSlow },
+      { drafts: draftReplies, notify: notifyEnabled, includeSlow },
     );
     return { ran: true, active };
   },
@@ -403,7 +387,7 @@ export const store = internalMutation({
   },
   handler: async (ctx, args) => {
     // Keep the last 3 snapshots, but never prune the most recent "ok" one —
-    // the tick throttle reads the latest row, so failed refreshes must not delete it.
+    // feed health reads it, so a run of failed refreshes must not delete it.
     const all = await ctx.db
       .query("earlySnapshots")
       .withIndex("by_createdAt")

@@ -84,7 +84,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 ## Crons (convex/crons.ts)
 
-- Every 5 min: `refresh-early` (self-throttles to ~20 min outside active hours), `fire-scheduled-posts`
+- Every 5 min: `refresh-early` (active hours ONLY — off-hours ticks are no-ops; fast tier ~2 queries/cycle, full-watchlist sweep every 2h), `fire-scheduled-posts`
 - Hourly: `deal-radar` (:20; RSS-only overnight), `track-own-replies`
 - Daily: `prune-feed-items` 10:00, `decay-affinities` 10:15, `prune-deals` 10:05, `pull-beehiiv` 11:00, `growth-snapshot` 12:00, `pull-x-metrics` 12:30, `sync-follows` 12:45, `refresh-x-trends` 13:00, `refresh-creators` 13:30, `refresh-voice-profiles` 14:30; `refresh-science` 3×/day (11,17,23 UTC)
 - Weekly: `weekly-review` Sunday 15:00 UTC
@@ -142,6 +142,7 @@ pnpm graph:layout    # Recompute hero-graph layout (":prod" variant exists)
 - **NEVER put `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.** It overrides `.env.production` at build time and points the prod site at the dev database. This broke the live site on 2026-04-03. (Note: `npx convex dev` re-adds it — strip it afterward.)
 - **NEVER run `npx convex deploy` without confirming the deployment target.** The Convex deploy pushes functions to prod. Careless deploys can break the live site's backend.
 - **Cost discipline is a design constraint** in the feed/growth code: seen-marker tables instead of re-reading full docs, `creatorsCache` instead of `.collect()`, staggered crons, GetXAPI over the official API for reads. Don't add polling or `.collect()` loops casually.
+- **GetXAPI budget is ~1,000 calls/day (30k/month).** The early feed is the dominant spender; its fast tier must stay ≤~30 accounts (`creators:retierFastPollInternal` re-tiers by affinity; the follow sync adds new creators as `fastPoll: false` — an unset `fastPoll` counts as FAST). In 2026-07 a 380-account fast tier + off-hours full sweeps burned ~5,000+ calls/day and drained the credits in days. The dev deployment has NO GetXAPI key (its 24/7 crons were burning ~100–200 calls/day) — re-set `production` on dev only while testing feeds, then remove it.
 
 ## Convex Notes
 
