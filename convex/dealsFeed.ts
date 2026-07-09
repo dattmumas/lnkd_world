@@ -121,13 +121,18 @@ function parseAnnouncedDate(s: string | null | undefined): number | undefined {
 
 // ---- extraction -------------------------------------------------------------
 
+// `ok: false` means the chunk never got a usable Claude answer (no key, HTTP
+// error, unparseable output) — the caller must NOT mark those candidates seen,
+// or every deal during an Anthropic outage is burned forever. An index absent
+// from `byIndex` on an ok chunk simply had no deals.
 async function extractChunk(
   candidates: Candidate[],
   offset: number,
-): Promise<Map<number, ExtractedDeal[]>> {
+): Promise<{ ok: boolean; byIndex: Map<number, ExtractedDeal[]> }> {
   const key = process.env.anthropic_api_key;
   const out = new Map<number, ExtractedDeal[]>();
-  if (!key || candidates.length === 0) return out;
+  if (candidates.length === 0) return { ok: true, byIndex: out };
+  if (!key) return { ok: false, byIndex: out };
 
   const list = candidates
     .map(
@@ -154,7 +159,7 @@ async function extractChunk(
     });
     if (!res.ok) {
       console.error(`Deal extract ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      return out;
+      return { ok: false, byIndex: out };
     }
     const json = (await res.json()) as {
       content?: { type: string; text?: string }[];
@@ -164,7 +169,7 @@ async function extractChunk(
       .map((b) => b.text ?? "")
       .join("");
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return out;
+    if (!match) return { ok: false, byIndex: out };
     const parsed = JSON.parse(match[0]) as {
       items?: {
         n?: number;
@@ -213,8 +218,9 @@ async function extractChunk(
     console.error(
       `Deal extract chunk failed: ${e instanceof Error ? e.message : String(e)}`,
     );
+    return { ok: false, byIndex: out };
   }
-  return out;
+  return { ok: true, byIndex: out };
 }
 
 // ---- helpers ----------------------------------------------------------------
@@ -431,10 +437,12 @@ export const refreshInternal = internalAction({
 
       // ---- extract (chunked; a failed chunk never sinks the run) ----
       const extractedByIndex = new Map<number, ExtractedDeal[]>();
+      const failedExtract = new Set<string>(); // externalIds to retry next run
       for (let i = 0; i < survivors.length; i += EXTRACT_CHUNK) {
         const chunk = survivors.slice(i, i + EXTRACT_CHUNK);
-        const result = await extractChunk(chunk, i);
-        for (const [n, deals] of result) extractedByIndex.set(n, deals);
+        const { ok, byIndex } = await extractChunk(chunk, i);
+        if (!ok) for (const c of chunk) failedExtract.add(c.externalId);
+        for (const [n, deals] of byIndex) extractedByIndex.set(n, deals);
       }
 
       const payloads = [];
@@ -464,10 +472,13 @@ export const refreshInternal = internalAction({
         ? await ctx.runMutation(internal.deals.upsertDeals, { deals: payloads })
         : { inserted: 0, merged: 0, newConsumer: [] };
 
-      // Mark every fresh candidate as processed (prefiltered-out ones too).
-      if (fresh.length > 0) {
+      // Mark fresh candidates as processed (prefiltered-out ones too) — EXCEPT
+      // survivors whose extract chunk failed, so they retry while still inside
+      // the gather windows instead of being burned by an Anthropic outage.
+      const processed = fresh.filter((c) => !failedExtract.has(c.externalId));
+      if (processed.length > 0) {
         await ctx.runMutation(internal.dealsFeed.markSeenCandidates, {
-          externalIds: fresh.map((c) => c.externalId),
+          externalIds: processed.map((c) => c.externalId),
         });
       }
 
@@ -664,10 +675,12 @@ export const backfillInternal = internalAction({
         .slice(0, MAX_CANDIDATES_PER_RUN);
 
       const extractedByIndex = new Map<number, ExtractedDeal[]>();
+      const failedExtract = new Set<string>(); // failed chunks stay re-runnable
       for (let i = 0; i < survivors.length; i += EXTRACT_CHUNK) {
         const chunk = survivors.slice(i, i + EXTRACT_CHUNK);
-        const result = await extractChunk(chunk, i);
-        for (const [n, deals] of result) extractedByIndex.set(n, deals);
+        const { ok, byIndex } = await extractChunk(chunk, i);
+        if (!ok) for (const c of chunk) failedExtract.add(c.externalId);
+        for (const [n, deals] of byIndex) extractedByIndex.set(n, deals);
       }
 
       const payloads = [];
@@ -693,9 +706,10 @@ export const backfillInternal = internalAction({
         inserted += result.inserted;
         merged += result.merged;
       }
-      if (survivors.length > 0) {
+      const processed = survivors.filter((c) => !failedExtract.has(c.externalId));
+      if (processed.length > 0) {
         await ctx.runMutation(internal.dealsFeed.markSeenCandidates, {
-          externalIds: survivors.map((c) => c.externalId),
+          externalIds: processed.map((c) => c.externalId),
         });
       }
       totalCandidates += survivors.length;
@@ -778,6 +792,26 @@ export const seenFilter = internalQuery({
       if (row) out.push(id);
     }
     return out;
+  },
+});
+
+/**
+ * Maintenance (CLI): un-mark candidates seen in the last N minutes so the next
+ * run re-processes them — outage recovery (deals.upsertDeals dedupes by
+ * dedupKey, so re-extraction of an already-captured deal just merges).
+ *   npx convex run dealsFeed:unmarkSeenSince '{"minutes": 2880}' --prod
+ */
+export const unmarkSeenSince = internalMutation({
+  args: { minutes: v.number() },
+  returns: v.number(),
+  handler: async (ctx, { minutes }) => {
+    const cutoff = Date.now() - minutes * 60_000;
+    const rows = await ctx.db
+      .query("dealSeen")
+      .withIndex("by_createdAt", (q) => q.gte("createdAt", cutoff))
+      .collect();
+    for (const r of rows) await ctx.db.delete(r._id);
+    return rows.length;
   },
 });
 
