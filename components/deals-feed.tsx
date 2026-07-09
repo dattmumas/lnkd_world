@@ -1,9 +1,10 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
+import Markdown from "@/components/markdown";
 
 type Deal = FunctionReturnType<typeof api.deals.list>[number];
 
@@ -80,6 +81,73 @@ function CompanyName({ deal }: { deal: Deal }) {
         ✎
       </button>
     </span>
+  );
+}
+
+/**
+ * AI deep-dive section of the expanded row: trigger button → live "researching"
+ * state (status streams in reactively via deals.list) → rendered markdown
+ * report. Backed by the deals.deepDive action (Claude + web search).
+ */
+function DeepDive({ deal }: { deal: Deal }) {
+  const run = useAction(api.deals.deepDive);
+  const [callError, setCallError] = useState<string | null>(null);
+  const running = deal.deepDiveStatus === "running";
+
+  const trigger = () => {
+    setCallError(null);
+    run({ id: deal._id }).catch((e) =>
+      setCallError(e instanceof Error ? e.message : String(e)),
+    );
+  };
+
+  const error = callError ?? (deal.deepDiveStatus === "error" ? deal.deepDiveError : null);
+
+  return (
+    <div className="mt-4 pt-3 border-t border-[var(--color-border)]">
+      {running ? (
+        <p className="text-sm text-[var(--color-text-secondary)] animate-pulse">
+          ✦ Researching {deal.company} — Claude is searching the web, this takes a
+          minute or two…
+        </p>
+      ) : deal.deepDive ? (
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <span className="gc-label">AI deep dive</span>
+            {deal.deepDiveAt && (
+              <span className="gc-num text-xs text-[var(--color-text-secondary)]">
+                {new Date(deal.deepDiveAt).toLocaleString()}
+              </span>
+            )}
+            <button
+              onClick={trigger}
+              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
+              title="Re-run the research from scratch"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+          {error && <p className="text-xs text-[var(--gc-fault)] mb-2">{error}</p>}
+          <div className="text-sm max-w-3xl">
+            <Markdown content={deal.deepDive} math={false} />
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={trigger}
+            className="text-sm border border-[var(--color-border)] rounded px-3 py-1.5 bg-white hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            ✦ AI deep dive
+          </button>
+          <span className="text-xs text-[var(--color-text-secondary)]">
+            Claude researches the company, founders, round, and market via web
+            search (~1–2 min).
+          </span>
+          {error && <span className="text-xs text-[var(--gc-fault)]">{error}</span>}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -381,6 +449,7 @@ export function DealsFeed() {
                           </a>
                         )}
                       </div>
+                      <DeepDive deal={d} />
                     </td>
                   </tr>
                 )}

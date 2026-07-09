@@ -1,10 +1,12 @@
 import {
+  action,
   internalMutation,
   internalQuery,
   mutation,
   query,
 } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { requireAdmin, requireSubscriber } from "./lib/auth";
 
@@ -447,5 +449,160 @@ export const prune = internalMutation({
       .take(1000);
     for (const r of oldSeen) await ctx.db.delete(r._id);
     return { seenDeleted: oldSeen.length };
+  },
+});
+
+// ---- AI deep dive -----------------------------------------------------------
+// Admin-triggered per-deal research report: Claude (Opus) with server-side web
+// search, stored as markdown on the deal row. The Deals tab renders it in the
+// expanded panel; status updates flow reactively through deals.list.
+
+export const _assertAdmin = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return null;
+  },
+});
+
+export const getInternal = internalQuery({
+  args: { id: v.id("deals") },
+  handler: async (ctx, { id }) => {
+    return await ctx.db.get(id);
+  },
+});
+
+export const setDeepDive = internalMutation({
+  args: {
+    id: v.id("deals"),
+    status: v.union(v.literal("running"), v.literal("ok"), v.literal("error")),
+    report: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { id, status, report, error }) => {
+    await ctx.db.patch(id, {
+      deepDiveStatus: status,
+      ...(report !== undefined ? { deepDive: report, deepDiveAt: Date.now() } : {}),
+      deepDiveError: status === "error" ? error : undefined,
+    });
+    return null;
+  },
+});
+
+const DEEP_DIVE_SYSTEM = `You are a sharp venture analyst writing a company deep-dive for an investor/operator who just spotted this funding round on their deal radar. Research the company with web search, then write a markdown report.
+
+Structure (use ### headings, skip a section if nothing substantive was found):
+### What they do — product, business model, who pays
+### Founders & team — backgrounds, prior companies, notable hires
+### The round — amount, lead, notable angels, prior funding history, valuation if reported
+### Market & competition — how big, who else, what's the wedge
+### Traction & signals — revenue/users/growth if reported, launch dates, press
+### Take — 2-3 sentences: why this is interesting, and the biggest risk
+
+Rules: ~500-800 words total. Ground every claim in what you found — inline-link sources as [name](url). If searches contradict each other or info is thin, say so plainly rather than padding. No preamble before the first heading.`;
+
+interface AnthropicContentBlock {
+  type: string;
+  text?: string;
+}
+
+async function runDeepDive(key: string, deal: Doc<"deals">): Promise<string> {
+  const amount =
+    deal.amountUsd != null
+      ? `$${(deal.amountUsd / 1_000_000).toFixed(1)}M`
+      : (deal.amountNote ?? "undisclosed");
+  const facts = [
+    `Company: ${deal.company}`,
+    deal.companyDesc ? `Known description: ${deal.companyDesc}` : "",
+    `Round: ${deal.round}, ${amount}${deal.leadInvestor ? `, led by ${deal.leadInvestor}` : ""}`,
+    deal.investors.length ? `Investors: ${deal.investors.join(", ")}` : "",
+    `Category: ${deal.category}`,
+    `Radar summary: ${deal.summary}`,
+    deal.announcedAt
+      ? `Announced: ${new Date(deal.announcedAt).toISOString().slice(0, 10)}`
+      : "",
+    deal.sources.length
+      ? `Known coverage:\n${deal.sources.map((s) => `- ${s.name}: ${s.url}`).join("\n")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const messages: { role: string; content: string | AnthropicContentBlock[] }[] = [
+    { role: "user", content: `Deep-dive this deal:\n\n${facts}` },
+  ];
+
+  // Server-side web search runs in a server loop that can pause (stop_reason
+  // "pause_turn") — re-send the conversation to resume, bounded.
+  for (let round = 0; round < 4; round++) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 8000,
+        thinking: { type: "adaptive" },
+        system: DEEP_DIVE_SYSTEM,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
+        messages,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    }
+    const json = (await res.json()) as {
+      content?: AnthropicContentBlock[];
+      stop_reason?: string;
+    };
+    if (json.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: json.content ?? [] });
+      continue;
+    }
+    const text = (json.content ?? [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("")
+      .trim();
+    if (!text) {
+      throw new Error(`Deep dive came back empty (stop_reason=${json.stop_reason ?? "?"}).`);
+    }
+    return text;
+  }
+  throw new Error("Deep dive did not finish after 4 continuation rounds.");
+}
+
+/** Admin: research one deal with Claude + web search (takes ~1-2 min). */
+export const deepDive = action({
+  args: { id: v.id("deals") },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, { id }) => {
+    await ctx.runQuery(internal.deals._assertAdmin, {});
+    const deal: Doc<"deals"> | null = await ctx.runQuery(internal.deals.getInternal, {
+      id,
+    });
+    if (!deal) throw new Error("Deal not found.");
+    const key = process.env.anthropic_api_key;
+    if (!key) throw new Error("anthropic_api_key is not set on this deployment.");
+
+    await ctx.runMutation(internal.deals.setDeepDive, { id, status: "running" });
+    try {
+      const report = await runDeepDive(key, deal);
+      await ctx.runMutation(internal.deals.setDeepDive, { id, status: "ok", report });
+      return { ok: true };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await ctx.runMutation(internal.deals.setDeepDive, {
+        id,
+        status: "error",
+        error: message.slice(0, 500),
+      });
+      throw new Error(`Deep dive failed: ${message}`);
+    }
   },
 });

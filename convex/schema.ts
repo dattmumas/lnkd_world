@@ -526,6 +526,14 @@ export default defineSchema({
     leadDesc: v.optional(v.string()), // 1-line who-the-lead-VC-is
     sources: v.array(v.object({ name: v.string(), url: v.string() })),
     announcementTweetId: v.optional(v.string()),
+    // On-demand AI research report (deals.deepDive action): Claude + web
+    // search, markdown. Admin-triggered per deal from the Deals tab.
+    deepDive: v.optional(v.string()),
+    deepDiveAt: v.optional(v.number()),
+    deepDiveStatus: v.optional(
+      v.union(v.literal("running"), v.literal("ok"), v.literal("error")),
+    ),
+    deepDiveError: v.optional(v.string()),
     status: v.union(v.literal("new"), v.literal("seen"), v.literal("dismissed")),
     notified: v.boolean(), // Telegram push sent (individually or in a digest)
     announcedAt: v.optional(v.number()),
