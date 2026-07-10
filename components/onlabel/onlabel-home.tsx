@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import SubscribeForm from "@/components/onlabel/subscribe-form";
+import LedgerMark from "@/components/ledger/mark";
 
 function issueDate(ms: number): string {
   return new Date(ms).toLocaleDateString([], {
@@ -21,7 +22,10 @@ export default function OnLabelHome() {
   return (
     <>
       {/* Masthead */}
-      <h1 className="text-4xl md:text-5xl font-bold tracking-tight">■ ON LABEL</h1>
+      <div className="flex items-center gap-4">
+        <LedgerMark size={48} className="shrink-0" />
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">ON LABEL</h1>
+      </div>
       <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-3 uppercase">
         Early-stage consumer health tech · Written weekly in Seattle
         {site !== undefined && site.subscriberCount > 0 && (
@@ -34,14 +38,12 @@ export default function OnLabelHome() {
       {/* Pitch */}
       <div className="mt-6 space-y-3 text-[15px] leading-relaxed max-w-xl">
         <p>
-          Every week: the rounds that matter in consumer health — skincare with a
-          geroscience claim, vet-founded pet nutrition, circadian hardware — logged
-          like a ledger, not a press release.
+          I write about early-stage consumer health companies. Who raised, what
+          they&apos;re actually selling, and whether the numbers work.
         </p>
         <p>
-          One teardown with real numbers. Physical products tracked from raise to
-          shelf. And <strong>THE CALL</strong>: a falsifiable prediction with a
-          number and a date, scored publicly when it resolves.
+          Most weeks that&apos;s a few funding rounds, one product or business model
+          taken apart in detail, and a prediction I can be graded on later.
         </p>
       </div>
 
@@ -110,8 +112,8 @@ export default function OnLabelHome() {
         <div className="ol-box-heavy px-5 py-4">
           <p className="ol-mono text-xs font-bold text-[var(--color-accent)]">THE CALL</p>
           <p className="ol-mono text-sm font-bold mt-1">
-            EVERY ISSUE ENDS WITH A PREDICTION THAT CAN BE WRONG — A NUMBER, A
-            DATE, AND A PUBLIC LEDGER OF HOW PAST CALLS RESOLVED.
+            ONE PREDICTION PER ISSUE, WITH A DEADLINE. RESULTS GET LOGGED HERE,
+            RIGHT OR WRONG.
           </p>
         </div>
       </section>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import LedgerMark from "@/components/ledger/mark";
 
 interface SitePost {
   id: string;
@@ -40,8 +41,12 @@ export default function ArchiveLedger() {
   return (
     <>
       <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] uppercase">
-        <Link href="/onlabel" className="hover:text-[var(--color-accent)]">
-          ■ ON LABEL
+        <Link
+          href="/onlabel"
+          className="hover:text-[var(--color-accent)] inline-flex items-center gap-1.5"
+        >
+          <LedgerMark size={13} />
+          ON LABEL
         </Link>{" "}
         · The archive
       </p>

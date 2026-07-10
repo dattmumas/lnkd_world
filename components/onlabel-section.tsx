@@ -20,9 +20,8 @@ export default function OnLabelSection() {
 
       <div className="mt-2 bg-[var(--color-fill-tan)] px-5 py-5 ol-panel">
         <p className="text-[15px] leading-relaxed">
-          Early-stage consumer health tech, on the record: the week&apos;s rounds as a
-          ledger, one teardown with real numbers, and a falsifiable call — scored
-          publicly. Written weekly in Seattle.
+          A weekly letter on early-stage consumer health companies. Who raised,
+          what they&apos;re actually selling, and whether the numbers work.
         </p>
         {site !== undefined && site.subscriberCount > 0 && (
           <p className="ol-mono text-xs text-[var(--color-text-secondary)] mt-2">

@@ -4,10 +4,10 @@ import Footer from "@/components/footer";
 import OnLabelHome from "@/components/onlabel/onlabel-home";
 
 const DESCRIPTION =
-  "On Label — a weekly letter on early-stage consumer health tech. The week's rounds as a ledger, one teardown with real numbers, and a falsifiable call, scored publicly.";
+  "A weekly letter on early-stage consumer health companies. Who raised, what they're actually selling, and whether the numbers work.";
 
 export const metadata: Metadata = {
-  title: "On Label — early-stage consumer health tech, on the record",
+  title: "On Label — early-stage consumer health tech",
   description: DESCRIPTION,
   openGraph: {
     title: "On Label",
