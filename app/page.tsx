@@ -13,10 +13,6 @@ import Tear from "@/components/ledger/tear";
  * standing entry (EXHIBIT B), and margin notes for the older sections.
  */
 export default function Home() {
-  const posted = new Date()
-    .toLocaleDateString([], { month: "short", year: "numeric" })
-    .toUpperCase();
-
   return (
     <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
@@ -36,18 +32,12 @@ export default function Home() {
             </p>
           </div>
 
-          {/* The stamp + filing meta — the receipt's corner cluster */}
-          <div className="shrink-0 hidden sm:flex flex-col items-end gap-3 mt-2">
-            <div className="ol-stamp ol-mono px-3 py-2 text-center select-none">
-              <span className="block text-sm font-bold leading-tight">POSTED</span>
-              <span className="block text-[10px] font-bold tracking-widest mt-0.5">{posted}</span>
-            </div>
-            <p className="ol-mono text-[10px] text-[var(--color-text-secondary)] text-right leading-relaxed uppercase">
-              47.60°N · 122.33°W
-              <br />
-              Ledger balanced daily
-            </p>
-          </div>
+          {/* Filing meta — the receipt's corner */}
+          <p className="ol-mono text-[10px] text-[var(--color-text-secondary)] text-right leading-relaxed uppercase shrink-0 hidden sm:block mt-2">
+            47.60°N · 122.33°W
+            <br />
+            Ledger balanced daily
+          </p>
         </div>
 
         <Tear className="mt-8 text-[var(--color-border)]" />
