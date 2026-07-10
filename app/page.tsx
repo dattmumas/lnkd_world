@@ -3,6 +3,7 @@ import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import AppsLedger from "@/components/apps-ledger";
 import OnLabelSection from "@/components/onlabel-section";
+import WritingCards from "@/components/writing-cards";
 import LedgerMark from "@/components/ledger/mark";
 import Tear from "@/components/ledger/tear";
 
@@ -30,16 +31,8 @@ export default function Home() {
             <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-4 uppercase">
               Matthew Dumas · Seattle WA · Operator&apos;s ledger
             </p>
-            <p className="text-[15px] leading-relaxed mt-4 max-w-xl">
-              Finance operator building consumer software. This page is the running
-              ledger: the applications that are live, and{" "}
-              <Link
-                href="/onlabel"
-                className="text-[var(--color-accent)] font-semibold underline underline-offset-2"
-              >
-                On Label
-              </Link>
-              , a weekly letter on the business of consumer health tech.
+            <p className="text-[17px] leading-relaxed mt-4">
+              A place for me to write and design.
             </p>
           </div>
 
@@ -75,15 +68,6 @@ export default function Home() {
             </p>
             <ul className="mt-2 space-y-1.5">
               <li>
-                <Link href="/writing" className="ol-leader-row group">
-                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
-                    WRITING
-                  </span>
-                  <span className="ol-leader" />
-                  <span className="text-sm text-[var(--color-text-secondary)]">essays &amp; notes</span>
-                </Link>
-              </li>
-              <li>
                 <Link href="/reading" className="ol-leader-row group">
                   <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
                     READING
@@ -104,6 +88,8 @@ export default function Home() {
             </ul>
           </section>
         </div>
+
+        <WritingCards />
       </main>
       <Footer />
     </div>
