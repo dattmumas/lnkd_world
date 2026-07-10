@@ -1,11 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel, { ConvictionBar } from "./panel";
 
 const TYPE_COLORS: Record<string, string> = {
   duration: "#62B0FF",
-  curve: "#00C8FF",
+  curve: "#62B0FF",
   sector: "#FFA028",
   relative_value: "#00D964",
 };
@@ -30,76 +29,64 @@ export default function TradeIdeas({
 
   if (!ideas || ideas.length === 0) {
     return (
-      <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk." accent="#FFA028">
+      <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk.">
         <div className="text-[#D89540] font-mono text-sm text-center py-8">No trade ideas</div>
       </Panel>
     );
   }
 
   return (
-    <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk." subtitle={`${ideas.length} active`} accent="#FFA028">
-      <div className="space-y-3">
-        {ideas.slice(0, 4).map((idea, i) => {
-          const color = TYPE_COLORS[idea.trade_type] || "#D89540";
+    <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk." subtitle={`${ideas.length} active`}>
+      {ideas.slice(0, 4).map((idea, i) => {
+        const color = TYPE_COLORS[idea.trade_type] || "#D89540";
 
-          return (
-            <motion.div
-              key={i}
-              className="bg-[#141414] rounded p-4 border-l-3"
-              style={{ borderLeftWidth: 3, borderLeftColor: color }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="font-mono text-[11px] px-2 py-0.5 rounded uppercase font-medium"
-                    style={{ backgroundColor: color + "20", color }}
-                  >
-                    {idea.trade_type}
-                  </span>
-                  <span className="font-mono text-xs text-[#E6E6E6]">{idea.horizon}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ConvictionBar value={idea.conviction} maxWidth={80} height={5} />
-                  <span className="font-mono text-sm text-[#D89540] font-medium">{idea.conviction}</span>
-                </div>
+        return (
+          <div
+            key={i}
+            className={`py-1.5 font-mono ${i > 0 ? "border-t border-[#1F1F1F]" : "pt-0"}`}
+          >
+            {/* Header line */}
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <div className="text-[10px] uppercase">
+                <span className="font-bold" style={{ color }}>
+                  [{idea.trade_type.replace("_", " ")}]
+                </span>
+                <span className="text-[#5C5C5C] ml-2">{idea.horizon}</span>
               </div>
-
-              {/* Action */}
-              <div className="font-mono text-sm text-[#E6E6E6] mb-3 leading-relaxed">
-                {idea.action}
+              <div className="flex items-center gap-2 shrink-0">
+                <ConvictionBar value={idea.conviction} />
+                <span className="text-[11px] text-[#FFE24A] font-bold tabular-nums">
+                  {idea.conviction}
+                </span>
               </div>
+            </div>
 
-              {/* Details grid */}
-              <div className="space-y-1.5 text-xs font-mono">
-                <div className="text-[#E6E6E6]">
-                  <span className="text-[#00D964] font-medium">ENTRY</span>{" "}
-                  {idea.entry_rationale}
-                </div>
-                <div className="text-[#E6E6E6]">
-                  <span className="text-[#FF4B4B] font-medium">RISK</span>{" "}
-                  {idea.risk}
-                </div>
-                <div className="text-[#E6E6E6]">
-                  <span className="text-[#FFA028] font-medium">STOP</span>{" "}
-                  {idea.stop_loss_trigger}
-                </div>
+            {/* Action */}
+            <div className="text-[12px] text-[#E6E6E6] font-bold mb-1 leading-snug">
+              {idea.action}
+            </div>
+
+            {/* Details */}
+            <div className="space-y-px text-[10px] leading-snug text-[#8F8F8F]">
+              <div>
+                <span className="text-[#00D964]">ENTRY</span> {idea.entry_rationale}
               </div>
-
-              {/* Expected P&L */}
-              <div className="mt-2 pt-2 border-t border-[#2E2E2E] flex items-center gap-2">
-                <span className="font-mono text-xs text-[#E6E6E6]">Expected P&L:</span>
-                <span className="font-mono text-sm text-[#00D964] font-medium">
+              <div>
+                <span className="text-[#FF4B4B]">RISK </span> {idea.risk}
+              </div>
+              <div>
+                <span className="text-[#FFA028]">STOP </span> {idea.stop_loss_trigger}
+              </div>
+              <div>
+                <span className="text-[#D89540]">EXP P&L</span>{" "}
+                <span className="text-[#00D964] tabular-nums">
                   +{idea.expected_pnl_bps?.toFixed(0) || "?"}bp
                 </span>
               </div>
-            </motion.div>
-          );
-        })}
-      </div>
+            </div>
+          </div>
+        );
+      })}
     </Panel>
   );
 }

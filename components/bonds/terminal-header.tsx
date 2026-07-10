@@ -67,7 +67,7 @@ export default function TerminalHeader({
 
   return (
     <header className="bg-[#000000] border-b border-[#2E2E2E] sticky top-0 z-50">
-      <div className="max-w-[1600px] mx-auto px-5 lg:px-6 py-1.5 flex items-center justify-between gap-4">
+      <div className="w-full px-2 py-1 flex items-center justify-between gap-4">
         {/* Left: command line */}
         <div className="flex items-center gap-3 min-w-0 font-mono">
           <Link

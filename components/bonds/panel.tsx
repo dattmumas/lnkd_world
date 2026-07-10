@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import { type JSX } from "react";
 
 interface PanelProps {
@@ -9,15 +6,13 @@ interface PanelProps {
   note?: string;
   accent?: string;
   className?: string;
-  /** Drop `h-full` so the card takes its intrinsic height (needed in masonry). */
-  fitContent?: boolean;
   children: React.ReactNode;
 }
 
 /**
- * Shared panel wrapper for the bonds dashboard — Bloomberg register: black
- * panel, hairline gray border, amber title strip. `h-full` by default (for
- * matched-height rows); pass `fitContent` inside a masonry column.
+ * Shared panel wrapper for the bonds dashboard — Bloomberg register: flat
+ * black tile, hairline border, thin amber title strip. Always `h-full` so
+ * grid rows tile edge-to-edge with no voids.
  */
 export default function Panel({
   title,
@@ -25,33 +20,30 @@ export default function Panel({
   note,
   accent = "#FFA028",
   className = "",
-  fitContent = false,
   children,
 }: PanelProps): JSX.Element {
   return (
-    <div
-      className={`bg-[#0B0B0B] border border-[#2E2E2E] rounded-none overflow-hidden ${fitContent ? "" : "h-full"} ${className}`}
-    >
-      {/* Panel header bar */}
-      <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#000000] border-b border-[#2E2E2E]">
+    <div className={`bg-[#050505] border border-[#2E2E2E] h-full ${className}`}>
+      {/* Panel title strip */}
+      <div className="flex items-center gap-1.5 px-2 py-[3px] bg-[#141414] border-b border-[#2E2E2E]">
         <div className="w-1.5 h-1.5" style={{ backgroundColor: accent }} />
-        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#FFA028] font-bold">
+        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-[#FFA028] font-bold">
           {title}
         </span>
         {subtitle && (
-          <span className="font-mono text-[11px] text-[#D89540] ml-auto tabular-nums">
+          <span className="font-mono text-[10px] text-[#D89540] ml-auto tabular-nums uppercase">
             {subtitle}
           </span>
         )}
       </div>
       {/* Optional plain-English explainer for users */}
       {note && (
-        <p className="px-3.5 pt-2.5 text-[11px] leading-snug text-[#8F8F8F]">
+        <p className="px-2 pt-1.5 text-[10px] leading-snug text-[#5C5C5C]">
           {note}
         </p>
       )}
       {/* Panel content */}
-      <div className="p-3.5">{children}</div>
+      <div className="p-2">{children}</div>
     </div>
   );
 }
@@ -66,16 +58,16 @@ export function DirectionArrow({
   direction: number;
   size?: "sm" | "md" | "lg";
 }) {
-  const sizeMap = { sm: "text-sm", md: "text-base", lg: "text-xl" };
+  const sizeMap = { sm: "text-[11px]", md: "text-sm", lg: "text-base" };
   const colors: Record<number, string> = {
     1: "#00D964",
     0: "#D89540",
     [-1]: "#FF4B4B",
   };
   const arrows: Record<number, string> = {
-    1: "\u25B2",
-    0: "\u25C6",
-    [-1]: "\u25BC",
+    1: "▲",
+    0: "◆",
+    [-1]: "▼",
   };
 
   const d = direction > 0 ? 1 : direction < 0 ? -1 : 0;
@@ -88,33 +80,29 @@ export function DirectionArrow({
 }
 
 /**
- * Conviction bar (0-100).
+ * Conviction bar (0-100) — flat segmented blocks, terminal style.
  */
 export function ConvictionBar({
   value,
-  maxWidth = 120,
-  height = 6,
+  segments = 10,
 }: {
   value: number;
-  maxWidth?: number;
-  height?: number;
+  segments?: number;
 }) {
   const clamped = Math.max(0, Math.min(100, value));
+  const filled = Math.round((clamped / 100) * segments);
   const color =
     clamped >= 70 ? "#00D964" : clamped >= 40 ? "#FFA028" : "#FF4B4B";
 
   return (
-    <div
-      className="rounded-full bg-[#2E2E2E] overflow-hidden"
-      style={{ width: maxWidth, height }}
-    >
-      <motion.div
-        className="h-full rounded-full"
-        style={{ backgroundColor: color }}
-        initial={{ width: 0 }}
-        animate={{ width: `${clamped}%` }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      />
+    <div className="flex gap-[2px]">
+      {Array.from({ length: segments }, (_, i) => (
+        <div
+          key={i}
+          className="w-[6px] h-[9px]"
+          style={{ backgroundColor: i < filled ? color : "#1F1F1F" }}
+        />
+      ))}
     </div>
   );
 }
@@ -126,7 +114,7 @@ export function Sparkline({
   data,
   width = 120,
   height = 32,
-  color = "#62B0FF",
+  color = "#D89540",
   showArea = false,
 }: {
   data: { value: number }[];
@@ -155,20 +143,14 @@ export function Sparkline({
   return (
     <svg width={width} height={height} className="inline-block">
       {showArea && (
-        <polygon points={areaPoints} fill={color} fillOpacity={0.1} />
+        <polygon points={areaPoints} fill={color} fillOpacity={0.08} />
       )}
       <polyline
         points={points.join(" ")}
         fill="none"
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={1}
         strokeLinejoin="round"
-      />
-      <circle
-        cx={width}
-        cy={parseFloat(points[points.length - 1].split(",")[1])}
-        r={2.5}
-        fill={color}
       />
     </svg>
   );
@@ -186,13 +168,13 @@ export function ChangeBadge({
   suffix?: string;
   decimals?: number;
 }) {
-  if (value == null) return <span className="text-[#8F8F8F]">--</span>;
+  if (value == null) return <span className="text-[#5C5C5C]">--</span>;
 
   const color = value > 0 ? "#00D964" : value < 0 ? "#FF4B4B" : "#D89540";
   const sign = value > 0 ? "+" : "";
 
   return (
-    <span className="font-mono text-sm" style={{ color }}>
+    <span className="font-mono text-[11px] tabular-nums" style={{ color }}>
       {sign}
       {value.toFixed(decimals)}
       {suffix}

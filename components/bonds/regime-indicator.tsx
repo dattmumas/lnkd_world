@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel from "./panel";
 
 const REGIME_COLORS: Record<string, string> = {
@@ -9,7 +8,7 @@ const REGIME_COLORS: Record<string, string> = {
   rising_low: "#FFA028",
   falling_high: "#00D964",
   falling_mid: "#62B0FF",
-  falling_low: "#00C8FF",
+  falling_low: "#62B0FF",
   stable_high: "#FFA028",
   stable_mid: "#D89540",
   stable_low: "#62B0FF",
@@ -28,6 +27,23 @@ const REGIME_LABELS: Record<string, string> = {
   stable_low: "STABLE / LOW",
   unknown: "UNKNOWN",
 };
+
+function ConfidenceBlocks({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score));
+  const filled = Math.round((clamped / 100) * 20);
+  const color = clamped >= 70 ? "#00D964" : clamped >= 40 ? "#FFA028" : "#FF4B4B";
+  return (
+    <div className="flex gap-[2px]">
+      {Array.from({ length: 20 }, (_, i) => (
+        <div
+          key={i}
+          className="flex-1 h-[9px]"
+          style={{ backgroundColor: i < filled ? color : "#1F1F1F" }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function RegimeIndicator({
   model,
@@ -59,123 +75,79 @@ export default function RegimeIndicator({
   const color = REGIME_COLORS[regimeKey] || REGIME_COLORS.unknown;
   const label = REGIME_LABELS[regimeKey] || regimeKey.toUpperCase();
 
+  const predBps = prediction?.predicted_change_bps || 0;
+  const predColor = predBps > 0 ? "#FF4B4B" : predBps < 0 ? "#00D964" : "#D89540";
+
   return (
-    <Panel title="Regime" note="Where rates sit (trend and level), plus the model 21-day forecast. Check the confidence bar before acting on the number." accent={color}>
-      {/* Current regime indicator */}
-      <div className="text-center mb-3">
-        <motion.div
-          className="inline-flex items-center justify-center w-14 h-14 rounded-full border-2 mb-2"
-          style={{ borderColor: color }}
-          animate={{
-            boxShadow: [
-              `0 0 0 0 ${color}40`,
-              `0 0 0 10px ${color}00`,
-            ],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-          }}
-        >
-          <motion.div
-            className="w-7 h-7 rounded-full"
-            style={{ backgroundColor: color }}
-            animate={{ scale: [0.9, 1.1, 0.9] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
-        </motion.div>
-        <div className="font-mono text-xs tracking-widest font-medium" style={{ color }}>
-          {label}
+    <Panel title="Rate Regime" note="Where rates sit (trend and level), plus the model 21-day forecast. Check the confidence bar before acting on the number." accent={color}>
+      <div className="font-mono">
+        {/* Current regime readout */}
+        <div className="flex items-baseline justify-between gap-3 pb-1.5 mb-1.5 border-b border-[#1F1F1F]">
+          <span className="text-[10px] text-[#D89540]">CURRENT REGIME</span>
+          <span className="text-[15px] font-bold tracking-[0.08em]" style={{ color }}>
+            {label}
+          </span>
         </div>
-      </div>
 
-      {/* Trend + Level badges */}
-      {regime && (
-        <div className="flex justify-center gap-2 mb-3">
-          <div className="bg-[#141414] rounded px-2.5 py-1 font-mono text-xs">
-            <span className="text-[#E6E6E6]">TREND </span>
-            <span className="text-[#E6E6E6] uppercase font-medium">{regime.trend}</span>
-          </div>
-          <div className="bg-[#141414] rounded px-2.5 py-1 font-mono text-xs">
-            <span className="text-[#E6E6E6]">LEVEL </span>
-            <span className="text-[#E6E6E6] uppercase font-medium">{regime.level}</span>
-          </div>
-        </div>
-      )}
+        {regime && (
+          <>
+            <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+              <span className="text-[#D89540]">TREND</span>
+              <span className="text-[#E6E6E6] uppercase font-bold">{regime.trend}</span>
+            </div>
+            <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+              <span className="text-[#D89540]">LEVEL</span>
+              <span className="text-[#E6E6E6] uppercase font-bold">{regime.level}</span>
+            </div>
+          </>
+        )}
 
-      {/* Prediction */}
-      {prediction && (
-        <div className="bg-[#141414] rounded p-3 mb-2.5">
-          <div className="font-mono text-xs text-[#E6E6E6] mb-2">21D FORECAST</div>
-          <div className="text-center">
-            <motion.div
-              className="font-mono text-lg font-bold"
-              style={{
-                color:
-                  (prediction.predicted_change_bps || 0) > 0
-                    ? "#FF4B4B"
-                    : (prediction.predicted_change_bps || 0) < 0
-                      ? "#00D964"
-                      : "#D89540",
-              }}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", delay: 0.3 }}
-            >
-              {(prediction.predicted_change_bps || 0) > 0 ? "+" : ""}
-              {(prediction.predicted_change_bps || 0).toFixed(0)}
-              <span className="text-sm font-normal ml-0.5">bp</span>
-            </motion.div>
-            {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
-              <div className="font-mono text-xs text-[#D89540] mt-1">
-                90% CI: [{prediction.ci_90_lower_bps.toFixed(0)},{" "}
-                {prediction.ci_90_upper_bps.toFixed(0)}]
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Validation confidence */}
-      {validation && validation.confidence_score != null && (
-        <div className="bg-[#141414] rounded p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-mono text-xs text-[#E6E6E6]">MODEL CONF</span>
-            <span
-              className="font-mono text-sm font-bold uppercase"
-              style={{
-                color:
-                  validation.confidence_level === "high"
-                    ? "#00D964"
-                    : validation.confidence_level === "medium"
-                      ? "#FFA028"
-                      : "#FF4B4B",
-              }}
-            >
-              {validation.confidence_level}
+        {/* Prediction */}
+        {prediction && (
+          <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+            <span className="text-[#D89540]">21D FORECAST (10Y)</span>
+            <span className="tabular-nums">
+              <span className="text-[13px] font-bold" style={{ color: predColor }}>
+                {predBps > 0 ? "+" : ""}
+                {predBps.toFixed(0)}bp
+              </span>
+              {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
+                <span className="text-[#5C5C5C] ml-2">
+                  90% CI [{prediction.ci_90_lower_bps.toFixed(0)}, {prediction.ci_90_upper_bps.toFixed(0)}]
+                </span>
+              )}
             </span>
           </div>
-          <div className="h-2 bg-[#2E2E2E] rounded-full overflow-hidden">
-            <motion.div
-              className="h-full rounded-full"
-              style={{
-                backgroundColor:
-                  (validation.confidence_score || 0) >= 70
-                    ? "#00D964"
-                    : (validation.confidence_score || 0) >= 40
-                      ? "#FFA028"
-                      : "#FF4B4B",
-              }}
-              initial={{ width: 0 }}
-              animate={{ width: `${validation.confidence_score || 0}%` }}
-              transition={{ duration: 1 }}
-            />
+        )}
+
+        {/* Validation confidence */}
+        {validation && validation.confidence_score != null && (
+          <div className="pt-1.5">
+            <div className="flex items-center justify-between mb-1 text-[11px]">
+              <span className="text-[#D89540]">MODEL CONFIDENCE</span>
+              <span className="tabular-nums">
+                <span
+                  className="font-bold uppercase"
+                  style={{
+                    color:
+                      validation.confidence_level === "high"
+                        ? "#00D964"
+                        : validation.confidence_level === "medium"
+                          ? "#FFA028"
+                          : "#FF4B4B",
+                  }}
+                >
+                  {validation.confidence_level}
+                </span>
+                <span className="text-[#E6E6E6] ml-2">
+                  {(validation.confidence_score || 0).toFixed(0)}/100
+                </span>
+              </span>
+            </div>
+            <ConfidenceBlocks score={validation.confidence_score || 0} />
           </div>
-          <div className="font-mono text-xs text-[#D89540] text-center mt-2">
-            {(validation.confidence_score || 0).toFixed(0)} / 100
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </Panel>
   );
 }

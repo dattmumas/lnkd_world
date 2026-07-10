@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, type JSX, type KeyboardEvent } from "react";
-import { motion } from "framer-motion";
 
 export interface TabBarItem {
   id: string;
@@ -59,21 +58,14 @@ export default function TabBar({
             tabIndex={isActive ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => handleKey(e, i)}
-            className={`relative shrink-0 px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.08em] transition-colors ${
-              isActive ? "text-[#000000]" : "text-[#FFA028] hover:text-[#FFC46B]"
+            className={`shrink-0 px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.08em] ${
+              isActive
+                ? "bg-[#FFA028] text-[#000000]"
+                : "text-[#FFA028] hover:text-[#FFC46B]"
             }`}
           >
-            {isActive && (
-              <motion.span
-                layoutId="bonds-tab-pill"
-                className="absolute inset-0 bg-[#FFA028]"
-                transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              />
-            )}
-            <span className="relative z-10">
-              {i + 1}
-              {")"}&nbsp;{tab.label}
-            </span>
+            {i + 1}
+            {")"}&nbsp;{tab.label}
           </button>
         );
       })}

@@ -1,18 +1,17 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel, { Sparkline, ChangeBadge } from "./panel";
 
 const INDICATOR_META: Record<string, { label: string; unit: string; color: string }> = {
   vix: { label: "VIX", unit: "", color: "#FF4B4B" },
-  move_index: { label: "MOVE Index", unit: "", color: "#FFA028" },
-  breakeven_10y: { label: "10Y Breakeven", unit: "%", color: "#62B0FF" },
-  breakeven_5y: { label: "5Y Breakeven", unit: "%", color: "#62B0FF" },
-  fed_funds: { label: "Fed Funds", unit: "%", color: "#00D964" },
-  baa_spread: { label: "BAA Spread", unit: "bp", color: "#FFA028" },
-  consumer_sentiment: { label: "Consumer Sent.", unit: "", color: "#00C8FF" },
+  move_index: { label: "MOVE INDEX", unit: "", color: "#FFA028" },
+  breakeven_10y: { label: "10Y BREAKEVEN", unit: "%", color: "#62B0FF" },
+  breakeven_5y: { label: "5Y BREAKEVEN", unit: "%", color: "#62B0FF" },
+  fed_funds: { label: "FED FUNDS", unit: "%", color: "#00D964" },
+  baa_spread: { label: "BAA SPREAD", unit: "bp", color: "#FFA028" },
+  consumer_sentiment: { label: "CONSUMER SENT", unit: "", color: "#62B0FF" },
   cpi: { label: "CPI", unit: "%", color: "#FF3EB5" },
-  unemployment: { label: "Unemployment", unit: "%", color: "#D89540" },
+  unemployment: { label: "UNEMPLOYMENT", unit: "%", color: "#D89540" },
 };
 
 const DISPLAY_ORDER = ["vix", "move_index", "fed_funds", "breakeven_10y", "baa_spread", "consumer_sentiment", "cpi", "unemployment", "breakeven_5y"];
@@ -35,7 +34,7 @@ export default function MacroPanel({
 }) {
   if (!macro?.indicators) {
     return (
-      <Panel title="Macro Indicators" note="Key macro drivers with recent changes and their 1-year percentile (how high or low each reading is versus its own history)." accent="#FFA028">
+      <Panel title="Macro Indicators" note="Key macro drivers with recent changes and their 1-year percentile (how high or low each reading is versus its own history).">
         <div className="text-[#D89540] font-mono text-sm text-center py-8">No macro data</div>
       </Panel>
     );
@@ -44,41 +43,44 @@ export default function MacroPanel({
   const keys = DISPLAY_ORDER.filter((k) => macro.indicators[k]);
 
   return (
-    <Panel title="Macro Indicators" note="Key macro drivers with recent changes and their 1-year percentile (how high or low each reading is versus its own history)." accent="#FFA028">
-      <div className="space-y-1.5">
-        {keys.map((key, i) => {
-          const ind = macro.indicators[key];
-          const meta = INDICATOR_META[key] || { label: key, unit: "", color: "#D89540" };
-          const zScore = ind.z_score ?? 0;
-          const zColor = Math.abs(zScore) > 2 ? "#FF4B4B" : Math.abs(zScore) > 1 ? "#FFA028" : "#00D964";
+    <Panel title="Macro Indicators" note="Key macro drivers with recent changes and their 1-year percentile (how high or low each reading is versus its own history).">
+      <table className="w-full font-mono text-[11px]">
+        <thead>
+          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+            <th className="py-0.5 font-normal">INDICATOR</th>
+            <th className="py-0.5 font-normal text-right">LAST</th>
+            <th className="py-0.5 font-normal text-right">1D CHG</th>
+            <th className="py-0.5 font-normal text-center">90D</th>
+            <th className="py-0.5 font-normal text-right">1Y Z</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map((key) => {
+            const ind = macro.indicators[key];
+            const meta = INDICATOR_META[key] || { label: key.toUpperCase(), unit: "", color: "#D89540" };
+            const zScore = ind.z_score ?? 0;
+            const zColor = Math.abs(zScore) > 2 ? "#FF4B4B" : Math.abs(zScore) > 1 ? "#FFA028" : "#00D964";
 
-          return (
-            <motion.div
-              key={key}
-              className="flex items-center gap-3 bg-[#141414] rounded px-4 py-2.5"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04 }}
-            >
-              <div className="font-mono text-xs w-28 shrink-0 text-[#E6E6E6]">
-                {meta.label}
-              </div>
-              <div className="font-mono text-base text-[#E6E6E6] w-16 text-right shrink-0 font-medium">
-                {ind.current != null ? ind.current.toFixed(meta.unit === "%" || meta.unit === "bp" ? 2 : 1) : "--"}
-              </div>
-              <div className="shrink-0 w-16">
-                <ChangeBadge value={ind.change_1d} decimals={2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <Sparkline data={ind.sparkline} width={100} height={28} color={meta.color} />
-              </div>
-              <div className="font-mono text-xs shrink-0 w-10 text-right" style={{ color: zColor }}>
-                {zScore > 0 ? "+" : ""}{zScore.toFixed(1)}z
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+            return (
+              <tr key={key} className="border-b border-[#141414]">
+                <td className="py-[3px] text-[#E6E6E6]">{meta.label}</td>
+                <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                  {ind.current != null ? ind.current.toFixed(meta.unit === "%" || meta.unit === "bp" ? 2 : 1) : "--"}
+                </td>
+                <td className="py-[3px] text-right">
+                  <ChangeBadge value={ind.change_1d} decimals={2} />
+                </td>
+                <td className="py-[3px] text-center leading-none">
+                  <Sparkline data={ind.sparkline} width={80} height={14} color={meta.color} />
+                </td>
+                <td className="py-[3px] text-right tabular-nums" style={{ color: zColor }}>
+                  {zScore > 0 ? "+" : ""}{zScore.toFixed(1)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </Panel>
   );
 }

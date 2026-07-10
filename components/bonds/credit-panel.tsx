@@ -1,40 +1,40 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel, { Sparkline } from "./panel";
 
 const SPREAD_LABELS: Record<string, { label: string; color: string }> = {
   aaa_oas: { label: "AAA", color: "#00D964" },
   baa_oas: { label: "BAA", color: "#62B0FF" },
-  ig_oas: { label: "IG", color: "#00C8FF" },
+  ig_oas: { label: "IG", color: "#62B0FF" },
   hy_oas: { label: "HY", color: "#FFA028" },
   bbb_oas: { label: "BBB", color: "#FFA028" },
   ccc_oas: { label: "CCC", color: "#FF4B4B" },
 };
 
-function CreditCycleGauge({
+function CreditCycleStrip({
   cycle,
 }: {
   cycle: { current: number; interpretation: string; sparkline: { date: string; value: number }[] };
 }) {
-  const position = Math.max(0, Math.min(100, (cycle.current + 3) / 6 * 100));
+  const position = Math.max(0, Math.min(100, ((cycle.current + 3) / 6) * 100));
 
   return (
-    <div className="bg-[#141414] rounded p-4 mb-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="font-mono text-xs text-[#E6E6E6] tracking-wide">CREDIT CYCLE</span>
-        <span className="font-mono text-sm text-[#E6E6E6]">{cycle.interpretation}</span>
+    <div className="mb-2 pb-2 border-b border-[#1F1F1F] font-mono">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] text-[#D89540]">CREDIT CYCLE</span>
+        <span className="text-[11px] text-[#FFE24A] font-bold uppercase">{cycle.interpretation}</span>
       </div>
-      <div className="relative h-4 bg-gradient-to-r from-[#00D964] via-[#FFA028] to-[#FF4B4B] rounded-full overflow-visible mb-2">
-        <motion.div
-          className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-[#0B0B0B] rounded-full border-2 border-[#ffffff] shadow-lg"
-          style={{ left: `calc(${position}% - 10px)` }}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.4, type: "spring" }}
+      <div className="relative h-[7px] bg-[#1A1A1A]">
+        {/* zone ticks at the thirds */}
+        <div className="absolute left-1/3 top-0 h-full w-px bg-[#2E2E2E]" />
+        <div className="absolute left-2/3 top-0 h-full w-px bg-[#2E2E2E]" />
+        {/* position marker */}
+        <div
+          className="absolute top-[-3px] h-[13px] w-[3px] bg-[#FFA028]"
+          style={{ left: `calc(${position}% - 1px)` }}
         />
       </div>
-      <div className="flex justify-between font-mono text-xs text-[#E6E6E6]">
+      <div className="flex justify-between text-[9px] text-[#5C5C5C] mt-0.5">
         <span>RISK-ON</span>
         <span>NEUTRAL</span>
         <span>RISK-OFF</span>
@@ -57,7 +57,7 @@ export default function CreditPanel({
 }) {
   if (!credit?.available) {
     return (
-      <Panel title="Credit Spreads" note="Corporate yield premiums over Treasuries. Wider spreads mean more risk aversion; the cycle gauge flags early vs late cycle." accent="#FFA028">
+      <Panel title="Credit Spreads" note="Corporate yield premiums over Treasuries. Wider spreads mean more risk aversion; the cycle gauge flags early vs late cycle.">
         <div className="text-[#D89540] font-mono text-sm text-center py-8">No credit data</div>
       </Panel>
     );
@@ -67,50 +67,55 @@ export default function CreditPanel({
   const keys = spreadOrder.filter((k) => credit.current_spreads[k] != null);
 
   return (
-    <Panel title="Credit Spreads" note="Corporate yield premiums over Treasuries. Wider spreads mean more risk aversion; the cycle gauge flags early vs late cycle." accent="#FFA028">
-      {credit.credit_cycle && <CreditCycleGauge cycle={credit.credit_cycle} />}
+    <Panel title="Credit Spreads" note="Corporate yield premiums over Treasuries. Wider spreads mean more risk aversion; the cycle gauge flags early vs late cycle.">
+      {credit.credit_cycle && <CreditCycleStrip cycle={credit.credit_cycle} />}
 
-      <div className="space-y-1.5">
-        {keys.map((key, i) => {
-          const meta = SPREAD_LABELS[key] || { label: key, color: "#D89540" };
-          const current = credit.current_spreads[key];
-          const series = credit.time_series[key];
+      <table className="w-full font-mono text-[11px]">
+        <thead>
+          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+            <th className="py-0.5 font-normal">RATING</th>
+            <th className="py-0.5 font-normal text-right">OAS</th>
+            <th className="py-0.5 font-normal text-center">60D</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map((key) => {
+            const meta = SPREAD_LABELS[key] || { label: key.toUpperCase(), color: "#D89540" };
+            const current = credit.current_spreads[key];
+            const series = credit.time_series[key];
 
-          return (
-            <motion.div
-              key={key}
-              className="flex items-center gap-3 bg-[#141414] rounded px-4 py-2.5"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <div className="font-mono text-sm w-10 shrink-0 font-medium" style={{ color: meta.color }}>
-                {meta.label}
-              </div>
-              <div className="font-mono text-base text-[#E6E6E6] w-16 text-right shrink-0 font-medium">
-                {current != null ? current.toFixed(0) : "--"}
-                <span className="text-[#E6E6E6] text-xs ml-0.5">bp</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                {series && <Sparkline data={series.slice(-60)} width={140} height={28} color={meta.color} showArea />}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+            return (
+              <tr key={key} className="border-b border-[#141414]">
+                <td className="py-[3px] font-bold" style={{ color: meta.color }}>
+                  {meta.label}
+                </td>
+                <td className="py-[3px] text-right tabular-nums">
+                  <span className="text-[#FFE24A] font-bold">
+                    {current != null ? current.toFixed(0) : "--"}
+                  </span>
+                  <span className="text-[#5C5C5C] text-[9px] ml-0.5">bp</span>
+                </td>
+                <td className="py-[3px] text-center leading-none">
+                  {series && <Sparkline data={series.slice(-60)} width={110} height={14} color={meta.color} />}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
       {/* Sector RV */}
       {credit.sector_rv && credit.sector_rv.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[#2E2E2E]">
-          <div className="font-mono text-xs text-[#E6E6E6] mb-2 tracking-wide">RELATIVE VALUE</div>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-2 pt-1.5 border-t border-[#1F1F1F]">
+          <div className="font-mono text-[10px] text-[#D89540] mb-0.5">RELATIVE VALUE</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[11px]">
             {credit.sector_rv.map((s, i) => {
               const score = s.rv_score ?? 0;
               const color = score > 0.5 ? "#00D964" : score < -0.5 ? "#FF4B4B" : "#D89540";
               return (
-                <div key={`${s.sector ?? "rv"}-${i}`} className="bg-[#141414] rounded px-3 py-1.5 font-mono text-sm">
-                  <span className="text-[#E6E6E6]">{s.sector}</span>
-                  <span className="ml-2 font-medium" style={{ color }}>
+                <div key={`${s.sector ?? "rv"}-${i}`}>
+                  <span className="text-[#8F8F8F]">{s.sector}</span>
+                  <span className="ml-1.5 tabular-nums" style={{ color }}>
                     {score > 0 ? "+" : ""}{score.toFixed(2)}
                   </span>
                 </div>

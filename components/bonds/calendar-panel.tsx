@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import Panel from "./panel";
 
 function Countdown({ targetDate }: { targetDate: string }) {
@@ -15,34 +14,24 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }, [targetDate]);
 
   if (days === null) return null;
-  if (days < 0) return <span className="text-[#D89540] text-xs">PAST</span>;
+  if (days < 0) return <span className="text-[#5C5C5C] text-[10px]">PAST</span>;
 
   const color =
     days <= 1 ? "#FF4B4B" : days <= 3 ? "#FFA028" : days <= 7 ? "#62B0FF" : "#D89540";
 
   return (
-    <span className="font-mono text-sm tabular-nums font-medium" style={{ color }}>
-      {days === 0 ? "TODAY" : days === 1 ? "1D" : `${days}D`}
+    <span className="font-mono text-[11px] tabular-nums font-bold" style={{ color }}>
+      {days === 0 ? "TODAY" : `${days}D`}
     </span>
   );
 }
-
-const EVENT_ICONS: Record<string, string> = {
-  FOMC: "\u2691",
-  CPI: "\u25CF",
-  NFP: "\u25A0",
-  GDP: "\u25B2",
-  "Retail Sales": "\u25C6",
-  PMI: "\u25CB",
-  "Consumer Sentiment": "\u2605",
-};
 
 const EVENT_COLORS: Record<string, string> = {
   FOMC: "#FF4B4B",
   CPI: "#FFA028",
   NFP: "#62B0FF",
   GDP: "#00D964",
-  "Retail Sales": "#00C8FF",
+  "Retail Sales": "#62B0FF",
   PMI: "#FFA028",
   "Consumer Sentiment": "#FF3EB5",
 };
@@ -63,7 +52,7 @@ export default function CalendarPanel({
 }) {
   if (!calendar?.events || calendar.events.length === 0) {
     return (
-      <Panel title="Economic Calendar" accent="#FF3EB5">
+      <Panel title="Economic Calendar">
         <div className="text-[#D89540] font-mono text-sm text-center py-8">
           No upcoming events
         </div>
@@ -77,46 +66,45 @@ export default function CalendarPanel({
   );
 
   return (
-    <Panel title="Econ Calendar" note="Upcoming releases that tend to move rates (CPI, jobs, FOMC). Volatility usually clusters around these dates." subtitle="30d" accent="#FF3EB5">
-      <div className="space-y-1.5">
-        {sorted.slice(0, 10).map((evt, i) => {
-          const eventKey = Object.keys(EVENT_COLORS).find((k) =>
-            evt.event?.includes(k)
-          );
-          const color = eventKey ? EVENT_COLORS[eventKey] : "#D89540";
-          const icon = eventKey ? EVENT_ICONS[eventKey] : "\u25CB";
-          const isPast = new Date(evt.date).getTime() < Date.now();
+    <Panel title="Econ Calendar" note="Upcoming releases that tend to move rates (CPI, jobs, FOMC). Volatility usually clusters around these dates." subtitle="30d">
+      <table className="w-full font-mono text-[11px]">
+        <thead>
+          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+            <th className="py-0.5 font-normal">DATE</th>
+            <th className="py-0.5 font-normal">EVENT</th>
+            <th className="py-0.5 font-normal text-right">IN</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.slice(0, 10).map((evt, i) => {
+            const eventKey = Object.keys(EVENT_COLORS).find((k) =>
+              evt.event?.includes(k)
+            );
+            const color = eventKey ? EVENT_COLORS[eventKey] : "#E6E6E6";
+            const isPast = new Date(evt.date).getTime() < Date.now();
 
-          return (
-            <motion.div
-              key={i}
-              className={`flex items-center gap-3 bg-[#141414] rounded px-4 py-2.5 ${
-                isPast ? "opacity-50" : ""
-              }`}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: isPast ? 0.5 : 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <span className="text-base" style={{ color }}>
-                {icon}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="font-mono text-sm text-[#E6E6E6] truncate">
+            return (
+              <tr key={i} className={`border-b border-[#141414] ${isPast ? "opacity-40" : ""}`}>
+                <td className="py-[3px] text-[#8F8F8F] whitespace-nowrap pr-3">
+                  {new Date(evt.date)
+                    .toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    })
+                    .toUpperCase()}
+                </td>
+                <td className="py-[3px] truncate max-w-0 w-full" style={{ color }}>
                   {evt.event}
-                </div>
-                <div className="font-mono text-xs text-[#D89540]">
-                  {new Date(evt.date).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-              </div>
-              <Countdown targetDate={evt.date} />
-            </motion.div>
-          );
-        })}
-      </div>
+                </td>
+                <td className="py-[3px] text-right">
+                  <Countdown targetDate={evt.date} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </Panel>
   );
 }

@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import Panel, { ChangeBadge } from "./panel";
-
-const TENOR_YEARS: Record<string, number> = {
-  "1M": 1/12, "3M": 0.25, "6M": 0.5, "1Y": 1, "2Y": 2, "3Y": 3,
-  "5Y": 5, "7Y": 7, "10Y": 10, "20Y": 20, "30Y": 30,
-};
 
 function CurveSVG({
   curvePoints,
@@ -20,7 +14,7 @@ function CurveSVG({
 }) {
   const width = 700;
   const height = 104;
-  const pad = { top: 14, right: 20, bottom: 26, left: 42 };
+  const pad = { top: 10, right: 16, bottom: 22, left: 40 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
 
@@ -49,8 +43,6 @@ function CurveSVG({
     .map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.years)},${sy(p.yield)}`)
     .join(" ");
 
-  const areaPath = `${currentPath} L ${sx(curvePoints[curvePoints.length - 1].years)},${sy(minY)} L ${sx(curvePoints[0].years)},${sy(minY)} Z`;
-
   let compPath = "";
   if (activeComparison && historical[activeComparison]) {
     const cd = historical[activeComparison];
@@ -69,70 +61,44 @@ function CurveSVG({
       {/* Grid */}
       {yTicks.map((tick) => (
         <g key={tick}>
-          <line x1={pad.left} x2={width - pad.right} y1={sy(tick)} y2={sy(tick)} stroke="#2E2E2E" strokeWidth={0.5} />
-          <text x={pad.left - 10} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#E6E6E6" fontSize={10} fontFamily="monospace">
-            {tick.toFixed(2)}%
+          <line x1={pad.left} x2={width - pad.right} y1={sy(tick)} y2={sy(tick)} stroke="#1F1F1F" strokeWidth={0.5} />
+          <text x={pad.left - 8} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#8F8F8F" fontSize={8.5} fontFamily="monospace">
+            {tick.toFixed(2)}
           </text>
         </g>
       ))}
 
       {/* X labels */}
       {curvePoints.map((p) => (
-        <text key={p.tenor} x={sx(p.years)} y={height - 10} textAnchor="middle" fill="#E6E6E6" fontSize={10} fontFamily="monospace">
+        <text key={p.tenor} x={sx(p.years)} y={height - 8} textAnchor="middle" fill="#8F8F8F" fontSize={8.5} fontFamily="monospace">
           {p.tenor}
         </text>
       ))}
 
-      {/* Area fill */}
-      <defs>
-        <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#00D964" stopOpacity={0.2} />
-          <stop offset="100%" stopColor="#00D964" stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <motion.path d={areaPath} fill="url(#curveGrad)" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} />
-
       {/* Comparison curve */}
-      <AnimatePresence>
-        {compPath && (
-          <motion.path
-            d={compPath}
-            fill="none"
-            stroke="#8F8F8F"
-            strokeWidth={1.5}
-            strokeDasharray="6,4"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 0.6 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6 }}
-          />
-        )}
-      </AnimatePresence>
+      {compPath && (
+        <path
+          d={compPath}
+          fill="none"
+          stroke="#62B0FF"
+          strokeWidth={1}
+          strokeDasharray="4,3"
+          opacity={0.8}
+        />
+      )}
 
       {/* Main curve */}
-      <motion.path
-        d={currentPath}
-        fill="none"
-        stroke="#00D964"
-        strokeWidth={2}
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 1, ease: "easeInOut" }}
-      />
+      <path d={currentPath} fill="none" stroke="#FFA028" strokeWidth={1.5} />
 
       {/* Data points */}
-      {curvePoints.map((p, i) => (
-        <motion.circle
+      {curvePoints.map((p) => (
+        <rect
           key={p.tenor}
-          cx={sx(p.years)}
-          cy={sy(p.yield)}
-          r={3}
-          fill="#00D964"
-          stroke="#ffffff"
-          strokeWidth={1.5}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.08 * i + 0.4, type: "spring" }}
+          x={sx(p.years) - 1.75}
+          y={sy(p.yield) - 1.75}
+          width={3.5}
+          height={3.5}
+          fill="#FFE24A"
         />
       ))}
     </svg>
@@ -156,95 +122,113 @@ export default function YieldCurvePanel({
 
   if (!yieldCurve) {
     return (
-      <Panel title="Yield Curve" accent="#00D964">
+      <Panel title="Yield Curve">
         <div className="text-[#D89540] font-mono text-sm text-center py-10">No yield curve data</div>
       </Panel>
     );
   }
 
   const comparisons = [
-    { key: "1w", label: "1W ago" },
-    { key: "1m", label: "1M ago" },
-    { key: "3m", label: "3M ago" },
-    { key: "1y", label: "1Y ago" },
+    { key: "1w", label: "1W" },
+    { key: "1m", label: "1M" },
+    { key: "3m", label: "3M" },
+    { key: "1y", label: "1Y" },
   ];
 
   const keyTenors = ["2Y", "5Y", "10Y", "30Y"];
 
   return (
     <Panel
-      title="Treasury Yield Curve"
+      title="US Treasury Yield Curve"
       subtitle={yieldCurve.as_of ? new Date(yieldCurve.as_of).toLocaleDateString() : undefined}
-      accent="#00D964"
       note="Treasury yield at each maturity. A normal curve slopes up; when it inverts (short rates above long), it has historically preceded recessions. Toggle a date to compare."
     >
-      {/* Comparison toggles */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="font-mono text-xs text-[#D89540]">Compare:</span>
-        {comparisons.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => setComparison(comparison === c.key ? null : c.key)}
-            className={`px-2.5 py-0.5 rounded font-mono text-[11px] transition-colors ${
-              comparison === c.key
-                ? "bg-[#00D964] text-[#ffffff] font-medium"
-                : "bg-[#2E2E2E] text-[#D89540] hover:bg-[#2E2E2E]"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <CurveSVG
-        curvePoints={yieldCurve.curve_points}
-        historical={yieldCurve.historical || {}}
-        activeComparison={comparison}
-      />
-
-      {/* Key tenors */}
-      <div className="mt-3 grid grid-cols-4 gap-2">
-        {keyTenors.map((tenor) => {
-          const current = yieldCurve.current[tenor];
-          const prev =
-            comparison && yieldCurve.historical[comparison]
-              ? yieldCurve.historical[comparison][tenor]
-              : null;
-          const change = current != null && prev != null ? (current - prev) * 100 : null;
-
-          return (
-            <div key={tenor} className="bg-[#141414] rounded p-2 text-center">
-              <div className="font-mono text-xs text-[#D89540] mb-1">{tenor}</div>
-              <div className="font-mono text-base font-bold text-[#E6E6E6]">
-                {current != null ? `${current.toFixed(2)}%` : "--"}
-              </div>
-              {change != null && (
-                <div className="mt-1">
-                  <ChangeBadge value={change} suffix="bp" decimals={0} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Forward rates */}
-      {yieldCurve.forward_rates && yieldCurve.forward_rates.length > 0 && (
-        <div className="mt-3 pt-2.5 border-t border-[#2E2E2E]">
-          <div className="font-mono text-xs text-[#D89540] mb-2 tracking-wide">FORWARD RATES</div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {yieldCurve.forward_rates.map((f) => (
-              <div key={`${f.from}-${f.to}`} className="font-mono text-sm">
-                <span className="text-[#D89540]">{f.from}&rarr;{f.to}</span>
-                <span className="text-[#E6E6E6] ml-2 font-medium">
-                  {f.rate != null ? `${f.rate.toFixed(2)}%` : "--"}
-                </span>
-              </div>
+      <div className="lg:flex lg:items-stretch lg:gap-4">
+        <div className="flex-1 min-w-0">
+          {/* Comparison toggles */}
+          <div className="flex items-center gap-1 mb-1.5 font-mono text-[10px]">
+            <span className="text-[#D89540] mr-1 uppercase">Compare</span>
+            {comparisons.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setComparison(comparison === c.key ? null : c.key)}
+                className={`px-2 py-px border font-bold ${
+                  comparison === c.key
+                    ? "bg-[#FFA028] text-[#000000] border-[#FFA028]"
+                    : "text-[#D89540] border-[#2E2E2E] hover:border-[#D89540]"
+                }`}
+              >
+                {c.label}
+              </button>
             ))}
           </div>
+
+          {/* Chart */}
+          <CurveSVG
+            curvePoints={yieldCurve.curve_points}
+            historical={yieldCurve.historical || {}}
+            activeComparison={comparison}
+          />
         </div>
-      )}
+
+        {/* Key tenors + forwards, right rail on wide screens */}
+        <div className="mt-2 lg:mt-0 lg:w-72 lg:shrink-0 lg:border-l lg:border-[#1F1F1F] lg:pl-4 font-mono">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+                <th className="py-0.5 font-normal">TENOR</th>
+                <th className="py-0.5 font-normal text-right">YLD</th>
+                <th className="py-0.5 font-normal text-right">
+                  CHG{comparison ? ` v ${comparison.toUpperCase()}` : ""}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {keyTenors.map((tenor) => {
+                const current = yieldCurve.current[tenor];
+                const prev =
+                  comparison && yieldCurve.historical[comparison]
+                    ? yieldCurve.historical[comparison][tenor]
+                    : null;
+                const change = current != null && prev != null ? (current - prev) * 100 : null;
+
+                return (
+                  <tr key={tenor} className="border-b border-[#141414]">
+                    <td className="py-[3px] text-[#62B0FF]">{tenor}</td>
+                    <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                      {current != null ? current.toFixed(2) : "--"}
+                    </td>
+                    <td className="py-[3px] text-right">
+                      {change != null ? (
+                        <ChangeBadge value={change} suffix="bp" decimals={0} />
+                      ) : (
+                        <span className="text-[#5C5C5C]">--</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Forward rates */}
+          {yieldCurve.forward_rates && yieldCurve.forward_rates.length > 0 && (
+            <div className="mt-1.5">
+              <div className="text-[10px] text-[#D89540] mb-0.5">FWD RATES</div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+                {yieldCurve.forward_rates.map((f) => (
+                  <div key={`${f.from}-${f.to}`}>
+                    <span className="text-[#8F8F8F]">{f.from}&rarr;{f.to}</span>
+                    <span className="text-[#E6E6E6] ml-1.5 tabular-nums">
+                      {f.rate != null ? f.rate.toFixed(2) : "--"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </Panel>
   );
 }

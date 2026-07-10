@@ -14,10 +14,8 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import TerminalHeader from "@/components/bonds/terminal-header";
 import TabBar, { type TabBarItem } from "@/components/bonds/tab-bar";
-import { Masonry, MasonryItem, fadeUp } from "@/components/bonds/masonry";
 import YieldCurvePanel from "@/components/bonds/yield-curve-panel";
 import SignalConsole from "@/components/bonds/signal-console";
 import MacroPanel from "@/components/bonds/macro-panel";
@@ -49,11 +47,16 @@ interface BondsData {
 }
 
 interface TabSpec extends TabBarItem {
-  panels: { key: string; render: (data: BondsData) => JSX.Element }[];
+  panels: {
+    key: string;
+    span?: "full";
+    render: (data: BondsData) => JSX.Element;
+  }[];
 }
 
 // Yield curve is a persistent hero above the tabs (it needs full width), so it
-// is not in any tab. Panels are listed tall-first for tidier column packing.
+// is not in any tab. Panels tile in a fixed 2-col grid; `span: "full"` rows
+// take the whole width (equal-height rows keep the tiling void-free).
 const TABS: readonly TabSpec[] = [
   {
     id: "signals",
@@ -61,7 +64,7 @@ const TABS: readonly TabSpec[] = [
     panels: [
       { key: "signals", render: (d) => <SignalConsole signals={d.signals as ComponentProps<typeof SignalConsole>["signals"]} /> },
       { key: "trades", render: (d) => <TradeIdeas signals={d.signals as ComponentProps<typeof TradeIdeas>["signals"]} /> },
-      { key: "memo", render: (d) => <MemoPanel signals={d.signals as ComponentProps<typeof MemoPanel>["signals"]} /> },
+      { key: "memo", span: "full", render: (d) => <MemoPanel signals={d.signals as ComponentProps<typeof MemoPanel>["signals"]} /> },
     ],
   },
   {
@@ -69,8 +72,8 @@ const TABS: readonly TabSpec[] = [
     label: "Model & Regime",
     panels: [
       { key: "regime", render: (d) => <RegimeIndicator model={d.model as ComponentProps<typeof RegimeIndicator>["model"]} /> },
-      { key: "diagnostics", render: (d) => <ModelDiagnostics model={d.model as ComponentProps<typeof ModelDiagnostics>["model"]} /> },
       { key: "sentiment", render: (d) => <SentimentGauge sentiment={d.sentiment as ComponentProps<typeof SentimentGauge>["sentiment"]} /> },
+      { key: "diagnostics", span: "full", render: (d) => <ModelDiagnostics model={d.model as ComponentProps<typeof ModelDiagnostics>["model"]} /> },
     ],
   },
   {
@@ -79,7 +82,7 @@ const TABS: readonly TabSpec[] = [
     panels: [
       { key: "macro", render: (d) => <MacroPanel macro={d.macro as ComponentProps<typeof MacroPanel>["macro"]} /> },
       { key: "credit", render: (d) => <CreditPanel credit={d.credit as ComponentProps<typeof CreditPanel>["credit"]} /> },
-      { key: "etfs", render: (d) => <EtfPanel etfs={d.etfs as ComponentProps<typeof EtfPanel>["etfs"]} /> },
+      { key: "etfs", span: "full", render: (d) => <EtfPanel etfs={d.etfs as ComponentProps<typeof EtfPanel>["etfs"]} /> },
     ],
   },
   {
@@ -94,7 +97,7 @@ const TABS: readonly TabSpec[] = [
 
 const DEFAULT_TAB = "signals";
 
-/** Tabbed + masonry body. Isolated so the `useSearchParams` call sits under Suspense. */
+/** Tabbed + tiled body. Isolated so the `useSearchParams` call sits under Suspense. */
 function BondsTabs({ data }: { data: BondsData }): JSX.Element {
   const router = useRouter();
   const params = useSearchParams();
@@ -112,28 +115,20 @@ function BondsTabs({ data }: { data: BondsData }): JSX.Element {
   );
 
   return (
-    <div className="space-y-3">
+    <div>
       <TabBar tabs={TABS} activeId={activeId} onSelect={onSelect} />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeId}
-          id={`panel-${activeId}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${activeId}`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-        >
-          <Masonry>
-            {activeTab.panels.map((p, i) => (
-              <MasonryItem key={p.key} delay={0.04 * i}>
-                {p.render(data)}
-              </MasonryItem>
-            ))}
-          </Masonry>
-        </motion.div>
-      </AnimatePresence>
+      <div
+        id={`panel-${activeId}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeId}`}
+        className="grid lg:grid-cols-2 gap-px bg-[#000000]"
+      >
+        {activeTab.panels.map((p) => (
+          <div key={p.key} className={`min-w-0 ${p.span === "full" ? "lg:col-span-2" : ""}`}>
+            {p.render(data)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -141,28 +136,15 @@ function BondsTabs({ data }: { data: BondsData }): JSX.Element {
 function TerminalLoading() {
   return (
     <div className="min-h-screen bg-[#000000] flex items-center justify-center">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-        <div className="font-mono text-[#00D964] text-lg mb-6 tracking-widest">
+      <div className="text-center">
+        <div className="font-mono text-[#FFA028] text-lg mb-4 tracking-widest font-bold">
           LNKD BOND TERMINAL
         </div>
-        <div className="flex gap-1.5 justify-center">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <motion.div
-              key={i}
-              className="w-2.5 h-10 bg-[#00D964] rounded-sm"
-              animate={{ scaleY: [0.3, 1, 0.3], opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-            />
-          ))}
+        <div className="font-mono text-[#D89540] text-sm">
+          Loading market data
+          <span className="inline-block w-[7px] h-[13px] bg-[#FFA028] ml-1.5 align-middle animate-pulse" />
         </div>
-        <motion.div
-          className="font-mono text-[#D89540] text-sm mt-6"
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          Loading market data...
-        </motion.div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -175,7 +157,7 @@ function NoData() {
         <div className="text-[#E6E6E6] text-sm leading-relaxed">
           Dashboard snapshot has not been generated yet.
         </div>
-        <code className="block mt-4 bg-[#000000] text-[#00D964] text-sm p-4 rounded">
+        <code className="block mt-4 bg-[#000000] border border-[#2E2E2E] text-[#00D964] text-sm p-4">
           python -m src.export_dashboard --push
         </code>
         <Link href="/" className="inline-block mt-8 text-[#62B0FF] text-sm hover:underline">
@@ -263,23 +245,21 @@ export default function BondsPage(): JSX.Element {
         refreshError={refreshError}
       />
 
-      <main className="max-w-[1600px] mx-auto px-4 lg:px-6 pb-10 space-y-3 pt-3">
-        {/* Persistent full-width hero — never enters a narrow masonry column */}
-        <motion.div {...fadeUp(0.05)}>
-          <YieldCurvePanel
-            yieldCurve={
-              data.yield_curve as ComponentProps<typeof YieldCurvePanel>["yieldCurve"]
-            }
-          />
-        </motion.div>
+      <main className="w-full px-1 pb-6">
+        {/* Persistent full-width hero — never enters a grid column */}
+        <YieldCurvePanel
+          yieldCurve={
+            data.yield_curve as ComponentProps<typeof YieldCurvePanel>["yieldCurve"]
+          }
+        />
 
-        {/* Tabbed + masonry body (Suspense required by useSearchParams) */}
-        <Suspense fallback={<div className="h-10" />}>
+        {/* Tabbed + tiled body (Suspense required by useSearchParams) */}
+        <Suspense fallback={<div className="h-8" />}>
           <BondsTabs data={data} />
         </Suspense>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-[#2E2E2E] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#D89540]">
+        <div className="mt-1 border-t border-[#2E2E2E] px-1 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-1 font-mono text-[11px] text-[#D89540]">
           <div>
             LNKD BOND TERMINAL &middot; FRED &middot; Treasury.gov &middot; yfinance &middot;{" "}
             <Link href="/" className="text-[#62B0FF] hover:underline">

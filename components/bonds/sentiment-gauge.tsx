@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel from "./panel";
 
 export default function SentimentGauge({
@@ -16,7 +15,7 @@ export default function SentimentGauge({
 }) {
   if (!sentiment) {
     return (
-      <Panel title="Sentiment" accent="#FF3EB5">
+      <Panel title="Market Sentiment">
         <div className="text-[#D89540] font-mono text-xs text-center py-8">
           No sentiment data
         </div>
@@ -26,7 +25,7 @@ export default function SentimentGauge({
 
   const score = sentiment.composite_score || 0;
   const normalizedScore = Math.max(-1, Math.min(1, score));
-  const gaugePosition = ((normalizedScore + 1) / 2) * 100;
+  const position = ((normalizedScore + 1) / 2) * 100;
 
   const sentimentColor =
     normalizedScore > 0.2
@@ -49,96 +48,48 @@ export default function SentimentGauge({
   return (
     <Panel
       title="Market Sentiment"
-      accent="#FF3EB5"
-      note="Composite risk appetite from macro proxies — left/red is risk-off (defensive), right/green is risk-on. The needle marks the current read."
+      note="Composite risk appetite from macro proxies — left/red is risk-off (defensive), right/green is risk-on. The marker shows the current read."
     >
-      {/* Sentiment arc gauge */}
-      <div className="flex justify-center mb-3">
-        <svg viewBox="0 0 200 120" className="w-full max-w-[200px]">
-          {/* Background arc */}
-          <path
-            d="M 20 100 A 80 80 0 0 1 180 100"
-            fill="none"
-            stroke="#2E2E2E"
-            strokeWidth={14}
-            strokeLinecap="round"
-          />
-          {/* Gradient arc */}
-          <defs>
-            <linearGradient id="sentimentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FF4B4B" />
-              <stop offset="50%" stopColor="#FFA028" />
-              <stop offset="100%" stopColor="#00D964" />
-            </linearGradient>
-          </defs>
-          <motion.path
-            d="M 20 100 A 80 80 0 0 1 180 100"
-            fill="none"
-            stroke="url(#sentimentGrad)"
-            strokeWidth={14}
-            strokeLinecap="round"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 1 }}
-          />
-          {/* Needle */}
-          <motion.g
-            initial={{ rotate: -90 }}
-            animate={{ rotate: -90 + gaugePosition * 1.8 }}
-            transition={{ duration: 1.5, type: "spring" }}
-            style={{ transformOrigin: "100px 100px" }}
-          >
-            <line
-              x1="100"
-              y1="100"
-              x2="100"
-              y2="30"
-              stroke={sentimentColor}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-            />
-            <circle cx="100" cy="100" r={5} fill={sentimentColor} />
-          </motion.g>
-          {/* Score text */}
-          <text
-            x="100"
-            y="88"
-            textAnchor="middle"
-            className="text-[20px] font-bold"
-            fontFamily="monospace"
-            fill={sentimentColor}
-          >
-            {normalizedScore > 0 ? "+" : ""}
-            {normalizedScore.toFixed(2)}
-          </text>
-        </svg>
-      </div>
-
-      {/* Label */}
-      <div className="text-center mb-4">
-        <motion.div
-          className="font-mono text-sm tracking-widest font-medium"
-          style={{ color: sentimentColor }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          {sentimentLabel}
-        </motion.div>
-      </div>
-
-      {/* Metadata */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between bg-[#141414] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#E6E6E6]">SOURCE</span>
-          <span className="font-mono text-sm text-[#E6E6E6] uppercase">
-            {sentiment.source || "macro_proxy"}
+      <div className="font-mono">
+        {/* Score readout */}
+        <div className="flex items-baseline justify-between gap-3 pb-1.5 mb-1.5 border-b border-[#1F1F1F]">
+          <span className="text-[10px] text-[#D89540]">COMPOSITE SCORE</span>
+          <span>
+            <span className="text-[15px] font-bold tabular-nums" style={{ color: sentimentColor }}>
+              {normalizedScore > 0 ? "+" : ""}
+              {normalizedScore.toFixed(2)}
+            </span>
+            <span className="text-[11px] font-bold tracking-[0.08em] ml-2" style={{ color: sentimentColor }}>
+              {sentimentLabel}
+            </span>
           </span>
         </div>
-        <div className="flex items-center justify-between bg-[#141414] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#E6E6E6]">CONFIDENCE</span>
+
+        {/* Scale */}
+        <div className="mb-2">
+          <div className="relative h-[7px] bg-[#1A1A1A]">
+            <div className="absolute left-1/2 top-0 h-full w-px bg-[#2E2E2E]" />
+            <div
+              className="absolute top-[-3px] h-[13px] w-[3px]"
+              style={{ left: `calc(${position}% - 1px)`, backgroundColor: sentimentColor }}
+            />
+          </div>
+          <div className="flex justify-between text-[9px] text-[#5C5C5C] mt-0.5">
+            <span>RISK-OFF -1.0</span>
+            <span>0</span>
+            <span>+1.0 RISK-ON</span>
+          </div>
+        </div>
+
+        {/* Metadata */}
+        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+          <span className="text-[#D89540]">SOURCE</span>
+          <span className="text-[#E6E6E6] uppercase">{sentiment.source || "macro_proxy"}</span>
+        </div>
+        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+          <span className="text-[#D89540]">CONFIDENCE</span>
           <span
-            className="font-mono text-sm uppercase font-medium"
+            className="uppercase font-bold"
             style={{
               color:
                 sentiment.confidence === "high"
@@ -151,37 +102,34 @@ export default function SentimentGauge({
             {sentiment.confidence || "low"}
           </span>
         </div>
-        <div className="flex items-center justify-between bg-[#141414] rounded px-4 py-2.5">
-          <span className="font-mono text-xs text-[#E6E6E6]">DIRECTION</span>
-          <span className="font-mono text-sm text-[#E6E6E6] uppercase font-medium">
-            {sentiment.direction || "neutral"}
-          </span>
+        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
+          <span className="text-[#D89540]">DIRECTION</span>
+          <span className="text-[#E6E6E6] uppercase font-bold">{sentiment.direction || "neutral"}</span>
         </div>
-      </div>
 
-      {/* Components breakdown */}
-      {sentiment.components && Object.keys(sentiment.components).length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[#2E2E2E]">
-          <div className="font-mono text-xs text-[#E6E6E6] mb-2">COMPONENTS</div>
-          <div className="space-y-1.5">
+        {/* Components breakdown */}
+        {sentiment.components && Object.keys(sentiment.components).length > 0 && (
+          <div className="mt-1.5">
+            <div className="text-[10px] text-[#D89540] mb-0.5">COMPONENTS</div>
             {Object.entries(sentiment.components)
               .filter(([, val]) => val != null && typeof val === "number")
               .map(([key, val]) => (
-              <div key={key} className="flex items-center justify-between font-mono text-xs">
-                <span className="text-[#D89540]">{key}</span>
-                <span
-                  style={{
-                    color: (val as number) > 0 ? "#00D964" : (val as number) < 0 ? "#FF4B4B" : "#D89540",
-                  }}
-                >
-                  {(val as number) > 0 ? "+" : ""}
-                  {(val as number).toFixed(3)}
-                </span>
-              </div>
-            ))}
+                <div key={key} className="flex items-center justify-between py-px text-[11px]">
+                  <span className="text-[#8F8F8F]">{key}</span>
+                  <span
+                    className="tabular-nums"
+                    style={{
+                      color: (val as number) > 0 ? "#00D964" : (val as number) < 0 ? "#FF4B4B" : "#D89540",
+                    }}
+                  >
+                    {(val as number) > 0 ? "+" : ""}
+                    {(val as number).toFixed(3)}
+                  </span>
+                </div>
+              ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </Panel>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Panel, { Sparkline, ChangeBadge } from "./panel";
 
 function CorrelationMatrix({
@@ -10,23 +9,25 @@ function CorrelationMatrix({
 }) {
   const { tickers, values } = correlation;
 
-  const cellColor = (v: number) => {
-    if (v >= 0.8) return "#00D964";
-    if (v >= 0.5) return "#62B0FF";
-    if (v >= 0.2) return "#2E2E2E";
-    if (v >= -0.2) return "#8F8F8F";
-    if (v >= -0.5) return "#FFA028";
-    return "#FF4B4B";
+  // Signed heat: green for positive, red for negative, black at zero.
+  const cellStyle = (v: number, isDiag: boolean) => {
+    if (isDiag) return { backgroundColor: "#111111", color: "#5C5C5C" };
+    const alpha = Math.min(0.85, Math.abs(v) * 0.85);
+    return {
+      backgroundColor:
+        v >= 0 ? `rgba(0, 130, 60, ${alpha})` : `rgba(180, 40, 40, ${alpha})`,
+      color: "#E6E6E6",
+    };
   };
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full">
+      <table className="w-full border-separate border-spacing-px">
         <thead>
           <tr>
-            <th className="font-mono text-xs text-[#D89540] p-1" />
+            <th className="font-mono text-[10px] text-[#D89540] font-normal" />
             {tickers.map((t) => (
-              <th key={t} className="font-mono text-xs text-[#D89540] p-1">
+              <th key={t} className="font-mono text-[10px] text-[#D89540] font-normal pb-0.5">
                 {t}
               </th>
             ))}
@@ -35,24 +36,16 @@ function CorrelationMatrix({
         <tbody>
           {tickers.map((rowT, i) => (
             <tr key={rowT}>
-              <td className="font-mono text-xs text-[#D89540] p-1 text-right pr-2">
+              <td className="font-mono text-[10px] text-[#D89540] text-right pr-1.5">
                 {rowT}
               </td>
               {values[i].map((v, j) => (
-                <td key={j} className="p-1">
-                  <motion.div
-                    className="w-full aspect-square rounded flex items-center justify-center font-mono text-[10px]"
-                    style={{
-                      backgroundColor: cellColor(v),
-                      opacity: i === j ? 0.3 : 0.6 + Math.abs(v) * 0.4,
-                      color: Math.abs(v) > 0.5 ? "#ffffff" : "#E6E6E6",
-                    }}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: (i * tickers.length + j) * 0.01 }}
-                  >
-                    {i !== j ? (v ?? 0).toFixed(1) : ""}
-                  </motion.div>
+                <td
+                  key={j}
+                  className="h-6 min-w-8 text-center font-mono text-[10px] tabular-nums"
+                  style={cellStyle(v ?? 0, i === j)}
+                >
+                  {i !== j ? (v ?? 0).toFixed(1) : ""}
                 </td>
               ))}
             </tr>
@@ -84,7 +77,7 @@ export default function EtfPanel({
 }) {
   if (!etfs?.available) {
     return (
-      <Panel title="Bond ETFs" note="Returns for bond ETFs across maturities and credit. Longer-duration funds move most when rates change." accent="#00C8FF">
+      <Panel title="Bond ETFs" note="Returns for bond ETFs across maturities and credit. Longer-duration funds move most when rates change.">
         <div className="text-[#D89540] font-mono text-sm text-center py-8">
           No ETF data
         </div>
@@ -93,51 +86,61 @@ export default function EtfPanel({
   }
 
   return (
-    <Panel title="Bond ETFs" note="Returns for bond ETFs across maturities and credit. Longer-duration funds move most when rates change." accent="#00C8FF">
-      {/* ETF table */}
-      <div className="space-y-1.5 mb-4">
-        {etfs.etfs.map((etf, i) => (
-          <motion.div
-            key={etf.ticker}
-            className="flex items-center gap-3 bg-[#141414] rounded px-4 py-2.5"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
-            <div className="font-mono text-sm text-[#62B0FF] w-10 shrink-0 font-medium">
-              {etf.ticker}
-            </div>
-            <div className="font-mono text-base text-[#E6E6E6] w-16 text-right shrink-0 font-medium">
-              ${etf.price != null ? etf.price.toFixed(1) : "--"}
-            </div>
-            <div className="shrink-0 w-16">
-              <ChangeBadge value={etf.return_1d} suffix="%" decimals={1} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <Sparkline
-                data={etf.sparkline}
-                width={120}
-                height={28}
-                color={etf.return_1m >= 0 ? "#00D964" : "#FF4B4B"}
-              />
-            </div>
-            <div className="shrink-0 w-16 text-right">
-              <ChangeBadge value={etf.return_ytd} suffix="%" decimals={1} />
-            </div>
-            <div className="font-mono text-xs text-[#D89540] shrink-0">YTD</div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Correlation matrix */}
-      {etfs.correlation && (
-        <div className="pt-3 border-t border-[#2E2E2E]">
-          <div className="font-mono text-xs text-[#E6E6E6] mb-2 tracking-wide">
-            CORRELATION MATRIX (60D)
-          </div>
-          <CorrelationMatrix correlation={etfs.correlation} />
+    <Panel title="Bond ETFs" note="Returns for bond ETFs across maturities and credit. Longer-duration funds move most when rates change.">
+      <div className="lg:flex lg:gap-4">
+        {/* ETF table */}
+        <div className="flex-1 min-w-0">
+          <table className="w-full font-mono text-[11px]">
+            <thead>
+              <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+                <th className="py-0.5 font-normal">TICKER</th>
+                <th className="py-0.5 font-normal text-right">PX</th>
+                <th className="py-0.5 font-normal text-right">1D</th>
+                <th className="py-0.5 font-normal text-center">90D</th>
+                <th className="py-0.5 font-normal text-right">1M</th>
+                <th className="py-0.5 font-normal text-right">YTD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {etfs.etfs.map((etf) => (
+                <tr key={etf.ticker} className="border-b border-[#141414]">
+                  <td className="py-[3px] text-[#62B0FF] font-bold">{etf.ticker}</td>
+                  <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                    {etf.price != null ? etf.price.toFixed(2) : "--"}
+                  </td>
+                  <td className="py-[3px] text-right">
+                    <ChangeBadge value={etf.return_1d} suffix="%" decimals={1} />
+                  </td>
+                  <td className="py-[3px] text-center leading-none">
+                    <Sparkline
+                      data={etf.sparkline}
+                      width={80}
+                      height={14}
+                      color={etf.return_1m >= 0 ? "#00D964" : "#FF4B4B"}
+                    />
+                  </td>
+                  <td className="py-[3px] text-right">
+                    <ChangeBadge value={etf.return_1m} suffix="%" decimals={1} />
+                  </td>
+                  <td className="py-[3px] text-right">
+                    <ChangeBadge value={etf.return_ytd} suffix="%" decimals={1} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Correlation matrix */}
+        {etfs.correlation && (
+          <div className="mt-3 lg:mt-0 lg:w-[360px] lg:shrink-0 lg:border-l lg:border-[#1F1F1F] lg:pl-4">
+            <div className="font-mono text-[10px] text-[#D89540] mb-1">
+              CORRELATION MATRIX (60D)
+            </div>
+            <CorrelationMatrix correlation={etfs.correlation} />
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
