@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "@/convex/_generated/api";
+import LedgerMark from "@/components/ledger/mark";
 
 function AdminBar() {
   const user = useQuery(api.users.currentUser);
@@ -41,10 +42,11 @@ export default function Nav() {
       <header className="flex justify-between items-center py-5 border-b-2 border-[var(--color-border)]">
         <Link
           href="/"
-          className="text-lg font-bold tracking-tight text-[var(--color-text)] hover:text-[var(--color-accent)]"
+          className="flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--color-text)] hover:text-[var(--color-accent)]"
           style={{ fontFamily: "var(--font-display), Helvetica, sans-serif" }}
         >
-          ■ LNKD
+          <LedgerMark size={18} />
+          LNKD
         </Link>
         <nav className="flex gap-3 md:gap-5 items-center overflow-x-auto">
           <Link href="/onlabel" className={`${navLink} text-[var(--color-accent)]`}>

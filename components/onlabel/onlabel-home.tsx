@@ -46,7 +46,7 @@ export default function OnLabelHome() {
       </div>
 
       {/* Capture */}
-      <div className="mt-6 bg-[var(--color-fill-tan)] px-5 py-5">
+      <div className="mt-6 bg-[var(--color-fill-tan)] px-5 py-5 ol-panel">
         <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mb-3">
           FREE · WEEKLY · UNSUBSCRIBE ANYTIME
         </p>

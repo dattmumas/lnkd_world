@@ -57,11 +57,85 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--color-border);
   border-radius: 0;
   background: var(--color-paper-raised);
+  box-shadow: 6px 6px 0 0 var(--color-border-soft);
 }
 
 .ol-box-heavy {
   border: 2px solid var(--color-border);
   border-radius: 0;
+  box-shadow: 6px 6px 0 0 var(--color-border-soft);
+}
+
+/* Hard offset shadow for filled panels (the tan cards). */
+.ol-panel {
+  box-shadow: 6px 6px 0 0 var(--color-border-soft);
+}
+
+/* Press-in button: an offset red plate behind ink; pressing seats the plates. */
+.ol-btn-press {
+  box-shadow: 4px 4px 0 0 var(--color-accent);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.ol-btn-press:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 var(--color-accent);
+}
+
+.ol-btn-press:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 0 var(--color-accent);
+}
+
+/* Rubber stamp: double-ring red border, canted, slammed in on load. */
+.ol-stamp {
+  border: 2px solid var(--color-accent);
+  outline: 1px solid var(--color-accent);
+  outline-offset: 2px;
+  color: var(--color-accent);
+  transform: rotate(-7deg);
+  animation: ol-stamp-in 320ms cubic-bezier(0.2, 1.4, 0.4, 1) 350ms backwards;
+  mix-blend-mode: multiply;
+}
+
+@keyframes ol-stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-16deg) scale(1.7);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-7deg) scale(1);
+  }
+}
+
+/* The page feeds out of the printer on load. */
+.ol-print-in {
+  animation: ol-print-in 450ms ease-out backwards;
+}
+
+@keyframes ol-print-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ol-stamp,
+  .ol-print-in {
+    animation: none;
+  }
+  .ol-btn-press,
+  .ol-btn-press:hover,
+  .ol-btn-press:active {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Dot leaders: a row where the middle fills with ledger dots. */

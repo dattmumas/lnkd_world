@@ -23,7 +23,7 @@ export default function OnLabelSection() {
         </span>
       </p>
 
-      <div className="mt-2 bg-[var(--color-fill-tan)] px-5 py-5">
+      <div className="mt-2 bg-[var(--color-fill-tan)] px-5 py-5 ol-panel">
         <p className="text-[15px] leading-relaxed">
           Early-stage consumer health tech, on the record: the week&apos;s rounds as a
           ledger, one teardown with real numbers, and a falsifiable call — scored
@@ -31,7 +31,7 @@ export default function OnLabelSection() {
         </p>
         {site !== undefined && site.subscriberCount > 0 && (
           <p className="ol-mono text-xs text-[var(--color-text-secondary)] mt-2">
-            READ BY {site.subscriberCount.toLocaleString()} FOUNDERS, OPERATORS &amp; INVESTORS
+            {`READ BY ${site.subscriberCount.toLocaleString()} FOUNDERS, OPERATORS & INVESTORS`}
           </p>
         )}
         <div className="mt-4">
