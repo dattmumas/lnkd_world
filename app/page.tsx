@@ -1,40 +1,73 @@
+import Link from "next/link";
 import Nav from "@/components/nav";
-import Hero from "@/components/hero";
-import NowSection from "@/components/now-section";
-import WritingSection from "@/components/writing-section";
-import ReadingSection from "@/components/reading-section";
-import BookmarksSection from "@/components/bookmarks-section";
-import BondsSection from "@/components/bonds-section";
-import ProjectList from "@/components/project-list";
-import Sidebar from "@/components/sidebar";
 import Footer from "@/components/footer";
+import AppsLedger from "@/components/apps-ledger";
+import OnLabelSection from "@/components/onlabel-section";
 
+/**
+ * The landing IS a ledger: a masthead, the applications as line items
+ * (EXHIBIT A), On Label as the standing entry (EXHIBIT B), and margin notes
+ * pointing at the older sections, which live on at their own routes.
+ */
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col max-w-5xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
       <Nav />
-      <main className="flex-1 py-12 md:py-16">
-        <Hero />
+      <main className="flex-1 py-10 md:py-14">
+        {/* Masthead */}
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">■ LNKD</h1>
+        <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-3 uppercase">
+          Matthew Dumas · Seattle WA · Operator&apos;s ledger
+        </p>
+        <p className="text-[15px] leading-relaxed mt-4 max-w-xl">
+          Finance operator building consumer software. This page is the running
+          ledger: the applications that are live, and{" "}
+          <Link href="/onlabel" className="text-[var(--color-accent)] font-semibold underline underline-offset-2">
+            On Label
+          </Link>
+          , a weekly letter on the business of consumer health tech.
+        </p>
 
-        <NowSection />
+        <hr className="ol-rule-dashed mt-8" />
 
-        {/* Two-column layout: content left, sidebar right on wide desktop */}
-        <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-16">
-          <div className="min-w-0">
-            <BondsSection />
-            <WritingSection />
-            <ReadingSection />
-            <BookmarksSection />
-            <ProjectList />
-          </div>
+        <AppsLedger />
+        <OnLabelSection />
 
-          {/* Sidebar: below content on mobile/tablet, right column on xl+ */}
-          <div className="mt-16 xl:mt-0 xl:border-l xl:border-[var(--color-border)] xl:pl-10">
-            <div className="xl:sticky xl:top-8">
-              <Sidebar />
-            </div>
-          </div>
-        </div>
+        {/* Margin notes — the demoted sections, one line each */}
+        <section className="mt-10">
+          <p className="ol-label">
+            <span className="text-[var(--color-text)]">MARGIN NOTES</span>
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            <li>
+              <Link href="/writing" className="ol-leader-row group">
+                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  WRITING
+                </span>
+                <span className="ol-leader" />
+                <span className="text-sm text-[var(--color-text-secondary)]">essays &amp; notes</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/reading" className="ol-leader-row group">
+                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  READING
+                </span>
+                <span className="ol-leader" />
+                <span className="text-sm text-[var(--color-text-secondary)]">the log, rated</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/bookmarks" className="ol-leader-row group">
+                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  BOOKMARKS
+                </span>
+                <span className="ol-leader" />
+                <span className="text-sm text-[var(--color-text-secondary)]">curated links</span>
+              </Link>
+            </li>
+          </ul>
+        </section>
       </main>
       <Footer />
     </div>

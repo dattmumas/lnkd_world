@@ -2,8 +2,10 @@
 
 Personal site + private growth-operations system. Branding is **LNKD**. Two halves:
 
-1. **Public site** — writing, reading log, bookmarks, resources, projects, a bond-market dashboard, and a knowledge-graph hero. Content is authored in Obsidian and synced to Convex.
+1. **Public site** — a ledger-style landing for applications + **On Label** (the Beehiiv newsletter, headless: lnkd.world is the front door, Beehiiv keeps only platform utilities — post pages, subscribe/unsub/preferences, referral attribution). Plus writing, reading log, bookmarks, resources, and the bond-market dashboard. Content is authored in Obsidian and synced to Convex.
 2. **Growth system (admin-only)** — an X (Twitter) audience-growth machine: curated feeds, a unified engagement queue, AI-drafted posts/replies, an auto-poster, follower attribution, and a consumer deal radar. Runs on ~16 Convex crons.
+
+**Public identity ("ledger")**: paper `#F7F4EE`, ink `#141210`, vermilion `#C7331D`, tan `#EDE7DA`; Space Grotesk display / Space Mono data / Georgia body; zero border-radius. Tokens live in `app/globals.css` (`--color-*`, `ol-*` utilities) and match the On Label email template. Admin keeps its scoped `gc-*` theme; /bonds keeps its dark terminal theme. The old 3D knowledge-graph hero is parked (components + `pnpm graph:layout` kept, unreferenced by the home page).
 
 ## Stack
 
@@ -30,7 +32,8 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 | Route | Access | Purpose |
 |---|---|---|
-| `/` | Public | Hero + 3D knowledge graph, Now, Writing/Reading/Bookmarks/Bonds sections, projects |
+| `/` | Public | Ledger landing: applications (bonds + `projects` table rows) and the On Label section (subscribe + latest issues) |
+| `/onlabel`, `/onlabel/archive` | Public | On Label front door + full issue archive (reads `beehiiv.archive` cache; issue links open Beehiiv post pages) |
 | `/writing`, `/writing/[slug]` | Public (posts can be gated) | Blog posts, markdown w/ wikilinks + backlinks |
 | `/writing/[slug]/history` | Subscriber+ | Version-diff timeline for a post |
 | `/reading` | Public | Reading log (books/articles/papers, ratings, tags) |
@@ -78,7 +81,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 - **Content**: `posts.ts`, `readings.ts`, `bookmarks.ts`, `resources.ts`, `projects.ts`, `now.ts`, `versions.ts`, `graph.ts`/`graphLayout.ts`, `seed.ts`, `stats.ts`
 - **Feeds/queue**: `feedItems.ts` (upsertBatch + prune), `queue.ts` (getQueue/act/decayAffinities), `earlyFeed.ts` (5-min watchlist poll), `xTrends.ts`, `creators_feed.ts`, `scienceFeed.ts` (science+business columns, Sonnet-ranked), `dealsFeed.ts` + `deals.ts` (deal radar)
-- **Growth**: `growth.ts` (follower snapshots), `xPosts.ts` (pipeline + `draftWithClaude`), `xPoster.ts` (auto-poster), `xMetrics.ts`, `ownReplies.ts`, `voiceProfile.ts`, `weeklyReview.ts`, `attribution.ts`, `growthSettings.ts`, `network.ts`, `creators.ts` (watchlist + follow sync), `beehiiv.ts` (newsletter→ideas)
+- **Growth**: `growth.ts` (follower snapshots), `xPosts.ts` (pipeline + `draftWithClaude`), `xPoster.ts` (auto-poster), `xMetrics.ts`, `ownReplies.ts`, `voiceProfile.ts`, `weeklyReview.ts`, `attribution.ts`, `growthSettings.ts`, `network.ts`, `creators.ts` (watchlist + follow sync), `beehiiv.ts` (newsletter→ideas; also the public-site layer: `beehiivSite` archive/subscriber cache refreshed by the daily pull, public `archive` query + `subscribe` action for the landing and /onlabel)
 - **Infra**: `crons.ts`, `cronHealth.ts`, `http.ts` (POST `/api/bonds/ingest`, SYNC_SECRET bearer), `auth.ts`, `users.ts`, `bonds.ts` (ingest + GitHub Actions dispatch trigger)
 - **lib/**: `queueScore.ts` (decay + affinity math), `getxapi.ts` (gxSearch/gxUserTweets/gxFollowers — ~$0.001/call), `xoauth.ts` (postTweet/getTweets, OAuth 1.0a via Web Crypto), `xvoice.ts` (pillars, draft prompts, reply suggestions, curation), `rss.ts`, `telegram.ts`, `auth.ts`, `cronReport.ts`
 

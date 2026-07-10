@@ -102,7 +102,7 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
               y={9}
               className="fill-[var(--color-text-secondary)]"
               fontSize={8}
-              fontFamily="var(--font-lora), Georgia, serif"
+              fontFamily="Georgia, serif"
             >
               {m.label}
             </text>
@@ -116,7 +116,7 @@ export default function ActivityHeatmap({ dates }: { dates: ActivityDate[] }) {
               y={topPad + i * (cellSize + cellGap) + cellSize - 1}
               className="fill-[var(--color-text-secondary)]"
               fontSize={8}
-              fontFamily="var(--font-lora), Georgia, serif"
+              fontFamily="Georgia, serif"
             >
               {d}
             </text>

@@ -1,15 +1,18 @@
-import { Playfair_Display, Lora, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 
-export const playfair = Playfair_Display({
+// Site-wide ledger identity: Space Grotesk display, Space Mono data/labels,
+// Georgia (system) body — matching the On Label newsletter template.
+export const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-playfair",
+  variable: "--font-display",
 });
 
-export const lora = Lora({
+export const spaceMono = Space_Mono({
   subsets: ["latin"],
+  weight: ["400", "700"],
   display: "swap",
-  variable: "--font-lora",
+  variable: "--font-mono",
 });
 
 // Growth-console voice (admin dashboard only) — not preloaded so the public

@@ -26,7 +26,7 @@ export default function ReadingStats({ stats }: { stats: ReadingStatsData }) {
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-3 text-center">
         <div>
-          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-playfair)" }}>
+          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
             {stats.total}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
@@ -34,7 +34,7 @@ export default function ReadingStats({ stats }: { stats: ReadingStatsData }) {
           </div>
         </div>
         <div>
-          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-playfair)" }}>
+          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
             {stats.avgRating > 0 ? `${stats.avgRating}` : "—"}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
@@ -42,7 +42,7 @@ export default function ReadingStats({ stats }: { stats: ReadingStatsData }) {
           </div>
         </div>
         <div>
-          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-playfair)" }}>
+          <div className="text-xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
             {stats.byType["book"] ?? 0}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">

@@ -3,29 +3,80 @@
 @import "highlight.js/styles/github.min.css";
 
 @theme {
-  --font-playfair: var(--font-playfair);
-  --font-lora: var(--font-lora);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
   --font-plexsans: var(--font-plex-sans);
   --font-plexmono: var(--font-plex-mono);
 
-  --color-bg: #FAFAF8;
-  --color-text: #1A1A1A;
-  --color-text-secondary: #6B6B6B;
-  --color-accent: #1B3A5C;
-  --color-accent-hover: #142d47;
-  --color-border: #E5E5E3;
+  /* Ledger identity (shared with the On Label newsletter template):
+     paper ground, ink text, vermilion accent, tan fills, zero radius. */
+  --color-bg: #F7F4EE;
+  --color-text: #232019;
+  --color-text-secondary: #55503F;
+  --color-accent: #C7331D;
+  --color-accent-hover: #A32917;
+  --color-border: #141210;
+  --color-border-soft: #DAD4C6;
+  --color-fill-tan: #EDE7DA;
+  --color-paper-raised: #F9F6F0;
+  --color-leader: #9A937F;
 }
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-lora), Georgia, serif;
+  font-family: Georgia, "Times New Roman", serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-playfair), Georgia, serif;
+  font-family: var(--font-display), Helvetica, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Ledger utilities — the receipt vocabulary used across public pages. */
+.ol-mono {
+  font-family: var(--font-mono), monospace;
+}
+
+.ol-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ol-rule-dashed {
+  border: 0;
+  border-top: 2px dashed var(--color-border);
+}
+
+.ol-box {
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-paper-raised);
+}
+
+.ol-box-heavy {
+  border: 2px solid var(--color-border);
+  border-radius: 0;
+}
+
+/* Dot leaders: a row where the middle fills with ledger dots. */
+.ol-leader-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ol-leader-row .ol-leader {
+  flex: 1;
+  border-bottom: 2px dotted var(--color-leader);
+  transform: translateY(-0.3em);
+  min-width: 1.5rem;
 }
 
 /* Obsidian callouts */
@@ -88,7 +139,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
-  font-family: var(--font-lora), Georgia, serif;
+  font-family: var(--font-mono), monospace;
 }
 
 /* ==========================================================================

@@ -1,21 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { playfair, lora, plexSans, plexMono } from "@/lib/fonts";
+import { spaceGrotesk, spaceMono, plexSans, plexMono } from "@/lib/fonts";
 import ClientLayout from "@/components/client-layout";
 import "./globals.css";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1B3A5C",
+  themeColor: "#141210",
 };
+
+const DESCRIPTION =
+  "The operator's ledger of Matthew Dumas — applications, writing, and On Label, a weekly letter on early-stage consumer health tech.";
 
 export const metadata: Metadata = {
   title: "LNKD",
-  description: "Philosophy, politics, and ideas worth exploring",
+  description: DESCRIPTION,
   metadataBase: new URL("https://lnkd.world"),
   openGraph: {
     title: "LNKD",
-    description: "Philosophy, politics, and ideas worth exploring",
+    description: DESCRIPTION,
     url: "https://lnkd.world",
     siteName: "LNKD",
     locale: "en_US",
@@ -24,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "LNKD",
-    description: "Philosophy, politics, and ideas worth exploring",
+    description: DESCRIPTION,
   },
   icons: {
     icon: "/favicon.svg",
@@ -40,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${lora.variable} ${plexSans.variable} ${plexMono.variable}`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${plexSans.variable} ${plexMono.variable}`}
     >
       <body>
         <ClientLayout>{children}</ClientLayout>
