@@ -576,6 +576,16 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_postId", ["postId"]),
 
+  // Public-site cache of the On Label newsletter (convex/beehiiv.ts): the
+  // confirmed-post archive + subscriber count, refreshed by the daily
+  // pull-beehiiv cron. Single row, JSON payload (bondsSnapshots pattern) —
+  // the landing and /onlabel pages read it with one doc read.
+  beehiivSite: defineTable({
+    postsJson: v.string(), // [{id,title,subtitle,url,publishedAt}]
+    subscriberCount: v.number(),
+    updatedAt: v.number(),
+  }),
+
   // Real-tweet voice grounding for post drafting (convex/voiceProfile.ts):
   // per pillar, the account's own top posts + the niche's current winners,
   // refreshed daily. draftWithClaude builds its prompt from these instead of
