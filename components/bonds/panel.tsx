@@ -18,27 +18,27 @@ export default function Panel({
   title,
   subtitle,
   note,
-  accent = "#FFA028",
+  accent = "#FB8B1E",
   className = "",
   children,
 }: PanelProps): JSX.Element {
   return (
-    <div className={`bg-[#050505] border border-[#2E2E2E] h-full ${className}`}>
+    <div className={`bg-[#000000] border border-[#2E2E2E] h-full ${className}`}>
       {/* Panel title strip */}
       <div className="flex items-center gap-1.5 px-2 py-[3px] bg-[#141414] border-b border-[#2E2E2E]">
         <div className="w-1.5 h-1.5" style={{ backgroundColor: accent }} />
-        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-[#FFA028] font-bold">
+        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-[#FB8B1E] font-bold">
           {title}
         </span>
         {subtitle && (
-          <span className="font-mono text-[10px] text-[#D89540] ml-auto tabular-nums uppercase">
+          <span className="font-mono text-[10px] text-[#FB8B1E] ml-auto tabular-nums uppercase">
             {subtitle}
           </span>
         )}
       </div>
       {/* Optional plain-English explainer for users */}
       {note && (
-        <p className="px-2 pt-1.5 text-[10px] leading-snug text-[#5C5C5C]">
+        <p className="px-2 pt-1.5 text-[10px] leading-snug text-[#7C7C7C]">
           {note}
         </p>
       )}
@@ -60,9 +60,9 @@ export function DirectionArrow({
 }) {
   const sizeMap = { sm: "text-[11px]", md: "text-sm", lg: "text-base" };
   const colors: Record<number, string> = {
-    1: "#00D964",
-    0: "#D89540",
-    [-1]: "#FF4B4B",
+    1: "#00C25B",
+    0: "#FB8B1E",
+    [-1]: "#FF433D",
   };
   const arrows: Record<number, string> = {
     1: "▲",
@@ -92,7 +92,7 @@ export function ConvictionBar({
   const clamped = Math.max(0, Math.min(100, value));
   const filled = Math.round((clamped / 100) * segments);
   const color =
-    clamped >= 70 ? "#00D964" : clamped >= 40 ? "#FFA028" : "#FF4B4B";
+    clamped >= 70 ? "#00C25B" : clamped >= 40 ? "#FB8B1E" : "#FF433D";
 
   return (
     <div className="flex gap-[2px]">
@@ -114,7 +114,7 @@ export function Sparkline({
   data,
   width = 120,
   height = 32,
-  color = "#D89540",
+  color = "#FB8B1E",
   showArea = false,
 }: {
   data: { value: number }[];
@@ -168,9 +168,9 @@ export function ChangeBadge({
   suffix?: string;
   decimals?: number;
 }) {
-  if (value == null) return <span className="text-[#5C5C5C]">--</span>;
+  if (value == null) return <span className="text-[#7C7C7C]">--</span>;
 
-  const color = value > 0 ? "#00D964" : value < 0 ? "#FF4B4B" : "#D89540";
+  const color = value > 0 ? "#00C25B" : value < 0 ? "#FF433D" : "#FB8B1E";
   const sign = value > 0 ? "+" : "";
 
   return (

@@ -3,13 +3,13 @@
 import Panel from "./panel";
 
 const ALLOCATION_COLORS: Record<string, string> = {
-  treasuries_short: "#62B0FF",
-  treasuries_mid: "#00D964",
-  treasuries_long: "#FFE24A",
-  ig_corporate: "#FFA028",
-  hy_corporate: "#FF4B4B",
-  tips: "#FF3EB5",
-  cash: "#8F8F8F",
+  treasuries_short: "#54A8FF",
+  treasuries_mid: "#00C25B",
+  treasuries_long: "#E0C010",
+  ig_corporate: "#FB8B1E",
+  hy_corporate: "#FF433D",
+  tips: "#4AF6C3",
+  cash: "#A5A095",
 };
 
 const ALLOCATION_LABELS: Record<string, string> = {
@@ -36,7 +36,7 @@ export default function PortfolioPanel({
   if (!portfolio || portfolio.error) {
     return (
       <Panel title="Portfolio Allocation">
-        <div className="text-[#D89540] font-mono text-sm text-center py-8">
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-8">
           No portfolio data
         </div>
       </Panel>
@@ -59,7 +59,7 @@ export default function PortfolioPanel({
             key={key}
             style={{
               width: `${(value / total) * 100}%`,
-              backgroundColor: ALLOCATION_COLORS[key] || "#8F8F8F",
+              backgroundColor: ALLOCATION_COLORS[key] || "#A5A095",
             }}
           />
         ))}
@@ -68,7 +68,7 @@ export default function PortfolioPanel({
       {/* Weights table */}
       <table className="w-full font-mono text-[11px]">
         <thead>
-          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+          <tr className="text-left text-[#FB8B1E] border-b border-[#2E2E2E]">
             <th className="py-0.5 font-normal">SLEEVE</th>
             <th className="py-0.5 font-normal text-right">WGT</th>
             <th className="py-0.5 font-normal text-right">VS BASE</th>
@@ -76,28 +76,28 @@ export default function PortfolioPanel({
         </thead>
         <tbody>
           {entries.map(([key, value]) => {
-            const color = ALLOCATION_COLORS[key] || "#8F8F8F";
+            const color = ALLOCATION_COLORS[key] || "#A5A095";
             const label = ALLOCATION_LABELS[key] || key.toUpperCase();
             const baseVal = base[key] || 0;
             const diff = value - baseVal;
             const hasTilt = Math.abs(diff) > 0.005;
 
             return (
-              <tr key={key} className="border-b border-[#141414]">
+              <tr key={key} className="border-b border-[#1C1C1C]">
                 <td className="py-[3px]">
                   <span
                     className="inline-block w-2 h-2 mr-1.5"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="text-[#E6E6E6]">{label}</span>
+                  <span className="text-[#F6F3E8]">{label}</span>
                 </td>
-                <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                <td className="py-[3px] text-right text-[#F6F3E8] font-bold tabular-nums">
                   {(value * 100).toFixed(0)}%
                 </td>
                 <td
                   className="py-[3px] text-right tabular-nums"
                   style={{
-                    color: hasTilt ? (diff > 0 ? "#00D964" : "#FF4B4B") : "#5C5C5C",
+                    color: hasTilt ? (diff > 0 ? "#00C25B" : "#FF433D") : "#7C7C7C",
                   }}
                 >
                   {hasTilt ? `${diff > 0 ? "+" : ""}${(diff * 100).toFixed(0)}%` : "--"}
@@ -116,8 +116,8 @@ export default function PortfolioPanel({
         if (tilts.length === 0) return null;
         return (
           <div className="mt-1.5 font-mono text-[10px]">
-            <span className="text-[#D89540]">TILTS </span>
-            <span className="text-[#8F8F8F] uppercase">{tilts.join(" · ")}</span>
+            <span className="text-[#FB8B1E]">TILTS </span>
+            <span className="text-[#A5A095] uppercase">{tilts.join(" · ")}</span>
           </div>
         );
       })()}

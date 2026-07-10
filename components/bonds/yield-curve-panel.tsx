@@ -20,7 +20,7 @@ function CurveSVG({
 
   if (!curvePoints || curvePoints.length < 2) {
     return (
-      <div className="text-[#D89540] font-mono text-sm text-center py-10">
+      <div className="text-[#FB8B1E] font-mono text-sm text-center py-10">
         Insufficient data
       </div>
     );
@@ -62,7 +62,7 @@ function CurveSVG({
       {yTicks.map((tick) => (
         <g key={tick}>
           <line x1={pad.left} x2={width - pad.right} y1={sy(tick)} y2={sy(tick)} stroke="#1F1F1F" strokeWidth={0.5} />
-          <text x={pad.left - 8} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#8F8F8F" fontSize={8.5} fontFamily="monospace">
+          <text x={pad.left - 8} y={sy(tick)} textAnchor="end" dominantBaseline="middle" fill="#A5A095" fontSize={8.5} fontFamily="monospace">
             {tick.toFixed(2)}
           </text>
         </g>
@@ -70,7 +70,7 @@ function CurveSVG({
 
       {/* X labels */}
       {curvePoints.map((p) => (
-        <text key={p.tenor} x={sx(p.years)} y={height - 8} textAnchor="middle" fill="#8F8F8F" fontSize={8.5} fontFamily="monospace">
+        <text key={p.tenor} x={sx(p.years)} y={height - 8} textAnchor="middle" fill="#A5A095" fontSize={8.5} fontFamily="monospace">
           {p.tenor}
         </text>
       ))}
@@ -80,7 +80,7 @@ function CurveSVG({
         <path
           d={compPath}
           fill="none"
-          stroke="#62B0FF"
+          stroke="#54A8FF"
           strokeWidth={1}
           strokeDasharray="4,3"
           opacity={0.8}
@@ -88,7 +88,7 @@ function CurveSVG({
       )}
 
       {/* Main curve */}
-      <path d={currentPath} fill="none" stroke="#FFA028" strokeWidth={1.5} />
+      <path d={currentPath} fill="none" stroke="#FB8B1E" strokeWidth={1.5} />
 
       {/* Data points */}
       {curvePoints.map((p) => (
@@ -98,7 +98,7 @@ function CurveSVG({
           y={sy(p.yield) - 1.75}
           width={3.5}
           height={3.5}
-          fill="#FFE24A"
+          fill="#F6F3E8"
         />
       ))}
     </svg>
@@ -123,7 +123,7 @@ export default function YieldCurvePanel({
   if (!yieldCurve) {
     return (
       <Panel title="Yield Curve">
-        <div className="text-[#D89540] font-mono text-sm text-center py-10">No yield curve data</div>
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-10">No yield curve data</div>
       </Panel>
     );
   }
@@ -147,15 +147,15 @@ export default function YieldCurvePanel({
         <div className="flex-1 min-w-0">
           {/* Comparison toggles */}
           <div className="flex items-center gap-1 mb-1.5 font-mono text-[10px]">
-            <span className="text-[#D89540] mr-1 uppercase">Compare</span>
+            <span className="text-[#FB8B1E] mr-1 uppercase">Compare</span>
             {comparisons.map((c) => (
               <button
                 key={c.key}
                 onClick={() => setComparison(comparison === c.key ? null : c.key)}
                 className={`px-2 py-px border font-bold ${
                   comparison === c.key
-                    ? "bg-[#FFA028] text-[#000000] border-[#FFA028]"
-                    : "text-[#D89540] border-[#2E2E2E] hover:border-[#D89540]"
+                    ? "bg-[#FB8B1E] text-[#000000] border-[#FB8B1E]"
+                    : "text-[#FB8B1E] border-[#2E2E2E] hover:border-[#FB8B1E]"
                 }`}
               >
                 {c.label}
@@ -175,7 +175,7 @@ export default function YieldCurvePanel({
         <div className="mt-2 lg:mt-0 lg:w-72 lg:shrink-0 lg:border-l lg:border-[#1F1F1F] lg:pl-4 font-mono">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+              <tr className="text-left text-[#FB8B1E] border-b border-[#2E2E2E]">
                 <th className="py-0.5 font-normal">TENOR</th>
                 <th className="py-0.5 font-normal text-right">YLD</th>
                 <th className="py-0.5 font-normal text-right">
@@ -193,16 +193,16 @@ export default function YieldCurvePanel({
                 const change = current != null && prev != null ? (current - prev) * 100 : null;
 
                 return (
-                  <tr key={tenor} className="border-b border-[#141414]">
-                    <td className="py-[3px] text-[#62B0FF]">{tenor}</td>
-                    <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                  <tr key={tenor} className="border-b border-[#1C1C1C]">
+                    <td className="py-[3px] text-[#E0C010] font-bold">{tenor}</td>
+                    <td className="py-[3px] text-right text-[#F6F3E8] font-bold tabular-nums">
                       {current != null ? current.toFixed(2) : "--"}
                     </td>
                     <td className="py-[3px] text-right">
                       {change != null ? (
                         <ChangeBadge value={change} suffix="bp" decimals={0} />
                       ) : (
-                        <span className="text-[#5C5C5C]">--</span>
+                        <span className="text-[#7C7C7C]">--</span>
                       )}
                     </td>
                   </tr>
@@ -214,12 +214,12 @@ export default function YieldCurvePanel({
           {/* Forward rates */}
           {yieldCurve.forward_rates && yieldCurve.forward_rates.length > 0 && (
             <div className="mt-1.5">
-              <div className="text-[10px] text-[#D89540] mb-0.5">FWD RATES</div>
+              <div className="text-[10px] text-[#FB8B1E] mb-0.5">FWD RATES</div>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
                 {yieldCurve.forward_rates.map((f) => (
                   <div key={`${f.from}-${f.to}`}>
-                    <span className="text-[#8F8F8F]">{f.from}&rarr;{f.to}</span>
-                    <span className="text-[#E6E6E6] ml-1.5 tabular-nums">
+                    <span className="text-[#A5A095]">{f.from}&rarr;{f.to}</span>
+                    <span className="text-[#F6F3E8] ml-1.5 tabular-nums">
                       {f.rate != null ? f.rate.toFixed(2) : "--"}
                     </span>
                   </div>

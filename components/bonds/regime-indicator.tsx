@@ -3,16 +3,16 @@
 import Panel from "./panel";
 
 const REGIME_COLORS: Record<string, string> = {
-  rising_high: "#FF4B4B",
-  rising_mid: "#FFA028",
-  rising_low: "#FFA028",
-  falling_high: "#00D964",
-  falling_mid: "#62B0FF",
-  falling_low: "#62B0FF",
-  stable_high: "#FFA028",
-  stable_mid: "#D89540",
-  stable_low: "#62B0FF",
-  unknown: "#8F8F8F",
+  rising_high: "#FF433D",
+  rising_mid: "#FB8B1E",
+  rising_low: "#FB8B1E",
+  falling_high: "#00C25B",
+  falling_mid: "#54A8FF",
+  falling_low: "#54A8FF",
+  stable_high: "#FB8B1E",
+  stable_mid: "#FB8B1E",
+  stable_low: "#54A8FF",
+  unknown: "#A5A095",
 };
 
 const REGIME_LABELS: Record<string, string> = {
@@ -31,7 +31,7 @@ const REGIME_LABELS: Record<string, string> = {
 function ConfidenceBlocks({ score }: { score: number }) {
   const clamped = Math.max(0, Math.min(100, score));
   const filled = Math.round((clamped / 100) * 20);
-  const color = clamped >= 70 ? "#00D964" : clamped >= 40 ? "#FFA028" : "#FF4B4B";
+  const color = clamped >= 70 ? "#00C25B" : clamped >= 40 ? "#FB8B1E" : "#FF433D";
   return (
     <div className="flex gap-[2px]">
       {Array.from({ length: 20 }, (_, i) => (
@@ -76,14 +76,14 @@ export default function RegimeIndicator({
   const label = REGIME_LABELS[regimeKey] || regimeKey.toUpperCase();
 
   const predBps = prediction?.predicted_change_bps || 0;
-  const predColor = predBps > 0 ? "#FF4B4B" : predBps < 0 ? "#00D964" : "#D89540";
+  const predColor = predBps > 0 ? "#FF433D" : predBps < 0 ? "#00C25B" : "#FB8B1E";
 
   return (
     <Panel title="Rate Regime" note="Where rates sit (trend and level), plus the model 21-day forecast. Check the confidence bar before acting on the number." accent={color}>
       <div className="font-mono">
         {/* Current regime readout */}
         <div className="flex items-baseline justify-between gap-3 pb-1.5 mb-1.5 border-b border-[#1F1F1F]">
-          <span className="text-[10px] text-[#D89540]">CURRENT REGIME</span>
+          <span className="text-[10px] text-[#FB8B1E]">CURRENT REGIME</span>
           <span className="text-[15px] font-bold tracking-[0.08em]" style={{ color }}>
             {label}
           </span>
@@ -91,28 +91,28 @@ export default function RegimeIndicator({
 
         {regime && (
           <>
-            <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-              <span className="text-[#D89540]">TREND</span>
-              <span className="text-[#E6E6E6] uppercase font-bold">{regime.trend}</span>
+            <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+              <span className="text-[#FB8B1E]">TREND</span>
+              <span className="text-[#F6F3E8] uppercase font-bold">{regime.trend}</span>
             </div>
-            <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-              <span className="text-[#D89540]">LEVEL</span>
-              <span className="text-[#E6E6E6] uppercase font-bold">{regime.level}</span>
+            <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+              <span className="text-[#FB8B1E]">LEVEL</span>
+              <span className="text-[#F6F3E8] uppercase font-bold">{regime.level}</span>
             </div>
           </>
         )}
 
         {/* Prediction */}
         {prediction && (
-          <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-            <span className="text-[#D89540]">21D FORECAST (10Y)</span>
+          <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+            <span className="text-[#FB8B1E]">21D FORECAST (10Y)</span>
             <span className="tabular-nums">
               <span className="text-[13px] font-bold" style={{ color: predColor }}>
                 {predBps > 0 ? "+" : ""}
                 {predBps.toFixed(0)}bp
               </span>
               {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
-                <span className="text-[#5C5C5C] ml-2">
+                <span className="text-[#7C7C7C] ml-2">
                   90% CI [{prediction.ci_90_lower_bps.toFixed(0)}, {prediction.ci_90_upper_bps.toFixed(0)}]
                 </span>
               )}
@@ -124,22 +124,22 @@ export default function RegimeIndicator({
         {validation && validation.confidence_score != null && (
           <div className="pt-1.5">
             <div className="flex items-center justify-between mb-1 text-[11px]">
-              <span className="text-[#D89540]">MODEL CONFIDENCE</span>
+              <span className="text-[#FB8B1E]">MODEL CONFIDENCE</span>
               <span className="tabular-nums">
                 <span
                   className="font-bold uppercase"
                   style={{
                     color:
                       validation.confidence_level === "high"
-                        ? "#00D964"
+                        ? "#00C25B"
                         : validation.confidence_level === "medium"
-                          ? "#FFA028"
-                          : "#FF4B4B",
+                          ? "#FB8B1E"
+                          : "#FF433D",
                   }}
                 >
                   {validation.confidence_level}
                 </span>
-                <span className="text-[#E6E6E6] ml-2">
+                <span className="text-[#F6F3E8] ml-2">
                   {(validation.confidence_score || 0).toFixed(0)}/100
                 </span>
               </span>

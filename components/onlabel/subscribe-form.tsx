@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
  * beehiiv.subscribe (double-opt-in/welcome handled by Beehiiv). The `company`
  * field is a honeypot: visually hidden, so any value means a bot.
  */
-export default function SubscribeForm() {
+export default function SubscribeForm({ onSuccess }: { onSuccess?: () => void }) {
   const subscribe = useAction(api.beehiiv.subscribe);
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -25,6 +25,7 @@ export default function SubscribeForm() {
       .then((r) => {
         if (r.ok) {
           setState("done");
+          onSuccess?.();
         } else {
           setState("error");
           setError(r.error ?? "Something jammed — try again.");

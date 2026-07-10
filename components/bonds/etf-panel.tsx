@@ -11,12 +11,12 @@ function CorrelationMatrix({
 
   // Signed heat: green for positive, red for negative, black at zero.
   const cellStyle = (v: number, isDiag: boolean) => {
-    if (isDiag) return { backgroundColor: "#111111", color: "#5C5C5C" };
+    if (isDiag) return { backgroundColor: "#111111", color: "#7C7C7C" };
     const alpha = Math.min(0.85, Math.abs(v) * 0.85);
     return {
       backgroundColor:
         v >= 0 ? `rgba(0, 130, 60, ${alpha})` : `rgba(180, 40, 40, ${alpha})`,
-      color: "#E6E6E6",
+      color: "#F6F3E8",
     };
   };
 
@@ -25,9 +25,9 @@ function CorrelationMatrix({
       <table className="w-full border-separate border-spacing-px">
         <thead>
           <tr>
-            <th className="font-mono text-[10px] text-[#D89540] font-normal" />
+            <th className="font-mono text-[10px] text-[#FB8B1E] font-normal" />
             {tickers.map((t) => (
-              <th key={t} className="font-mono text-[10px] text-[#D89540] font-normal pb-0.5">
+              <th key={t} className="font-mono text-[10px] text-[#FB8B1E] font-normal pb-0.5">
                 {t}
               </th>
             ))}
@@ -36,7 +36,7 @@ function CorrelationMatrix({
         <tbody>
           {tickers.map((rowT, i) => (
             <tr key={rowT}>
-              <td className="font-mono text-[10px] text-[#D89540] text-right pr-1.5">
+              <td className="font-mono text-[10px] text-[#FB8B1E] text-right pr-1.5">
                 {rowT}
               </td>
               {values[i].map((v, j) => (
@@ -78,7 +78,7 @@ export default function EtfPanel({
   if (!etfs?.available) {
     return (
       <Panel title="Bond ETFs" note="Returns for bond ETFs across maturities and credit. Longer-duration funds move most when rates change.">
-        <div className="text-[#D89540] font-mono text-sm text-center py-8">
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-8">
           No ETF data
         </div>
       </Panel>
@@ -92,7 +92,7 @@ export default function EtfPanel({
         <div className="flex-1 min-w-0">
           <table className="w-full font-mono text-[11px]">
             <thead>
-              <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+              <tr className="text-left text-[#FB8B1E] border-b border-[#2E2E2E]">
                 <th className="py-0.5 font-normal">TICKER</th>
                 <th className="py-0.5 font-normal text-right">PX</th>
                 <th className="py-0.5 font-normal text-right">1D</th>
@@ -103,9 +103,9 @@ export default function EtfPanel({
             </thead>
             <tbody>
               {etfs.etfs.map((etf) => (
-                <tr key={etf.ticker} className="border-b border-[#141414]">
-                  <td className="py-[3px] text-[#62B0FF] font-bold">{etf.ticker}</td>
-                  <td className="py-[3px] text-right text-[#FFE24A] font-bold tabular-nums">
+                <tr key={etf.ticker} className="border-b border-[#1C1C1C]">
+                  <td className="py-[3px] text-[#E0C010] font-bold">{etf.ticker}</td>
+                  <td className="py-[3px] text-right text-[#F6F3E8] font-bold tabular-nums">
                     {etf.price != null ? etf.price.toFixed(2) : "--"}
                   </td>
                   <td className="py-[3px] text-right">
@@ -116,7 +116,7 @@ export default function EtfPanel({
                       data={etf.sparkline}
                       width={80}
                       height={14}
-                      color={etf.return_1m >= 0 ? "#00D964" : "#FF4B4B"}
+                      color="#FB8B1E"
                     />
                   </td>
                   <td className="py-[3px] text-right">
@@ -134,7 +134,7 @@ export default function EtfPanel({
         {/* Correlation matrix */}
         {etfs.correlation && (
           <div className="mt-3 lg:mt-0 lg:w-[360px] lg:shrink-0 lg:border-l lg:border-[#1F1F1F] lg:pl-4">
-            <div className="font-mono text-[10px] text-[#D89540] mb-1">
+            <div className="font-mono text-[10px] text-[#FB8B1E] mb-1">
               CORRELATION MATRIX (60D)
             </div>
             <CorrelationMatrix correlation={etfs.correlation} />

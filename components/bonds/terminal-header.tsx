@@ -50,7 +50,7 @@ export default function TerminalHeader({
   refreshError,
 }: TerminalHeaderProps): JSX.Element {
   const statusColor =
-    status === "ok" ? "#00D964" : status === "partial" ? "#FFA028" : "#FF4B4B";
+    status === "ok" ? "#00C25B" : status === "partial" ? "#FB8B1E" : "#FF433D";
   const statusLabel =
     status === "ok" ? "LIVE" : status === "partial" ? "PARTIAL" : "STALE";
 
@@ -72,16 +72,16 @@ export default function TerminalHeader({
         <div className="flex items-center gap-3 min-w-0 font-mono">
           <Link
             href="/"
-            className="text-[#FFA028] text-[13px] font-bold tracking-[0.12em] hover:text-[#FFC46B] shrink-0"
+            className="text-[#FB8B1E] text-[13px] font-bold tracking-[0.12em] hover:text-[#FDAB4D] shrink-0"
           >
             LNKD
           </Link>
           <span className="text-[#2E2E2E] shrink-0">|</span>
           <span className="text-[13px] tracking-[0.08em] uppercase truncate">
-            <span className="text-[#E6E6E6]">BOND</span>
-            <span className="text-[#D89540]">&nbsp;MKT&nbsp;</span>
-            <span className="text-[#FFA028] font-bold">&lt;GO&gt;</span>
-            <span className="inline-block w-[7px] h-[13px] bg-[#FFA028] ml-1.5 align-middle animate-pulse" />
+            <span className="text-[#F6F3E8]">BOND</span>
+            <span className="text-[#FB8B1E]">&nbsp;MKT&nbsp;</span>
+            <span className="text-[#FB8B1E] font-bold">&lt;GO&gt;</span>
+            <span className="inline-block w-[7px] h-[13px] bg-[#FB8B1E] ml-1.5 align-middle animate-pulse" />
           </span>
           <span
             className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[11px] font-bold px-1.5 py-0.5 shrink-0"
@@ -111,24 +111,24 @@ export default function TerminalHeader({
             </button>
           )}
           {refreshError && !refreshing && (
-            <span className="text-[#FF4B4B]" title={refreshError}>
+            <span className="text-[#FF433D]" title={refreshError}>
               REFRESH FAILED
             </span>
           )}
           {errors && errors.length > 0 && (
-            <span className="text-[#FFA028]">
+            <span className="text-[#FB8B1E]">
               {errors.length} WARN{errors.length > 1 ? "S" : ""}
             </span>
           )}
           {age !== null && (
-            <span className="text-[#D89540] hidden md:inline">
+            <span className="text-[#FB8B1E] hidden md:inline">
               AGE{" "}
-              <span className={age > 24 ? "text-[#FF4B4B]" : "text-[#E6E6E6]"}>
+              <span className={age > 24 ? "text-[#FF433D]" : "text-[#F6F3E8]"}>
                 {age}H
               </span>
             </span>
           )}
-          <span className="text-[#FFA028] text-[13px] font-bold">
+          <span className="text-[#FB8B1E] text-[13px] font-bold">
             <LiveClock />
           </span>
         </div>

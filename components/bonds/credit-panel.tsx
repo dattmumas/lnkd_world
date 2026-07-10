@@ -2,13 +2,13 @@
 
 import Panel, { Sparkline } from "./panel";
 
-const SPREAD_LABELS: Record<string, { label: string; color: string }> = {
-  aaa_oas: { label: "AAA", color: "#00D964" },
-  baa_oas: { label: "BAA", color: "#62B0FF" },
-  ig_oas: { label: "IG", color: "#62B0FF" },
-  hy_oas: { label: "HY", color: "#FFA028" },
-  bbb_oas: { label: "BBB", color: "#FFA028" },
-  ccc_oas: { label: "CCC", color: "#FF4B4B" },
+const SPREAD_LABELS: Record<string, string> = {
+  aaa_oas: "AAA",
+  baa_oas: "BAA",
+  ig_oas: "IG",
+  hy_oas: "HY",
+  bbb_oas: "BBB",
+  ccc_oas: "CCC",
 };
 
 function CreditCycleStrip({
@@ -21,8 +21,8 @@ function CreditCycleStrip({
   return (
     <div className="mb-2 pb-2 border-b border-[#1F1F1F] font-mono">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] text-[#D89540]">CREDIT CYCLE</span>
-        <span className="text-[11px] text-[#FFE24A] font-bold uppercase">{cycle.interpretation}</span>
+        <span className="text-[10px] text-[#FB8B1E]">CREDIT CYCLE</span>
+        <span className="text-[11px] text-[#F6F3E8] font-bold uppercase">{cycle.interpretation}</span>
       </div>
       <div className="relative h-[7px] bg-[#1A1A1A]">
         {/* zone ticks at the thirds */}
@@ -30,11 +30,11 @@ function CreditCycleStrip({
         <div className="absolute left-2/3 top-0 h-full w-px bg-[#2E2E2E]" />
         {/* position marker */}
         <div
-          className="absolute top-[-3px] h-[13px] w-[3px] bg-[#FFA028]"
+          className="absolute top-[-3px] h-[13px] w-[3px] bg-[#FB8B1E]"
           style={{ left: `calc(${position}% - 1px)` }}
         />
       </div>
-      <div className="flex justify-between text-[9px] text-[#5C5C5C] mt-0.5">
+      <div className="flex justify-between text-[9px] text-[#7C7C7C] mt-0.5">
         <span>RISK-ON</span>
         <span>NEUTRAL</span>
         <span>RISK-OFF</span>
@@ -58,7 +58,7 @@ export default function CreditPanel({
   if (!credit?.available) {
     return (
       <Panel title="Credit Spreads" note="Corporate yield premiums over Treasuries. Wider spreads mean more risk aversion; the cycle gauge flags early vs late cycle.">
-        <div className="text-[#D89540] font-mono text-sm text-center py-8">No credit data</div>
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-8">No credit data</div>
       </Panel>
     );
   }
@@ -72,7 +72,7 @@ export default function CreditPanel({
 
       <table className="w-full font-mono text-[11px]">
         <thead>
-          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+          <tr className="text-left text-[#FB8B1E] border-b border-[#2E2E2E]">
             <th className="py-0.5 font-normal">RATING</th>
             <th className="py-0.5 font-normal text-right">OAS</th>
             <th className="py-0.5 font-normal text-center">60D</th>
@@ -80,23 +80,21 @@ export default function CreditPanel({
         </thead>
         <tbody>
           {keys.map((key) => {
-            const meta = SPREAD_LABELS[key] || { label: key.toUpperCase(), color: "#D89540" };
+            const label = SPREAD_LABELS[key] || key.toUpperCase();
             const current = credit.current_spreads[key];
             const series = credit.time_series[key];
 
             return (
-              <tr key={key} className="border-b border-[#141414]">
-                <td className="py-[3px] font-bold" style={{ color: meta.color }}>
-                  {meta.label}
-                </td>
+              <tr key={key} className="border-b border-[#1C1C1C]">
+                <td className="py-[3px] font-bold text-[#E0C010]">{label}</td>
                 <td className="py-[3px] text-right tabular-nums">
-                  <span className="text-[#FFE24A] font-bold">
+                  <span className="text-[#F6F3E8] font-bold">
                     {current != null ? current.toFixed(0) : "--"}
                   </span>
-                  <span className="text-[#5C5C5C] text-[9px] ml-0.5">bp</span>
+                  <span className="text-[#7C7C7C] text-[9px] ml-0.5">bp</span>
                 </td>
                 <td className="py-[3px] text-center leading-none">
-                  {series && <Sparkline data={series.slice(-60)} width={110} height={14} color={meta.color} />}
+                  {series && <Sparkline data={series.slice(-60)} width={110} height={14} color="#FB8B1E" />}
                 </td>
               </tr>
             );
@@ -107,14 +105,14 @@ export default function CreditPanel({
       {/* Sector RV */}
       {credit.sector_rv && credit.sector_rv.length > 0 && (
         <div className="mt-2 pt-1.5 border-t border-[#1F1F1F]">
-          <div className="font-mono text-[10px] text-[#D89540] mb-0.5">RELATIVE VALUE</div>
+          <div className="font-mono text-[10px] text-[#FB8B1E] mb-0.5">RELATIVE VALUE</div>
           <div className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[11px]">
             {credit.sector_rv.map((s, i) => {
               const score = s.rv_score ?? 0;
-              const color = score > 0.5 ? "#00D964" : score < -0.5 ? "#FF4B4B" : "#D89540";
+              const color = score > 0.5 ? "#00C25B" : score < -0.5 ? "#FF433D" : "#FB8B1E";
               return (
                 <div key={`${s.sector ?? "rv"}-${i}`}>
-                  <span className="text-[#8F8F8F]">{s.sector}</span>
+                  <span className="text-[#A5A095]">{s.sector}</span>
                   <span className="ml-1.5 tabular-nums" style={{ color }}>
                     {score > 0 ? "+" : ""}{score.toFixed(2)}
                   </span>

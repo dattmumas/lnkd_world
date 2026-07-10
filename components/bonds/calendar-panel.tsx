@@ -14,10 +14,10 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }, [targetDate]);
 
   if (days === null) return null;
-  if (days < 0) return <span className="text-[#5C5C5C] text-[10px]">PAST</span>;
+  if (days < 0) return <span className="text-[#7C7C7C] text-[10px]">PAST</span>;
 
   const color =
-    days <= 1 ? "#FF4B4B" : days <= 3 ? "#FFA028" : days <= 7 ? "#62B0FF" : "#D89540";
+    days <= 1 ? "#FF433D" : days <= 3 ? "#FB8B1E" : days <= 7 ? "#54A8FF" : "#FB8B1E";
 
   return (
     <span className="font-mono text-[11px] tabular-nums font-bold" style={{ color }}>
@@ -27,13 +27,9 @@ function Countdown({ targetDate }: { targetDate: string }) {
 }
 
 const EVENT_COLORS: Record<string, string> = {
-  FOMC: "#FF4B4B",
-  CPI: "#FFA028",
-  NFP: "#62B0FF",
-  GDP: "#00D964",
-  "Retail Sales": "#62B0FF",
-  PMI: "#FFA028",
-  "Consumer Sentiment": "#FF3EB5",
+  FOMC: "#FF433D",
+  CPI: "#FB8B1E",
+  NFP: "#FB8B1E",
 };
 
 export default function CalendarPanel({
@@ -53,7 +49,7 @@ export default function CalendarPanel({
   if (!calendar?.events || calendar.events.length === 0) {
     return (
       <Panel title="Economic Calendar">
-        <div className="text-[#D89540] font-mono text-sm text-center py-8">
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-8">
           No upcoming events
         </div>
       </Panel>
@@ -69,7 +65,7 @@ export default function CalendarPanel({
     <Panel title="Econ Calendar" note="Upcoming releases that tend to move rates (CPI, jobs, FOMC). Volatility usually clusters around these dates." subtitle="30d">
       <table className="w-full font-mono text-[11px]">
         <thead>
-          <tr className="text-left text-[#D89540] border-b border-[#2E2E2E]">
+          <tr className="text-left text-[#FB8B1E] border-b border-[#2E2E2E]">
             <th className="py-0.5 font-normal">DATE</th>
             <th className="py-0.5 font-normal">EVENT</th>
             <th className="py-0.5 font-normal text-right">IN</th>
@@ -80,12 +76,12 @@ export default function CalendarPanel({
             const eventKey = Object.keys(EVENT_COLORS).find((k) =>
               evt.event?.includes(k)
             );
-            const color = eventKey ? EVENT_COLORS[eventKey] : "#E6E6E6";
+            const color = (eventKey && EVENT_COLORS[eventKey]) || "#F6F3E8";
             const isPast = new Date(evt.date).getTime() < Date.now();
 
             return (
-              <tr key={i} className={`border-b border-[#141414] ${isPast ? "opacity-40" : ""}`}>
-                <td className="py-[3px] text-[#8F8F8F] whitespace-nowrap pr-3">
+              <tr key={i} className={`border-b border-[#1C1C1C] ${isPast ? "opacity-40" : ""}`}>
+                <td className="py-[3px] text-[#A5A095] whitespace-nowrap pr-3">
                   {new Date(evt.date)
                     .toLocaleDateString("en-US", {
                       weekday: "short",

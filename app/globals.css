@@ -103,9 +103,59 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* The subscription slip: skids in from the left, overshoots, and wobbles
+   as it settles — a receipt sliding across the desk. */
+.ol-slip-skid {
+  animation: ol-slip-skid 1100ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes ol-slip-skid {
+  0% {
+    transform: translateX(-120vw) rotate(-3deg);
+  }
+  55% {
+    transform: translateX(26px) rotate(2deg); /* skids past the mark */
+  }
+  70% {
+    transform: translateX(-12px) rotate(-1.4deg); /* rebounds */
+  }
+  80% {
+    transform: translateX(7px) rotate(0.9deg); /* jiggles… */
+  }
+  88% {
+    transform: translateX(-4px) rotate(-0.5deg);
+  }
+  94% {
+    transform: translateX(2px) rotate(0.25deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg); /* …and settles */
+  }
+}
+
+/* On close, the slip drops off the bottom of the desk. */
+.ol-slip-drop {
+  animation: ol-slip-drop 550ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes ol-slip-drop {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(130vh) rotate(8deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ol-print-in {
     animation: none;
+  }
+  .ol-slip-skid {
+    animation: ol-fade-in 200ms ease-out backwards;
+  }
+  .ol-slip-drop {
+    animation: ol-fade-out 200ms ease-out forwards;
   }
   .ol-btn-press,
   .ol-btn-press:hover,
@@ -113,6 +163,16 @@ h1, h2, h3, h4, h5, h6 {
     transform: none;
     transition: none;
   }
+}
+
+@keyframes ol-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ol-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 /* Dot leaders: a row where the middle fills with ledger dots. */
@@ -200,22 +260,21 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 
 .bonds-terminal {
-  /* Bloomberg register: pure black, amber labels, white data, vivid signals. */
+  /* Bloomberg register: pure black, signature orange-amber labels (#FB8B1E),
+     warm off-white data, yellow tickers, green/red reserved for signed changes. */
   --bt-bg: #000000;
-  --bt-surface: #0B0B0B;
+  --bt-surface: #000000;
   --bt-surface-alt: #141414;
   --bt-border: #2E2E2E;
-  --bt-text: #E6E6E6;
-  --bt-text-secondary: #8F8F8F;
-  --bt-text-muted: #5C5C5C;
-  --bt-label: #D89540;
-  --bt-green: #00D964;
-  --bt-red: #FF4B4B;
-  --bt-blue: #62B0FF;
-  --bt-amber: #FFA028;
-  --bt-purple: #FF3EB5;
-  --bt-orange: #FF6A00;
-  --bt-pink: #FF3EB5;
+  --bt-text: #F6F3E8;
+  --bt-text-secondary: #A5A095;
+  --bt-text-muted: #7C7C7C;
+  --bt-label: #FB8B1E;
+  --bt-green: #00C25B;
+  --bt-red: #FF433D;
+  --bt-blue: #54A8FF;
+  --bt-amber: #FB8B1E;
+  --bt-yellow: #E0C010;
 
   background-color: var(--bt-bg);
   color: var(--bt-text);

@@ -2,13 +2,6 @@
 
 import Panel, { ConvictionBar } from "./panel";
 
-const TYPE_COLORS: Record<string, string> = {
-  duration: "#62B0FF",
-  curve: "#62B0FF",
-  sector: "#FFA028",
-  relative_value: "#00D964",
-};
-
 export default function TradeIdeas({
   signals,
 }: {
@@ -30,7 +23,7 @@ export default function TradeIdeas({
   if (!ideas || ideas.length === 0) {
     return (
       <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk.">
-        <div className="text-[#D89540] font-mono text-sm text-center py-8">No trade ideas</div>
+        <div className="text-[#FB8B1E] font-mono text-sm text-center py-8">No trade ideas</div>
       </Panel>
     );
   }
@@ -38,8 +31,6 @@ export default function TradeIdeas({
   return (
     <Panel title="Trade Ideas" note="Model-suggested trades with rationale and horizon. Ideas to research, not advice - size to your own risk." subtitle={`${ideas.length} active`}>
       {ideas.slice(0, 4).map((idea, i) => {
-        const color = TYPE_COLORS[idea.trade_type] || "#D89540";
-
         return (
           <div
             key={i}
@@ -48,38 +39,38 @@ export default function TradeIdeas({
             {/* Header line */}
             <div className="flex items-center justify-between gap-3 mb-1">
               <div className="text-[10px] uppercase">
-                <span className="font-bold" style={{ color }}>
+                <span className="font-bold text-[#FB8B1E]">
                   [{idea.trade_type.replace("_", " ")}]
                 </span>
-                <span className="text-[#5C5C5C] ml-2">{idea.horizon}</span>
+                <span className="text-[#7C7C7C] ml-2">{idea.horizon}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <ConvictionBar value={idea.conviction} />
-                <span className="text-[11px] text-[#FFE24A] font-bold tabular-nums">
+                <span className="text-[11px] text-[#F6F3E8] font-bold tabular-nums">
                   {idea.conviction}
                 </span>
               </div>
             </div>
 
             {/* Action */}
-            <div className="text-[12px] text-[#E6E6E6] font-bold mb-1 leading-snug">
+            <div className="text-[12px] text-[#F6F3E8] font-bold mb-1 leading-snug">
               {idea.action}
             </div>
 
             {/* Details */}
-            <div className="space-y-px text-[10px] leading-snug text-[#8F8F8F]">
+            <div className="space-y-px text-[10px] leading-snug text-[#A5A095]">
               <div>
-                <span className="text-[#00D964]">ENTRY</span> {idea.entry_rationale}
+                <span className="text-[#00C25B]">ENTRY</span> {idea.entry_rationale}
               </div>
               <div>
-                <span className="text-[#FF4B4B]">RISK </span> {idea.risk}
+                <span className="text-[#FF433D]">RISK </span> {idea.risk}
               </div>
               <div>
-                <span className="text-[#FFA028]">STOP </span> {idea.stop_loss_trigger}
+                <span className="text-[#FB8B1E]">STOP </span> {idea.stop_loss_trigger}
               </div>
               <div>
-                <span className="text-[#D89540]">EXP P&L</span>{" "}
-                <span className="text-[#00D964] tabular-nums">
+                <span className="text-[#FB8B1E]">EXP P&L</span>{" "}
+                <span className="text-[#00C25B] tabular-nums">
                   +{idea.expected_pnl_bps?.toFixed(0) || "?"}bp
                 </span>
               </div>

@@ -33,7 +33,7 @@ export default function MemoPanel({
   if (!memo) {
     return (
       <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation.">
-        <div className="text-[#D89540] font-mono text-xs text-center py-4">
+        <div className="text-[#FB8B1E] font-mono text-xs text-center py-4">
           No memo generated
         </div>
       </Panel>
@@ -43,19 +43,19 @@ export default function MemoPanel({
   return (
     <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation.">
       {/* Executive summary */}
-      <div className="font-mono text-[10px] text-[#D89540] mb-0.5">EXECUTIVE SUMMARY</div>
-      <div className="font-mono text-[12px] text-[#E6E6E6] leading-relaxed mb-2">
+      <div className="font-mono text-[10px] text-[#FB8B1E] mb-0.5">EXECUTIVE SUMMARY</div>
+      <div className="font-mono text-[12px] text-[#F6F3E8] leading-relaxed mb-2">
         {memo.executive_summary}
       </div>
 
       {/* Key indicators */}
       {memo.market_regime?.key_indicators && memo.market_regime.key_indicators.length > 0 && (
         <div className="mb-2 pt-1.5 border-t border-[#1F1F1F]">
-          <div className="font-mono text-[10px] text-[#D89540] mb-0.5">KEY INDICATORS</div>
+          <div className="font-mono text-[10px] text-[#FB8B1E] mb-0.5">KEY INDICATORS</div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4">
             {memo.market_regime.key_indicators.map((ind, i) => (
-              <div key={i} className="font-mono text-[11px] text-[#E6E6E6] py-px">
-                <span className="text-[#FFA028]">&#9656;</span> {ind}
+              <div key={i} className="font-mono text-[11px] text-[#F6F3E8] py-px">
+                <span className="text-[#FB8B1E]">&#9656;</span> {ind}
               </div>
             ))}
           </div>
@@ -65,7 +65,7 @@ export default function MemoPanel({
       {/* Expandable detail */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="font-mono text-[11px] text-[#62B0FF] hover:text-[#8FC7FF] cursor-pointer"
+        className="font-mono text-[11px] text-[#54A8FF] hover:text-[#8FC7FF] cursor-pointer"
       >
         {expanded ? "▼ COLLAPSE DETAILS" : "▶ EXPAND DETAILS"}
       </button>
@@ -75,11 +75,11 @@ export default function MemoPanel({
           {/* Signal summary table */}
           {memo.signal_summary && memo.signal_summary.length > 0 && (
             <div className="mt-2">
-              <div className="font-mono text-[10px] text-[#D89540] mb-0.5">SIGNAL TABLE</div>
+              <div className="font-mono text-[10px] text-[#FB8B1E] mb-0.5">SIGNAL TABLE</div>
               <div className="overflow-x-auto">
                 <table className="w-full font-mono text-[11px]">
                   <thead>
-                    <tr className="text-[#D89540] text-left border-b border-[#2E2E2E]">
+                    <tr className="text-[#FB8B1E] text-left border-b border-[#2E2E2E]">
                       <th className="pr-4 py-0.5 font-normal">TYPE</th>
                       <th className="pr-4 py-0.5 font-normal">DIR</th>
                       <th className="pr-4 py-0.5 font-normal">CONV</th>
@@ -89,8 +89,8 @@ export default function MemoPanel({
                   </thead>
                   <tbody>
                     {memo.signal_summary.map((sig, i) => (
-                      <tr key={i} className="border-b border-[#141414]">
-                        <td className="pr-4 py-[3px] text-[#FFA028] uppercase">
+                      <tr key={i} className="border-b border-[#1C1C1C]">
+                        <td className="pr-4 py-[3px] text-[#FB8B1E] uppercase">
                           {sig.signal_type}
                         </td>
                         <td className="pr-4 py-[3px] uppercase">
@@ -98,18 +98,18 @@ export default function MemoPanel({
                             style={{
                               color:
                                 sig.direction === "bullish"
-                                  ? "#00D964"
+                                  ? "#00C25B"
                                   : sig.direction === "bearish"
-                                    ? "#FF4B4B"
-                                    : "#D89540",
+                                    ? "#FF433D"
+                                    : "#FB8B1E",
                             }}
                           >
                             {sig.direction}
                           </span>
                         </td>
-                        <td className="pr-4 py-[3px] text-[#E6E6E6] tabular-nums">{sig.conviction}</td>
-                        <td className="pr-4 py-[3px] text-[#8F8F8F]">{sig.source}</td>
-                        <td className="py-[3px] text-[#8F8F8F] max-w-xs truncate">
+                        <td className="pr-4 py-[3px] text-[#F6F3E8] tabular-nums">{sig.conviction}</td>
+                        <td className="pr-4 py-[3px] text-[#A5A095]">{sig.source}</td>
+                        <td className="py-[3px] text-[#A5A095] max-w-xs truncate">
                           {sig.rationale}
                         </td>
                       </tr>
@@ -123,10 +123,10 @@ export default function MemoPanel({
           {/* Risk factors */}
           {memo.risk_factors && memo.risk_factors.length > 0 && (
             <div className="mt-2 pt-1.5 border-t border-[#1F1F1F]">
-              <div className="font-mono text-[10px] text-[#FF4B4B] mb-0.5">RISK FACTORS</div>
+              <div className="font-mono text-[10px] text-[#FF433D] mb-0.5">RISK FACTORS</div>
               {memo.risk_factors.map((risk, i) => (
-                <div key={i} className="font-mono text-[11px] text-[#8F8F8F] leading-snug py-px">
-                  <span className="text-[#FF4B4B]">{"⚠"}</span> {risk}
+                <div key={i} className="font-mono text-[11px] text-[#A5A095] leading-snug py-px">
+                  <span className="text-[#FF433D]">{"⚠"}</span> {risk}
                 </div>
               ))}
             </div>

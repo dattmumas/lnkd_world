@@ -16,7 +16,7 @@ export default function SentimentGauge({
   if (!sentiment) {
     return (
       <Panel title="Market Sentiment">
-        <div className="text-[#D89540] font-mono text-xs text-center py-8">
+        <div className="text-[#FB8B1E] font-mono text-xs text-center py-8">
           No sentiment data
         </div>
       </Panel>
@@ -29,10 +29,10 @@ export default function SentimentGauge({
 
   const sentimentColor =
     normalizedScore > 0.2
-      ? "#00D964"
+      ? "#00C25B"
       : normalizedScore < -0.2
-        ? "#FF4B4B"
-        : "#FFA028";
+        ? "#FF433D"
+        : "#FB8B1E";
 
   const sentimentLabel =
     normalizedScore > 0.5
@@ -53,7 +53,7 @@ export default function SentimentGauge({
       <div className="font-mono">
         {/* Score readout */}
         <div className="flex items-baseline justify-between gap-3 pb-1.5 mb-1.5 border-b border-[#1F1F1F]">
-          <span className="text-[10px] text-[#D89540]">COMPOSITE SCORE</span>
+          <span className="text-[10px] text-[#FB8B1E]">COMPOSITE SCORE</span>
           <span>
             <span className="text-[15px] font-bold tabular-nums" style={{ color: sentimentColor }}>
               {normalizedScore > 0 ? "+" : ""}
@@ -74,7 +74,7 @@ export default function SentimentGauge({
               style={{ left: `calc(${position}% - 1px)`, backgroundColor: sentimentColor }}
             />
           </div>
-          <div className="flex justify-between text-[9px] text-[#5C5C5C] mt-0.5">
+          <div className="flex justify-between text-[9px] text-[#7C7C7C] mt-0.5">
             <span>RISK-OFF -1.0</span>
             <span>0</span>
             <span>+1.0 RISK-ON</span>
@@ -82,44 +82,44 @@ export default function SentimentGauge({
         </div>
 
         {/* Metadata */}
-        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-          <span className="text-[#D89540]">SOURCE</span>
-          <span className="text-[#E6E6E6] uppercase">{sentiment.source || "macro_proxy"}</span>
+        <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+          <span className="text-[#FB8B1E]">SOURCE</span>
+          <span className="text-[#F6F3E8] uppercase">{sentiment.source || "macro_proxy"}</span>
         </div>
-        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-          <span className="text-[#D89540]">CONFIDENCE</span>
+        <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+          <span className="text-[#FB8B1E]">CONFIDENCE</span>
           <span
             className="uppercase font-bold"
             style={{
               color:
                 sentiment.confidence === "high"
-                  ? "#00D964"
+                  ? "#00C25B"
                   : sentiment.confidence === "medium"
-                    ? "#FFA028"
-                    : "#FF4B4B",
+                    ? "#FB8B1E"
+                    : "#FF433D",
             }}
           >
             {sentiment.confidence || "low"}
           </span>
         </div>
-        <div className="flex items-center justify-between py-[3px] border-b border-[#141414] text-[11px]">
-          <span className="text-[#D89540]">DIRECTION</span>
-          <span className="text-[#E6E6E6] uppercase font-bold">{sentiment.direction || "neutral"}</span>
+        <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+          <span className="text-[#FB8B1E]">DIRECTION</span>
+          <span className="text-[#F6F3E8] uppercase font-bold">{sentiment.direction || "neutral"}</span>
         </div>
 
         {/* Components breakdown */}
         {sentiment.components && Object.keys(sentiment.components).length > 0 && (
           <div className="mt-1.5">
-            <div className="text-[10px] text-[#D89540] mb-0.5">COMPONENTS</div>
+            <div className="text-[10px] text-[#FB8B1E] mb-0.5">COMPONENTS</div>
             {Object.entries(sentiment.components)
               .filter(([, val]) => val != null && typeof val === "number")
               .map(([key, val]) => (
                 <div key={key} className="flex items-center justify-between py-px text-[11px]">
-                  <span className="text-[#8F8F8F]">{key}</span>
+                  <span className="text-[#A5A095]">{key}</span>
                   <span
                     className="tabular-nums"
                     style={{
-                      color: (val as number) > 0 ? "#00D964" : (val as number) < 0 ? "#FF4B4B" : "#D89540",
+                      color: (val as number) > 0 ? "#00C25B" : (val as number) < 0 ? "#FF433D" : "#FB8B1E",
                     }}
                   >
                     {(val as number) > 0 ? "+" : ""}

@@ -60,8 +60,8 @@ export default function TabBar({
             onKeyDown={(e) => handleKey(e, i)}
             className={`shrink-0 px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.08em] ${
               isActive
-                ? "bg-[#FFA028] text-[#000000]"
-                : "text-[#FFA028] hover:text-[#FFC46B]"
+                ? "bg-[#FB8B1E] text-[#000000]"
+                : "text-[#FB8B1E] hover:text-[#FDAB4D]"
             }`}
           >
             {i + 1}
