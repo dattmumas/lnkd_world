@@ -23,7 +23,7 @@ export default function OnLabelHome() {
     <>
       {/* Masthead */}
       <div className="flex items-center gap-4">
-        <LedgerMark size={48} className="shrink-0" />
+        <LedgerMark size={48} className="shrink-0" interactive />
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">ON LABEL</h1>
       </div>
       <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-3 uppercase">

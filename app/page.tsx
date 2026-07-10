@@ -21,7 +21,7 @@ export default function Home() {
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <div className="flex items-center gap-4">
-              <LedgerMark size={52} className="shrink-0" />
+              <LedgerMark size={52} className="shrink-0" interactive />
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">LNKD</h1>
             </div>
             <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-4 uppercase">
