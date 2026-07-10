@@ -104,7 +104,7 @@ function BookmarksList() {
 
 export default function BookmarksPage() {
   return (
-    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
       <main className="flex-1 py-12 md:py-16">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-8">

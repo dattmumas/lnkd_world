@@ -26,7 +26,7 @@ function ResetDone() {
 
 export default function ForgotPassword() {
   return (
-    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
       <main className="flex-1 py-16 md:py-24 max-w-sm mx-auto w-full">
         <AuthLoading>

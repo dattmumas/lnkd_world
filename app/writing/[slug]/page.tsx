@@ -43,7 +43,7 @@ export default function PostPage() {
   }, [post, slug]);
 
   return (
-    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
       <main className="flex-1 py-12 md:py-16">
         {post === undefined ? (
@@ -64,7 +64,7 @@ export default function PostPage() {
             </Link>
           </div>
         ) : (
-          <article>
+          <article className="max-w-3xl">
             <Link
               href="/writing"
               className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] mb-6 inline-block"

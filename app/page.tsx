@@ -17,7 +17,7 @@ export default function Home() {
     .toUpperCase();
 
   return (
-    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
       <main className="flex-1 py-10 md:py-14 ol-print-in">
         {/* Masthead */}
@@ -52,8 +52,11 @@ export default function Home() {
 
         <Tear className="mt-8 text-[var(--color-border)]" />
 
-        <AppsLedger />
-        <OnLabelSection />
+        {/* Wide screens: the two exhibits sit side by side on the sheet */}
+        <div className="xl:grid xl:grid-cols-2 xl:gap-12 xl:items-start">
+          <AppsLedger />
+          <OnLabelSection />
+        </div>
 
         {/* Margin notes — the demoted sections, one line each */}
         <section className="mt-10">

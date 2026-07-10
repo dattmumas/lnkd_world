@@ -266,7 +266,7 @@ export default function NetworkDiscovery() {
     });
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-16 md:py-24">
+    <main className="w-full px-6 lg:px-12 py-16 md:py-24">
       <Nav />
       <div className="flex items-center justify-between mb-2 mt-8">
         <h1 className="text-3xl font-semibold">Network Discovery</h1>

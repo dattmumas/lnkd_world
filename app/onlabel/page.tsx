@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function OnLabelPage() {
   return (
-    <div className="min-h-screen flex flex-col max-w-3xl mx-auto px-6">
+    <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
       <Nav />
       <main className="flex-1 py-10 md:py-14">
         <OnLabelHome />
