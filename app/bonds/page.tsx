@@ -140,23 +140,23 @@ function BondsTabs({ data }: { data: BondsData }): JSX.Element {
 
 function TerminalLoading() {
   return (
-    <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-        <div className="font-mono text-[#0a8f57] text-lg mb-6 tracking-widest">
+        <div className="font-mono text-[#00D964] text-lg mb-6 tracking-widest">
           LNKD BOND TERMINAL
         </div>
         <div className="flex gap-1.5 justify-center">
           {[0, 1, 2, 3, 4].map((i) => (
             <motion.div
               key={i}
-              className="w-2.5 h-10 bg-[#0a8f57] rounded-sm"
+              className="w-2.5 h-10 bg-[#00D964] rounded-sm"
               animate={{ scaleY: [0.3, 1, 0.3], opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
             />
           ))}
         </div>
         <motion.div
-          className="font-mono text-[#6e7682] text-sm mt-6"
+          className="font-mono text-[#D89540] text-sm mt-6"
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
@@ -169,16 +169,16 @@ function TerminalLoading() {
 
 function NoData() {
   return (
-    <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center">
       <div className="text-center font-mono max-w-md px-8">
-        <div className="text-[#d23b3b] text-xl mb-4">NO DATA AVAILABLE</div>
-        <div className="text-[#374151] text-sm leading-relaxed">
+        <div className="text-[#FF4B4B] text-xl mb-4">NO DATA AVAILABLE</div>
+        <div className="text-[#E6E6E6] text-sm leading-relaxed">
           Dashboard snapshot has not been generated yet.
         </div>
-        <code className="block mt-4 bg-[#ffffff] text-[#0a8f57] text-sm p-4 rounded">
+        <code className="block mt-4 bg-[#000000] text-[#00D964] text-sm p-4 rounded">
           python -m src.export_dashboard --push
         </code>
-        <Link href="/" className="inline-block mt-8 text-[#2563eb] text-sm hover:underline">
+        <Link href="/" className="inline-block mt-8 text-[#62B0FF] text-sm hover:underline">
           &larr; Back to LNKD
         </Link>
       </div>
@@ -252,7 +252,7 @@ export default function BondsPage(): JSX.Element {
   if (!snapshot || !data) return <NoData />;
 
   return (
-    <div className="min-h-screen bg-[#ffffff] text-[#1f2937]">
+    <div className="min-h-screen bg-[#000000] text-[#E6E6E6]">
       <TerminalHeader
         generatedAt={data.generated_at || snapshot.generatedAt}
         status={data.status ?? snapshot.status}
@@ -279,10 +279,10 @@ export default function BondsPage(): JSX.Element {
         </Suspense>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-[#e8eaee] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#6e7682]">
+        <div className="pt-4 border-t border-[#2E2E2E] flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-sm text-[#D89540]">
           <div>
             LNKD BOND TERMINAL &middot; FRED &middot; Treasury.gov &middot; yfinance &middot;{" "}
-            <Link href="/" className="text-[#2563eb] hover:underline">
+            <Link href="/" className="text-[#62B0FF] hover:underline">
               lnkd.world
             </Link>
           </div>

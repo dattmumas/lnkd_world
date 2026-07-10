@@ -15,9 +15,9 @@ interface TabBarProps {
 }
 
 /**
- * Controlled segmented control for the bonds dashboard. Parent owns the active
- * id (and any URL sync). Active tab is marked by a framer-motion pill that slides
- * between tabs via a shared layoutId. Keyboard: Arrow keys + Home/End.
+ * Bloomberg-style numbered function menu: `1) MACRO 2) CURVE …`, amber items
+ * on black, the active function filled amber with black text. Parent owns the
+ * active id (and any URL sync). Keyboard: Arrow keys + Home/End.
  */
 export default function TabBar({
   tabs,
@@ -42,7 +42,7 @@ export default function TabBar({
     <div
       role="tablist"
       aria-label="Dashboard sections"
-      className="flex gap-1 overflow-x-auto rounded-lg border border-[#e6e8ee] bg-[#fafbfc] p-1"
+      className="flex gap-0.5 overflow-x-auto border border-[#2E2E2E] bg-[#000000] p-0.5"
     >
       {tabs.map((tab, i) => {
         const isActive = tab.id === activeId;
@@ -59,18 +59,21 @@ export default function TabBar({
             tabIndex={isActive ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => handleKey(e, i)}
-            className={`relative shrink-0 rounded-md px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-              isActive ? "text-[#0a8f57]" : "text-[#6e7682] hover:text-[#1f2937]"
+            className={`relative shrink-0 px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.08em] transition-colors ${
+              isActive ? "text-[#000000]" : "text-[#FFA028] hover:text-[#FFC46B]"
             }`}
           >
             {isActive && (
               <motion.span
                 layoutId="bonds-tab-pill"
-                className="absolute inset-0 rounded-md border border-[#e6e8ee] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.08)]"
+                className="absolute inset-0 bg-[#FFA028]"
                 transition={{ type: "spring", stiffness: 380, damping: 32 }}
               />
             )}
-            <span className="relative z-10">{tab.label}</span>
+            <span className="relative z-10">
+              {i + 1}
+              {")"}&nbsp;{tab.label}
+            </span>
           </button>
         );
       })}

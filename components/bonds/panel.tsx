@@ -15,38 +15,38 @@ interface PanelProps {
 }
 
 /**
- * Shared panel wrapper for the bonds dashboard. White card, hairline border,
- * subtle lift. `h-full` by default (for matched-height rows); pass `fitContent`
- * to let it size to content inside a masonry column.
+ * Shared panel wrapper for the bonds dashboard — Bloomberg register: black
+ * panel, hairline gray border, amber title strip. `h-full` by default (for
+ * matched-height rows); pass `fitContent` inside a masonry column.
  */
 export default function Panel({
   title,
   subtitle,
   note,
-  accent = "#2563eb",
+  accent = "#FFA028",
   className = "",
   fitContent = false,
   children,
 }: PanelProps): JSX.Element {
   return (
     <div
-      className={`bg-white border border-[#e6e8ee] rounded-lg overflow-hidden ${fitContent ? "" : "h-full"} shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.03)] ${className}`}
+      className={`bg-[#0B0B0B] border border-[#2E2E2E] rounded-none overflow-hidden ${fitContent ? "" : "h-full"} ${className}`}
     >
       {/* Panel header bar */}
-      <div className="flex items-center gap-2 px-3.5 py-2 bg-[#fafbfc] border-b border-[#eef0f3]">
-        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
-        <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-[#4a5160] font-semibold">
+      <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#000000] border-b border-[#2E2E2E]">
+        <div className="w-1.5 h-1.5" style={{ backgroundColor: accent }} />
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#FFA028] font-bold">
           {title}
         </span>
         {subtitle && (
-          <span className="font-mono text-[11px] text-[#6e7682] ml-auto tabular-nums">
+          <span className="font-mono text-[11px] text-[#D89540] ml-auto tabular-nums">
             {subtitle}
           </span>
         )}
       </div>
       {/* Optional plain-English explainer for users */}
       {note && (
-        <p className="px-3.5 pt-2.5 text-[11px] leading-snug text-[#6b7280]">
+        <p className="px-3.5 pt-2.5 text-[11px] leading-snug text-[#8F8F8F]">
           {note}
         </p>
       )}
@@ -68,9 +68,9 @@ export function DirectionArrow({
 }) {
   const sizeMap = { sm: "text-sm", md: "text-base", lg: "text-xl" };
   const colors: Record<number, string> = {
-    1: "#0a8f57",
-    0: "#6e7682",
-    [-1]: "#d23b3b",
+    1: "#00D964",
+    0: "#D89540",
+    [-1]: "#FF4B4B",
   };
   const arrows: Record<number, string> = {
     1: "\u25B2",
@@ -101,11 +101,11 @@ export function ConvictionBar({
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const color =
-    clamped >= 70 ? "#0a8f57" : clamped >= 40 ? "#a86e15" : "#d23b3b";
+    clamped >= 70 ? "#00D964" : clamped >= 40 ? "#FFA028" : "#FF4B4B";
 
   return (
     <div
-      className="rounded-full bg-[#e8eaee] overflow-hidden"
+      className="rounded-full bg-[#2E2E2E] overflow-hidden"
       style={{ width: maxWidth, height }}
     >
       <motion.div
@@ -126,7 +126,7 @@ export function Sparkline({
   data,
   width = 120,
   height = 32,
-  color = "#2563eb",
+  color = "#62B0FF",
   showArea = false,
 }: {
   data: { value: number }[];
@@ -186,9 +186,9 @@ export function ChangeBadge({
   suffix?: string;
   decimals?: number;
 }) {
-  if (value == null) return <span className="text-[#6b7280]">--</span>;
+  if (value == null) return <span className="text-[#8F8F8F]">--</span>;
 
-  const color = value > 0 ? "#0a8f57" : value < 0 ? "#d23b3b" : "#6e7682";
+  const color = value > 0 ? "#00D964" : value < 0 ? "#FF4B4B" : "#D89540";
   const sign = value > 0 ? "+" : "";
 
   return (

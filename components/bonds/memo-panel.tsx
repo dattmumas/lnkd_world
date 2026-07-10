@@ -33,8 +33,8 @@ export default function MemoPanel({
 
   if (!memo) {
     return (
-      <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation." accent="#0e9384">
-        <div className="text-[#6e7682] font-mono text-xs text-center py-4">
+      <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation." accent="#00C8FF">
+        <div className="text-[#D89540] font-mono text-xs text-center py-4">
           No memo generated
         </div>
       </Panel>
@@ -42,14 +42,14 @@ export default function MemoPanel({
   }
 
   return (
-    <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation." accent="#0e9384">
+    <Panel title="Investment Memo" note="Plain-language synthesis of the signals above into a narrative read and recommendation." accent="#00C8FF">
       {/* Executive summary with typewriter-style reveal */}
-      <div className="bg-[#f6f7f9] rounded p-3.5 mb-4 border-l-3 border-[#0e9384]" style={{ borderLeftWidth: 3, borderLeftColor: "#0e9384" }}>
-        <div className="font-mono text-xs text-[#0e9384] mb-2 tracking-widest">
+      <div className="bg-[#141414] rounded p-3.5 mb-4 border-l-3 border-[#00C8FF]" style={{ borderLeftWidth: 3, borderLeftColor: "#00C8FF" }}>
+        <div className="font-mono text-xs text-[#00C8FF] mb-2 tracking-widest">
           EXECUTIVE SUMMARY
         </div>
         <motion.div
-          className="font-mono text-sm text-[#0f1115] leading-relaxed"
+          className="font-mono text-sm text-[#E6E6E6] leading-relaxed"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
@@ -61,14 +61,14 @@ export default function MemoPanel({
       {/* Key indicators */}
       {memo.market_regime?.key_indicators && memo.market_regime.key_indicators.length > 0 && (
         <div className="mb-4">
-          <div className="font-mono text-xs text-[#374151] mb-2">
+          <div className="font-mono text-xs text-[#E6E6E6] mb-2">
             KEY INDICATORS
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
             {memo.market_regime.key_indicators.map((ind, i) => (
               <motion.div
                 key={i}
-                className="bg-[#f6f7f9] rounded px-3 py-2 font-mono text-xs text-[#6e7682]"
+                className="bg-[#141414] rounded px-3 py-2 font-mono text-xs text-[#D89540]"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
@@ -83,7 +83,7 @@ export default function MemoPanel({
       {/* Expandable detail */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="font-mono text-xs text-[#2563eb] hover:text-[#5b9bf0] transition-colors cursor-pointer"
+        className="font-mono text-xs text-[#62B0FF] hover:text-[#62B0FF] transition-colors cursor-pointer"
       >
         {expanded ? "\u25BC COLLAPSE DETAILS" : "\u25B6 EXPAND DETAILS"}
       </button>
@@ -100,13 +100,13 @@ export default function MemoPanel({
             {/* Signal summary table */}
             {memo.signal_summary && memo.signal_summary.length > 0 && (
               <div className="mt-4">
-                <div className="font-mono text-xs text-[#374151] mb-2">
+                <div className="font-mono text-xs text-[#E6E6E6] mb-2">
                   SIGNAL TABLE
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full font-mono text-xs">
                     <thead>
-                      <tr className="text-[#374151] text-left">
+                      <tr className="text-[#E6E6E6] text-left">
                         <th className="pr-4 py-2">Type</th>
                         <th className="pr-4 py-2">Dir</th>
                         <th className="pr-4 py-2">Conv</th>
@@ -118,9 +118,9 @@ export default function MemoPanel({
                       {memo.signal_summary.map((sig, i) => (
                         <tr
                           key={i}
-                          className="border-t border-[#e8eaee] text-[#6e7682]"
+                          className="border-t border-[#2E2E2E] text-[#D89540]"
                         >
-                          <td className="pr-4 py-2 text-[#2563eb]">
+                          <td className="pr-4 py-2 text-[#62B0FF]">
                             {sig.signal_type}
                           </td>
                           <td className="pr-4 py-2">
@@ -128,18 +128,18 @@ export default function MemoPanel({
                               style={{
                                 color:
                                   sig.direction === "bullish"
-                                    ? "#0a8f57"
+                                    ? "#00D964"
                                     : sig.direction === "bearish"
-                                      ? "#d23b3b"
-                                      : "#6e7682",
+                                      ? "#FF4B4B"
+                                      : "#D89540",
                               }}
                             >
                               {sig.direction}
                             </span>
                           </td>
                           <td className="pr-4 py-2">{sig.conviction}</td>
-                          <td className="pr-4 py-2 text-[#6e7682]">{sig.source}</td>
-                          <td className="py-2 text-[#6e7682] max-w-xs truncate">
+                          <td className="pr-4 py-2 text-[#D89540]">{sig.source}</td>
+                          <td className="py-2 text-[#D89540] max-w-xs truncate">
                             {sig.rationale}
                           </td>
                         </tr>
@@ -152,17 +152,17 @@ export default function MemoPanel({
 
             {/* Risk factors */}
             {memo.risk_factors && memo.risk_factors.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-[#e8eaee]">
-                <div className="font-mono text-xs text-[#d23b3b] mb-2">
+              <div className="mt-4 pt-3 border-t border-[#2E2E2E]">
+                <div className="font-mono text-xs text-[#FF4B4B] mb-2">
                   RISK FACTORS
                 </div>
                 <div className="space-y-1.5">
                   {memo.risk_factors.map((risk, i) => (
                     <div
                       key={i}
-                      className="font-mono text-xs text-[#6e7682] leading-relaxed"
+                      className="font-mono text-xs text-[#D89540] leading-relaxed"
                     >
-                      <span className="text-[#d23b3b]">{"\u26A0"}</span> {risk}
+                      <span className="text-[#FF4B4B]">{"\u26A0"}</span> {risk}
                     </div>
                   ))}
                 </div>

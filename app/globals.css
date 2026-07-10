@@ -223,20 +223,22 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 
 .bonds-terminal {
-  --bt-bg: #0a0e17;
-  --bt-surface: #111827;
-  --bt-surface-alt: #0f172a;
-  --bt-border: #1e293b;
-  --bt-text: #e2e8f0;
-  --bt-text-secondary: #94a3b8;
-  --bt-text-muted: #4a5568;
-  --bt-green: #00ff88;
-  --bt-red: #ff6b6b;
-  --bt-blue: #4a9eff;
-  --bt-amber: #fbbf24;
-  --bt-purple: #a855f7;
-  --bt-orange: #f97316;
-  --bt-pink: #ec4899;
+  /* Bloomberg register: pure black, amber labels, white data, vivid signals. */
+  --bt-bg: #000000;
+  --bt-surface: #0B0B0B;
+  --bt-surface-alt: #141414;
+  --bt-border: #2E2E2E;
+  --bt-text: #E6E6E6;
+  --bt-text-secondary: #8F8F8F;
+  --bt-text-muted: #5C5C5C;
+  --bt-label: #D89540;
+  --bt-green: #00D964;
+  --bt-red: #FF4B4B;
+  --bt-blue: #62B0FF;
+  --bt-amber: #FFA028;
+  --bt-purple: #FF3EB5;
+  --bt-orange: #FF6A00;
+  --bt-pink: #FF3EB5;
 
   background-color: var(--bt-bg);
   color: var(--bt-text);
