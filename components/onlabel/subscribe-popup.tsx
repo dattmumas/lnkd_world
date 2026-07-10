@@ -43,6 +43,9 @@ export default function SubscribePopup() {
       // fine — it just shows again next visit
     }
     setPhase("leaving");
+    // Unmount after the drop completes — timers beat animationend for
+    // reliability (it doesn't fire if the tab is hidden mid-animation).
+    setTimeout(() => setPhase("hidden"), 650);
   };
 
   if (phase === "hidden") return null;
@@ -54,12 +57,6 @@ export default function SubscribePopup() {
       className={`fixed bottom-6 left-6 z-50 w-[22rem] max-w-[calc(100vw-3rem)] ol-box-heavy bg-[var(--color-paper-raised)] px-5 py-4 ${
         phase === "leaving" ? "ol-slip-drop" : "ol-slip-skid"
       }`}
-      onAnimationEnd={(e) => {
-        // ol-fade-out is the reduced-motion twin of the drop.
-        if (e.animationName === "ol-slip-drop" || e.animationName === "ol-fade-out") {
-          setPhase("hidden");
-        }
-      }}
     >
       <div className="flex items-center justify-between gap-3">
         <p className="ol-mono text-[10px] font-bold text-[var(--color-accent)] tracking-widest uppercase">
@@ -90,7 +87,7 @@ export default function SubscribePopup() {
       </p>
 
       <div className="mt-3">
-        <SubscribeForm onSuccess={() => setTimeout(() => dismiss(true), 2000)} />
+        <SubscribeForm stack onSuccess={() => setTimeout(() => dismiss(true), 2000)} />
       </div>
     </div>
   );

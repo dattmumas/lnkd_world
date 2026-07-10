@@ -9,7 +9,14 @@ import { api } from "@/convex/_generated/api";
  * beehiiv.subscribe (double-opt-in/welcome handled by Beehiiv). The `company`
  * field is a honeypot: visually hidden, so any value means a bot.
  */
-export default function SubscribeForm({ onSuccess }: { onSuccess?: () => void }) {
+export default function SubscribeForm({
+  onSuccess,
+  stack = false,
+}: {
+  onSuccess?: () => void;
+  /** Always stack input over button — for narrow containers like the popup. */
+  stack?: boolean;
+}) {
   const subscribe = useAction(api.beehiiv.subscribe);
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -46,7 +53,10 @@ export default function SubscribeForm({ onSuccess }: { onSuccess?: () => void })
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2">
+    <form
+      onSubmit={submit}
+      className={`flex gap-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
+    >
       <input
         type="email"
         required
@@ -69,7 +79,7 @@ export default function SubscribeForm({ onSuccess }: { onSuccess?: () => void })
       <button
         type="submit"
         disabled={state === "sending"}
-        className="ol-mono text-sm font-bold bg-[var(--color-border)] text-[var(--color-bg)] px-5 py-2.5 ol-btn-press disabled:opacity-60"
+        className={`ol-mono text-sm font-bold bg-[var(--color-border)] text-[var(--color-bg)] px-5 py-2.5 ol-btn-press disabled:opacity-60 whitespace-nowrap ${stack ? "w-full" : ""}`}
       >
         {state === "sending" ? "PRINTING…" : "SUBSCRIBE →"}
       </button>
