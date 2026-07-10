@@ -5,14 +5,9 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import SubscribeForm from "@/components/onlabel/subscribe-form";
 
-function issueDate(ms: number): string {
-  return new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
-/** EXHIBIT B on the landing: the On Label pitch, capture, and latest entries. */
+/** EXHIBIT B on the landing: the On Label pitch and capture (issues live in EXHIBIT C). */
 export default function OnLabelSection() {
   const site = useQuery(api.beehiiv.archive);
-  const latest = (site?.posts ?? []).slice(0, 3);
 
   return (
     <section className="mt-10">
@@ -37,34 +32,6 @@ export default function OnLabelSection() {
         <div className="mt-4">
           <SubscribeForm />
         </div>
-
-        {latest.length > 0 && (
-          <div className="mt-5 pt-4 border-t border-[var(--color-border-soft)]">
-            <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mb-2">
-              LATEST ENTRIES
-            </p>
-            <ul className="space-y-2">
-              {latest.map((p) => (
-                <li key={p.id}>
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ol-leader-row group"
-                  >
-                    <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)] truncate">
-                      {p.title}
-                    </span>
-                    <span className="ol-leader" />
-                    <span className="ol-mono text-xs text-[var(--color-text-secondary)] shrink-0">
-                      {issueDate(p.publishedAt)}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <p className="mt-4">
           <Link

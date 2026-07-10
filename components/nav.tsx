@@ -52,8 +52,8 @@ export default function Nav() {
           <Link href="/onlabel" className={`${navLink} text-[var(--color-accent)]`}>
             On Label
           </Link>
-          <Link href="/writing" className={navLink}>
-            Writing
+          <Link href="/notes" className={navLink}>
+            Notes
           </Link>
           <Link href="/reading" className={navLink}>
             Reading

@@ -3,7 +3,7 @@ import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import AppsLedger from "@/components/apps-ledger";
 import OnLabelSection from "@/components/onlabel-section";
-import WritingCards from "@/components/writing-cards";
+import OnLabelCards from "@/components/onlabel-cards";
 import LedgerMark from "@/components/ledger/mark";
 import Tear from "@/components/ledger/tear";
 
@@ -68,6 +68,15 @@ export default function Home() {
             </p>
             <ul className="mt-2 space-y-1.5">
               <li>
+                <Link href="/notes" className="ol-leader-row group">
+                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                    NOTES
+                  </span>
+                  <span className="ol-leader" />
+                  <span className="text-sm text-[var(--color-text-secondary)]">essays, unfiled</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/reading" className="ol-leader-row group">
                   <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
                     READING
@@ -89,7 +98,7 @@ export default function Home() {
           </section>
         </div>
 
-        <WritingCards />
+        <OnLabelCards />
       </main>
       <Footer />
     </div>
