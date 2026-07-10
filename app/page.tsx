@@ -43,56 +43,67 @@ export default function Home() {
             </p>
           </div>
 
-          {/* The stamp — slammed on after the page feeds in */}
-          <div className="ol-stamp ol-mono shrink-0 px-3 py-2 text-center select-none hidden sm:block mt-2">
-            <span className="block text-sm font-bold leading-tight">POSTED</span>
-            <span className="block text-[10px] font-bold tracking-widest mt-0.5">{posted}</span>
+          {/* The stamp + filing meta — the receipt's corner cluster */}
+          <div className="shrink-0 hidden sm:flex flex-col items-end gap-3 mt-2">
+            <div className="ol-stamp ol-mono px-3 py-2 text-center select-none">
+              <span className="block text-sm font-bold leading-tight">POSTED</span>
+              <span className="block text-[10px] font-bold tracking-widest mt-0.5">{posted}</span>
+            </div>
+            <p className="ol-mono text-[10px] text-[var(--color-text-secondary)] text-right leading-relaxed uppercase">
+              47.60°N · 122.33°W
+              <br />
+              Ledger balanced daily
+            </p>
           </div>
         </div>
 
         <Tear className="mt-8 text-[var(--color-border)]" />
 
-        {/* Wide screens: the two exhibits sit side by side on the sheet */}
-        <div className="xl:grid xl:grid-cols-2 xl:gap-12 xl:items-start">
-          <AppsLedger />
-          <OnLabelSection />
-        </div>
+        {/* Broadsheet grid: apps + margin notes rail left (5), the letter right (7) */}
+        <div className="xl:grid xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:gap-x-12 xl:items-start">
+          <div className="xl:col-start-1 xl:row-start-1">
+            <AppsLedger />
+          </div>
+          <div className="xl:col-start-2 xl:row-start-1 xl:row-span-2">
+            <OnLabelSection />
+          </div>
 
-        {/* Margin notes — the demoted sections, one line each */}
-        <section className="mt-10">
-          <p className="ol-label">
-            <span className="text-[var(--color-text)]">MARGIN NOTES</span>
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            <li>
-              <Link href="/writing" className="ol-leader-row group">
-                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
-                  WRITING
-                </span>
-                <span className="ol-leader" />
-                <span className="text-sm text-[var(--color-text-secondary)]">essays &amp; notes</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/reading" className="ol-leader-row group">
-                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
-                  READING
-                </span>
-                <span className="ol-leader" />
-                <span className="text-sm text-[var(--color-text-secondary)]">the log, rated</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/bookmarks" className="ol-leader-row group">
-                <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
-                  BOOKMARKS
-                </span>
-                <span className="ol-leader" />
-                <span className="text-sm text-[var(--color-text-secondary)]">curated links</span>
-              </Link>
-            </li>
-          </ul>
-        </section>
+          {/* Margin notes — beside the entry, as margin notes should be */}
+          <section className="mt-10 xl:col-start-1 xl:row-start-2">
+            <p className="ol-label">
+              <span className="text-[var(--color-text)]">MARGIN NOTES</span>
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              <li>
+                <Link href="/writing" className="ol-leader-row group">
+                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                    WRITING
+                  </span>
+                  <span className="ol-leader" />
+                  <span className="text-sm text-[var(--color-text-secondary)]">essays &amp; notes</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/reading" className="ol-leader-row group">
+                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                    READING
+                  </span>
+                  <span className="ol-leader" />
+                  <span className="text-sm text-[var(--color-text-secondary)]">the log, rated</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/bookmarks" className="ol-leader-row group">
+                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                    BOOKMARKS
+                  </span>
+                  <span className="ol-leader" />
+                  <span className="text-sm text-[var(--color-text-secondary)]">curated links</span>
+                </Link>
+              </li>
+            </ul>
+          </section>
+        </div>
       </main>
       <Footer />
     </div>

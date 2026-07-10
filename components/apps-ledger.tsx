@@ -55,6 +55,11 @@ export default function AppsLedger() {
             </span>
           </a>
         ))}
+
+        {/* The ledger convention for an open line */}
+        <p className="ol-mono text-[10px] text-[var(--color-leader)] text-center uppercase tracking-widest pt-1 select-none">
+          — Remainder of this exhibit intentionally left open —
+        </p>
       </div>
     </section>
   );
