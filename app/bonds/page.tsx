@@ -137,12 +137,12 @@ function TerminalLoading() {
   return (
     <div className="min-h-screen bg-[#000000] flex items-center justify-center">
       <div className="text-center">
-        <div className="font-mono text-[#FFA028] text-lg mb-4 tracking-widest font-bold">
+        <div className="font-mono text-[#FB8B1E] text-lg mb-4 tracking-widest font-bold">
           LNKD BOND TERMINAL
         </div>
-        <div className="font-mono text-[#D89540] text-sm">
+        <div className="font-mono text-[#FB8B1E] text-sm">
           Loading market data
-          <span className="inline-block w-[7px] h-[13px] bg-[#FFA028] ml-1.5 align-middle animate-pulse" />
+          <span className="inline-block w-[7px] h-[13px] bg-[#FB8B1E] ml-1.5 align-middle animate-pulse" />
         </div>
       </div>
     </div>
@@ -153,14 +153,14 @@ function NoData() {
   return (
     <div className="min-h-screen bg-[#000000] flex items-center justify-center">
       <div className="text-center font-mono max-w-md px-8">
-        <div className="text-[#FF4B4B] text-xl mb-4">NO DATA AVAILABLE</div>
-        <div className="text-[#E6E6E6] text-sm leading-relaxed">
+        <div className="text-[#FF433D] text-xl mb-4">NO DATA AVAILABLE</div>
+        <div className="text-[#F6F3E8] text-sm leading-relaxed">
           Dashboard snapshot has not been generated yet.
         </div>
-        <code className="block mt-4 bg-[#000000] border border-[#2E2E2E] text-[#00D964] text-sm p-4">
+        <code className="block mt-4 bg-[#000000] border border-[#2E2E2E] text-[#00C25B] text-sm p-4">
           python -m src.export_dashboard --push
         </code>
-        <Link href="/" className="inline-block mt-8 text-[#62B0FF] text-sm hover:underline">
+        <Link href="/" className="inline-block mt-8 text-[#54A8FF] text-sm hover:underline">
           &larr; Back to LNKD
         </Link>
       </div>
@@ -234,7 +234,7 @@ export default function BondsPage(): JSX.Element {
   if (!snapshot || !data) return <NoData />;
 
   return (
-    <div className="min-h-screen bg-[#000000] text-[#E6E6E6]">
+    <div className="min-h-screen bg-[#000000] text-[#F6F3E8]">
       <TerminalHeader
         generatedAt={data.generated_at || snapshot.generatedAt}
         status={data.status ?? snapshot.status}
@@ -259,10 +259,10 @@ export default function BondsPage(): JSX.Element {
         </Suspense>
 
         {/* Footer */}
-        <div className="mt-1 border-t border-[#2E2E2E] px-1 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-1 font-mono text-[11px] text-[#D89540]">
+        <div className="mt-1 border-t border-[#2E2E2E] px-1 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-1 font-mono text-[11px] text-[#FB8B1E]">
           <div>
             LNKD BOND TERMINAL &middot; FRED &middot; Treasury.gov &middot; yfinance &middot;{" "}
-            <Link href="/" className="text-[#62B0FF] hover:underline">
+            <Link href="/" className="text-[#54A8FF] hover:underline">
               lnkd.world
             </Link>
           </div>

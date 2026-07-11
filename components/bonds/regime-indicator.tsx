@@ -57,13 +57,15 @@ export default function RegimeIndicator({
     };
     prediction?: {
       predicted_change_bps: number;
+      raw_model_change_bps?: number;
+      combo_weight?: number;
       direction: string | number;
       ci_90_lower_bps: number;
       ci_90_upper_bps: number;
     };
     validation?: {
       confidence_score: number;
-      confidence_level: string;
+      confidence_level: string | null;
     };
   };
 }) {
@@ -104,20 +106,34 @@ export default function RegimeIndicator({
 
         {/* Prediction */}
         {prediction && (
-          <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
-            <span className="text-[#FB8B1E]">21D FORECAST (10Y)</span>
-            <span className="tabular-nums">
-              <span className="text-[13px] font-bold" style={{ color: predColor }}>
-                {predBps > 0 ? "+" : ""}
-                {predBps.toFixed(0)}bp
-              </span>
-              {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
-                <span className="text-[#7C7C7C] ml-2">
-                  90% CI [{prediction.ci_90_lower_bps.toFixed(0)}, {prediction.ci_90_upper_bps.toFixed(0)}]
+          <>
+            <div className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[11px]">
+              <span className="text-[#FB8B1E]">21D FORECAST (10Y)</span>
+              <span className="tabular-nums">
+                <span className="text-[13px] font-bold" style={{ color: predColor }}>
+                  {predBps > 0 ? "+" : ""}
+                  {predBps.toFixed(0)}bp
                 </span>
-              )}
-            </span>
-          </div>
+                {prediction.ci_90_lower_bps != null && prediction.ci_90_upper_bps != null && (
+                  <span className="text-[#7C7C7C] ml-2">
+                    90% CI [{prediction.ci_90_lower_bps.toFixed(0)}, {prediction.ci_90_upper_bps.toFixed(0)}]
+                  </span>
+                )}
+              </span>
+            </div>
+            {prediction.combo_weight != null && prediction.raw_model_change_bps != null && (
+              <div
+                className="flex items-center justify-between py-[3px] border-b border-[#1C1C1C] text-[10px]"
+                title="Raw model output is shrunk toward the random walk (0bp) by its out-of-sample combination weight"
+              >
+                <span className="text-[#7C7C7C]">RAW MODEL × RW SHRINK</span>
+                <span className="text-[#A5A095] tabular-nums">
+                  {prediction.raw_model_change_bps > 0 ? "+" : ""}
+                  {prediction.raw_model_change_bps.toFixed(0)}bp × {prediction.combo_weight.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </>
         )}
 
         {/* Validation confidence */}
@@ -129,15 +145,18 @@ export default function RegimeIndicator({
                 <span
                   className="font-bold uppercase"
                   style={{
-                    color:
-                      validation.confidence_level === "high"
+                    // Pipeline labels are High / Moderate / Low / No Confidence
+                    color: (() => {
+                      const level = (validation.confidence_level ?? "").toLowerCase();
+                      return level === "high"
                         ? "#00C25B"
-                        : validation.confidence_level === "medium"
+                        : level === "moderate" || level === "medium"
                           ? "#FB8B1E"
-                          : "#FF433D",
+                          : "#FF433D";
+                    })(),
                   }}
                 >
-                  {validation.confidence_level}
+                  {validation.confidence_level ?? "--"}
                 </span>
                 <span className="text-[#F6F3E8] ml-2">
                   {(validation.confidence_score || 0).toFixed(0)}/100
