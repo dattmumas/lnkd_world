@@ -189,12 +189,23 @@ const COLUMNS: ColDef<Deal>[] = [
   },
   { field: "category", headerName: "CATEGORY", width: 150, filter: true },
   {
-    field: "leadInvestor",
+    colId: "leadInvestor",
     headerName: "LEAD",
     flex: 1.1,
     minWidth: 130,
     filter: true,
     tooltipValueGetter: (p) => p.data?.leadDesc,
+    // No lead identified ≠ no investors — fall back to the first participant.
+    valueGetter: (p) => {
+      const d = p.data;
+      if (!d) return null;
+      if (d.leadInvestor) return d.leadInvestor;
+      if (d.investors?.length) {
+        const extra = d.investors.length - 1;
+        return `${d.investors[0]}${extra > 0 ? ` +${extra}` : ""}`;
+      }
+      return null;
+    },
     valueFormatter: (p) => p.value ?? "—",
   },
   {
