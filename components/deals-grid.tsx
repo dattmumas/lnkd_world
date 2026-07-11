@@ -11,11 +11,23 @@ import {
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
+  type RowClickedEvent,
+  type IsFullWidthRowParams,
+  type RowHeightParams,
+  type PostSortRowsParams,
 } from "ag-grid-community";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 type Deal = FunctionReturnType<typeof api.deals.publicList>[number];
+
+// Master/detail is AG-Grid enterprise; community gets the same effect with a
+// synthetic full-width row injected under the clicked deal.
+type GridRow = Deal | { detailFor: Deal };
+
+function isDetail(row: GridRow): row is { detailFor: Deal } {
+  return "detailFor" in row;
+}
 
 // The grid wears the ledger: paper, ink rules, mono headers, zero radius.
 const ledgerTheme = themeQuartz.withParams({
@@ -84,6 +96,69 @@ function SourceCell({ data }: ICellRendererParams<Deal>) {
     >
       {s.name} ↗
     </a>
+  );
+}
+
+/** The expanded ledger entry under a clicked row. */
+function DetailRow({ data }: ICellRendererParams<GridRow>) {
+  if (!data || !isDetail(data)) return null;
+  const d = data.detailFor;
+  return (
+    <div className="h-full px-5 py-3 border-l-4 border-[var(--color-accent)] bg-[var(--color-fill-tan)] overflow-y-auto text-[13px] leading-relaxed">
+      <div className="grid md:grid-cols-2 gap-x-8 gap-y-1">
+        <div>
+          <p className="ol-mono text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
+            {d.company}
+          </p>
+          <p>{d.companyDesc ?? d.summary}</p>
+          {(d.totalRaisedUsd || d.website) && (
+            <p className="ol-mono text-[11px] text-[var(--color-text-secondary)] mt-1">
+              {d.totalRaisedUsd
+                ? `TOTAL RAISED ${fmtUsd(d.totalRaisedUsd)}`
+                : ""}
+              {d.totalRaisedUsd && d.website ? " · " : ""}
+              {d.website && (
+                <a
+                  href={d.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--color-accent)] hover:underline"
+                >
+                  {d.website.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+              )}
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="ol-mono text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
+            {d.leadInvestor ?? "Investors"}
+          </p>
+          <p>
+            {d.leadDesc ??
+              (d.leadInvestor ? "No profile on file for this lead yet." : "No lead identified.")}
+          </p>
+          {d.investors.length > 0 && (
+            <p className="ol-mono text-[11px] text-[var(--color-text-secondary)] mt-1">
+              ROUND: {d.investors.join(", ")}
+            </p>
+          )}
+        </div>
+      </div>
+      <p className="ol-mono text-[11px] mt-2">
+        {d.sources.map((s) => (
+          <a
+            key={s.url}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--color-accent)] hover:underline mr-4"
+          >
+            {s.name} ↗
+          </a>
+        ))}
+      </p>
+    </div>
   );
 }
 
@@ -173,11 +248,29 @@ export default function DealsGrid() {
   const deals = useQuery(api.deals.publicList);
   const [quick, setQuick] = useState("");
   const [consumerOnly, setConsumerOnly] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const rows = useMemo(
-    () => (deals ?? []).filter((d) => !consumerOnly || d.isConsumer),
-    [deals, consumerOnly],
-  );
+  const rows = useMemo<GridRow[]>(() => {
+    const out: GridRow[] = [];
+    for (const d of (deals ?? []).filter((d) => !consumerOnly || d.isConsumer)) {
+      out.push(d);
+      if (expanded.has(d.id)) out.push({ detailFor: d });
+    }
+    return out;
+  }, [deals, consumerOnly, expanded]);
+
+  const onRowClicked = (e: RowClickedEvent<GridRow>) => {
+    if (!e.data || isDetail(e.data)) return;
+    // Links inside cells (founders, sources) shouldn't toggle the row.
+    if ((e.event?.target as Element | null)?.closest("a")) return;
+    const id = e.data.id;
+    setExpanded((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div>
@@ -203,10 +296,11 @@ export default function DealsGrid() {
         </span>
       </div>
       <div style={{ height: "max(500px, calc(100vh - 320px))" }}>
-        <AgGridReact<Deal>
+        <AgGridReact<GridRow>
           theme={ledgerTheme}
           rowData={rows}
-          columnDefs={COLUMNS}
+          columnDefs={COLUMNS as ColDef<GridRow>[]}
+          getRowId={(p) => (isDetail(p.data) ? `detail-${p.data.detailFor.id}` : p.data.id)}
           quickFilterText={quick}
           pagination
           paginationPageSize={50}
@@ -214,8 +308,38 @@ export default function DealsGrid() {
           tooltipShowDelay={300}
           suppressCellFocus
           defaultColDef={{ resizable: true, sortable: true }}
+          onRowClicked={onRowClicked}
+          isFullWidthRow={(p: IsFullWidthRowParams<GridRow>) => isDetail(p.rowNode.data!)}
+          fullWidthCellRenderer={DetailRow}
+          getRowHeight={(p: RowHeightParams<GridRow>) =>
+            p.data && isDetail(p.data) ? 170 : undefined
+          }
+          postSortRows={(params: PostSortRowsParams<GridRow>) => {
+            // Detail rows have no column values, so sorting strands them at
+            // the end — re-seat each one directly under its parent.
+            const nodes = params.nodes;
+            const details = new Map<string, (typeof nodes)[number]>();
+            for (let i = nodes.length - 1; i >= 0; i--) {
+              const d = nodes[i].data;
+              if (d && isDetail(d)) {
+                details.set(d.detailFor.id, nodes[i]);
+                nodes.splice(i, 1);
+              }
+            }
+            if (details.size === 0) return;
+            for (let i = 0; i < nodes.length; i++) {
+              const d = nodes[i].data;
+              if (d && !isDetail(d) && details.has(d.id)) {
+                nodes.splice(i + 1, 0, details.get(d.id)!);
+                i++;
+              }
+            }
+          }}
         />
       </div>
+      <p className="ol-mono text-[10px] text-[var(--color-text-secondary)] mt-2 uppercase">
+        Click a row for the full entry
+      </p>
     </div>
   );
 }

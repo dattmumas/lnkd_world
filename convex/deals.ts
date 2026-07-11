@@ -374,7 +374,8 @@ export const publicList = query({
       .withIndex("by_firstSeenAt")
       .order("desc")
       .take(1000);
-    return rows.map((d) => ({
+    // Dismissed rows are triaged noise — they never reach the public page.
+    return rows.filter((d) => d.status !== "dismissed").map((d) => ({
       id: d._id,
       company: d.company,
       round: d.round,
@@ -526,6 +527,57 @@ export const prune = internalMutation({
 // Admin-triggered per-deal research report: Claude (Opus) with server-side web
 // search, stored as markdown on the deal row. The Deals tab renders it in the
 // expanded panel; status updates flow reactively through deals.list.
+
+/**
+ * Maintenance (CLI): rename mis-extracted rows and dismiss unnamed noise.
+ *   npx convex run deals:cleanupInternal '{"renames":[{"id":"...","company":"Auger"}],"dismissIds":["..."]}' --prod
+ * Renames reuse the same fold-into-duplicate logic as the admin rename.
+ */
+export const cleanupInternal = internalMutation({
+  args: {
+    renames: v.optional(
+      v.array(v.object({ id: v.id("deals"), company: v.string() })),
+    ),
+    dismissIds: v.optional(v.array(v.id("deals"))),
+  },
+  returns: v.object({ renamed: v.number(), dismissed: v.number() }),
+  handler: async (ctx, { renames, dismissIds }) => {
+    let renamed = 0;
+    for (const r of renames ?? []) {
+      const row = await ctx.db.get(r.id);
+      if (!row) continue;
+      const companyKey = normalizeCompanyKey(r.company);
+      if (!companyKey) continue;
+      const dedupKey = `${companyKey}|${row.round}`;
+      const collision = await ctx.db
+        .query("deals")
+        .withIndex("by_dedupKey", (q) => q.eq("dedupKey", dedupKey))
+        .first();
+      if (collision && collision._id !== r.id) {
+        const mergedSources = [...collision.sources];
+        for (const s of row.sources) {
+          if (!mergedSources.some((m) => m.url === s.url)) mergedSources.push(s);
+        }
+        await ctx.db.patch(collision._id, {
+          investors: unionInvestors(collision.investors, row.investors),
+          sources: mergedSources.slice(0, 10),
+        });
+        await ctx.db.delete(r.id);
+      } else {
+        await ctx.db.patch(r.id, { company: r.company, companyKey, dedupKey });
+      }
+      renamed++;
+    }
+    let dismissed = 0;
+    for (const id of dismissIds ?? []) {
+      const row = await ctx.db.get(id);
+      if (!row) continue;
+      await ctx.db.patch(id, { status: "dismissed" });
+      dismissed++;
+    }
+    return { renamed, dismissed };
+  },
+});
 
 export const _assertAdmin = internalQuery({
   args: {},

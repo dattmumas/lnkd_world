@@ -10,6 +10,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./lib/auth";
 import { gatherRss, type SourceHealth } from "./lib/rss";
+import { resolveGoogleNewsUrl, fetchArticleText } from "./lib/articleFetch";
 import { gxSearch } from "./lib/getxapi";
 import {
   dealBaseScore,
@@ -41,6 +42,10 @@ const X_WINDOW_MS = 3 * 3_600_000;
 const SWEEP_WINDOW_MS = 2 * 3_600_000;
 const MAX_CANDIDATES_PER_RUN = 120;
 const EXTRACT_CHUNK = 20;
+// Headline-only items (Google News feeds) get their article body fetched
+// before extraction — funding headlines withhold the company name.
+const THIN_TEXT_CHARS = 280;
+const BODY_FETCHES_PER_RUN = 15;
 const NOTIFY_PER_RUN = 5; // individual pushes; the rest go in one digest
 const NOTIFY_MAX_AGE_MS = 24 * 3_600_000; // overnight flush window
 export const MIN_PUSH_AMOUNT_USD = 0; // raise to e.g. 5_000_000 to quiet small rounds
@@ -104,6 +109,8 @@ interface ExtractedDeal {
 }
 
 const EXTRACT_SYSTEM = `You extract venture funding deals from news items and X posts. Items are numbered; roundup posts (e.g. "The AlleyWatch Startup Daily Funding Report") contain MANY deals — extract every one. Regular articles usually contain one. Some items contain none (rumors about public companies, VC firms raising their own funds, M&A, IPOs) — return an empty deals array for those.
+
+Only extract a deal when the startup is actually NAMED in the item. If the item only describes it ("a Bellevue AI startup", "Europe's newest defence unicorn", "an unnamed company") — omit that deal entirely; never invent a descriptive placeholder or write "unknown" as the company.
 
 For each deal:
 - company: the startup's name as written (never the investor).
@@ -487,6 +494,19 @@ export const refreshInternal = internalAction({
       console.log(
         `dealRadar: rss=${rssItems.length} candidates=${candidates.length} fresh=${fresh.length} survivors=${survivors.length} overflow=${overflow.size}`,
       );
+
+      // ---- body recovery for headline-only items ----
+      let bodyFetches = 0;
+      for (const c of survivors) {
+        if (c.isPost || c.text.trim().length >= THIN_TEXT_CHARS) continue;
+        if (bodyFetches >= BODY_FETCHES_PER_RUN) break;
+        bodyFetches++;
+        const resolved = (await resolveGoogleNewsUrl(c.link)) ?? c.link;
+        const body = await fetchArticleText(resolved, 6000);
+        if (resolved !== c.link) c.link = resolved; // deal rows link the publisher, not the redirect
+        if (body) c.text = `${c.title}\n${body}`;
+      }
+      if (bodyFetches > 0) console.log(`dealRadar: fetched ${bodyFetches} article bodies`);
 
       // ---- extract (chunked; a failed chunk never sinks the run) ----
       const extractedByIndex = new Map<number, ExtractedDeal[]>();
