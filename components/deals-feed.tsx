@@ -4,7 +4,10 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import Markdown from "@/components/markdown";
+import dynamic from "next/dynamic";
+
+// Client-only: SSR-evaluating the markdown pipeline blows the Workers CPU budget.
+const Markdown = dynamic(() => import("@/components/markdown"), { ssr: false });
 
 type Deal = FunctionReturnType<typeof api.deals.list>[number];
 

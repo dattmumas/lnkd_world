@@ -4,7 +4,10 @@ import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import Markdown from "@/components/markdown";
+import dynamic from "next/dynamic";
+
+// Client-only: SSR-evaluating the markdown pipeline blows the Workers CPU budget.
+const Markdown = dynamic(() => import("@/components/markdown"), { ssr: false });
 import { LineChart } from "./follower-chart";
 import { computeBestWindows, DEFAULT_WINDOW_NOTE, MIN_POSTS_FOR_SIGNAL } from "./best-times";
 

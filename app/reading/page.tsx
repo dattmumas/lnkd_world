@@ -7,7 +7,10 @@ import { Unauthenticated } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Nav from "@/components/nav";
 import Footer from "@/components/footer";
-import Markdown from "@/components/markdown";
+import dynamic from "next/dynamic";
+
+// Client-only: SSR-evaluating the markdown pipeline blows the Workers CPU budget.
+const Markdown = dynamic(() => import("@/components/markdown"), { ssr: false });
 import TagList, { Tags } from "@/components/tag-list";
 import Link from "next/link";
 import { Suspense } from "react";
