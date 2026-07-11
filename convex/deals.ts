@@ -362,6 +362,42 @@ export const markNotified = internalMutation({
 
 /** Subscriber: deals for the Deals tab, newest-announced first (filters are
  * client-side). `days` bounds by announcement/first-seen recency; 0 = all. */
+/**
+ * Public read for the /deals page: the deal dataset minus the operator-only
+ * surface (status/notified triage, confidence, deep-dive reports).
+ */
+export const publicList = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("deals")
+      .withIndex("by_firstSeenAt")
+      .order("desc")
+      .take(1000);
+    return rows.map((d) => ({
+      id: d._id,
+      company: d.company,
+      round: d.round,
+      amountUsd: d.amountUsd,
+      amountNote: d.amountNote,
+      investors: d.investors,
+      leadInvestor: d.leadInvestor,
+      category: d.category,
+      isConsumer: d.isConsumer,
+      summary: d.summary,
+      companyDesc: d.companyDesc,
+      leadDesc: d.leadDesc,
+      founders: d.founders,
+      hqCountry: d.hqCountry,
+      website: d.website,
+      valuationUsd: d.valuationUsd,
+      totalRaisedUsd: d.totalRaisedUsd,
+      sources: d.sources,
+      announcedAt: d.announcedAt ?? d.firstSeenAt,
+    }));
+  },
+});
+
 export const list = query({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) => {

@@ -35,6 +35,19 @@ export default function AppsLedger() {
           </span>
         </Link>
 
+        <Link href="/deals" className="block group">
+          <span className="ol-leader-row">
+            <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+              DEAL RADAR
+            </span>
+            <span className="ol-leader" />
+            <span className="ol-mono text-xs font-bold text-[var(--color-accent)]">LIVE</span>
+          </span>
+          <span className="block text-sm text-[var(--color-text-secondary)] mt-0.5">
+            Venture funding deals, gathered and extracted automatically — sortable, filterable.
+          </span>
+        </Link>
+
         {(projects ?? []).map((p) => (
           <a
             key={p._id}
