@@ -31,7 +31,7 @@ export default function Hero() {
           GitHub
         </a>
         <a
-          href="https://x.com/matthewdumas"
+          href="https://x.com/matt_onlabel"
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--color-accent)] hover:underline underline-offset-4"

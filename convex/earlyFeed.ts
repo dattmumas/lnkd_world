@@ -56,8 +56,15 @@ export const refreshInternal = internalAction({
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
-      const creatorList: { handle: string; pillar?: Pillar; fastPoll?: boolean }[] =
-        await ctx.runQuery(internal.creators.activeCreators, {});
+      const creatorList: {
+        handle: string;
+        pillar?: Pillar;
+        fastPoll?: boolean;
+        newsOrg?: boolean;
+      }[] = (await ctx.runQuery(internal.creators.activeCreators, {}))
+        // News orgs are never reply targets — don't spend getXAPI calls on them.
+        // (queue.getQueue also drops their tweets arriving via any other feed.)
+        .filter((c) => !c.newsOrg);
       // Fast-poll accounts ride every cycle; slow-tier (fastPoll === false —
       // VC firms, outlets) only join the every-2-hours full sweep. Cost control.
       const polled = includeSlow

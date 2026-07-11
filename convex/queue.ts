@@ -26,6 +26,22 @@ export const getQueue = query({
   handler: async (ctx) => {
     await requireSubscriber(ctx);
     const now = Date.now();
+    // News-org creators never surface here, whichever feed found their tweet.
+    // Read from the materialized creators cache — one small doc, same source
+    // the early feed polls from.
+    const cache = await ctx.db.query("creatorsCache").first();
+    let newsOrgs = new Set<string>();
+    if (cache) {
+      try {
+        newsOrgs = new Set(
+          (JSON.parse(cache.json) as { handle: string; newsOrg?: boolean }[])
+            .filter((c) => c.newsOrg)
+            .map((c) => c.handle),
+        );
+      } catch {
+        // Malformed cache never blanks the queue; it just skips the filter.
+      }
+    }
     const rows = await ctx.db
       .query("feedItems")
       .withIndex("by_status_publishedAt", (q) =>
@@ -34,6 +50,7 @@ export const getQueue = query({
       .order("desc")
       .take(READ_CAP);
     return rows
+      .filter((r) => !(r.authorUsername && newsOrgs.has(r.authorUsername)))
       .map((r) => ({
         id: r._id,
         kind: r.kind,

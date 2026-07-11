@@ -69,6 +69,7 @@ export const update = mutation({
     active: v.optional(v.boolean()),
     pillar: v.optional(pillarValidator),
     fastPoll: v.optional(v.boolean()),
+    newsOrg: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -85,14 +86,16 @@ export const bulkSet = mutation({
     fastPoll: v.optional(v.boolean()),
     active: v.optional(v.boolean()),
     pillar: v.optional(pillarValidator),
+    newsOrg: v.optional(v.boolean()),
   },
   returns: v.number(),
-  handler: async (ctx, { ids, fastPoll, active, pillar }) => {
+  handler: async (ctx, { ids, fastPoll, active, pillar, newsOrg }) => {
     await requireAdmin(ctx);
     const patch: Record<string, unknown> = {};
     if (fastPoll !== undefined) patch.fastPoll = fastPoll;
     if (active !== undefined) patch.active = active;
     if (pillar !== undefined) patch.pillar = pillar;
+    if (newsOrg !== undefined) patch.newsOrg = newsOrg;
     if (Object.keys(patch).length === 0) return 0;
     for (const id of ids.slice(0, 500)) await ctx.db.patch(id, patch);
     await rebuildCache(ctx);
@@ -116,6 +119,32 @@ export const bulkSetInternal = internalMutation({
     for (const id of ids.slice(0, 500)) await ctx.db.patch(id, patch);
     await rebuildCache(ctx);
     return Math.min(ids.length, 500);
+  },
+});
+
+/**
+ * Maintenance (CLI): flag/unflag creators as news orgs by handle.
+ *   npx convex run creators:setNewsOrgInternal '{"handles": ["business", "wsj"]}' --prod
+ */
+export const setNewsOrgInternal = internalMutation({
+  args: { handles: v.array(v.string()), newsOrg: v.optional(v.boolean()) },
+  returns: v.object({ flagged: v.number(), missing: v.array(v.string()) }),
+  handler: async (ctx, { handles, newsOrg }) => {
+    const all = await ctx.db.query("creators").withIndex("by_order").collect();
+    const byHandle = new Map(all.map((c) => [c.handle, c]));
+    const missing: string[] = [];
+    let flagged = 0;
+    for (const raw of handles) {
+      const row = byHandle.get(normalizeHandle(raw));
+      if (!row) {
+        missing.push(raw);
+        continue;
+      }
+      await ctx.db.patch(row._id, { newsOrg: newsOrg ?? true });
+      flagged++;
+    }
+    if (flagged > 0) await rebuildCache(ctx);
+    return { flagged, missing };
   },
 });
 
@@ -199,7 +228,12 @@ async function rebuildCache(ctx: MutationCtx): Promise<void> {
   const json = JSON.stringify(
     all
       .filter((c) => c.active !== false)
-      .map((c) => ({ handle: c.handle, pillar: c.pillar, fastPoll: c.fastPoll })),
+      .map((c) => ({
+        handle: c.handle,
+        pillar: c.pillar,
+        fastPoll: c.fastPoll,
+        newsOrg: c.newsOrg,
+      })),
   );
   const existing = await ctx.db.query("creatorsCache").first();
   if (existing) await ctx.db.patch(existing._id, { json, updatedAt: Date.now() });
@@ -346,6 +380,7 @@ export const activeCreators = internalQuery({
         v.union(v.literal("health"), v.literal("finance"), v.literal("startup")),
       ),
       fastPoll: v.optional(v.boolean()),
+      newsOrg: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx) => {
@@ -355,11 +390,17 @@ export const activeCreators = internalQuery({
         handle: string;
         pillar?: "health" | "finance" | "startup";
         fastPoll?: boolean;
+        newsOrg?: boolean;
       }[];
     }
     const all = await ctx.db.query("creators").withIndex("by_order").collect();
     return all
       .filter((c) => c.active !== false)
-      .map((c) => ({ handle: c.handle, pillar: c.pillar, fastPoll: c.fastPoll }));
+      .map((c) => ({
+        handle: c.handle,
+        pillar: c.pillar,
+        fastPoll: c.fastPoll,
+        newsOrg: c.newsOrg,
+      }));
   },
 });

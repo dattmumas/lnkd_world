@@ -180,7 +180,10 @@ export default function ManageCreators() {
     }
   };
 
-  const inlinePatch = (c: Creator, patch: Partial<{ active: boolean; fastPoll: boolean; pillar: Pillar }>) =>
+  const inlinePatch = (
+    c: Creator,
+    patch: Partial<{ active: boolean; fastPoll: boolean; pillar: Pillar; newsOrg: boolean }>,
+  ) =>
     void update({
       id: c._id,
       handle: c.handle,
@@ -188,6 +191,7 @@ export default function ManageCreators() {
       active: patch.active ?? c.active !== false,
       pillar: patch.pillar ?? c.pillar ?? "health",
       fastPoll: patch.fastPoll ?? c.fastPoll,
+      newsOrg: patch.newsOrg ?? c.newsOrg,
     });
 
   return (
@@ -355,6 +359,19 @@ export default function ManageCreators() {
             </button>
           ))}
           <button
+            onClick={() => void runBulk("Flag news org", () => bulkSet({ ids: selectedIds, newsOrg: true }))}
+            className={btn}
+            title="News orgs never surface in the reply queue and aren't polled by the early feed"
+          >
+            News org
+          </button>
+          <button
+            onClick={() => void runBulk("Unflag news org", () => bulkSet({ ids: selectedIds, newsOrg: false }))}
+            className={btn}
+          >
+            Not news
+          </button>
+          <button
             onClick={() => void runBulk("Deactivate", () => bulkSet({ ids: selectedIds, active: false }))}
             className={btn}
           >
@@ -402,6 +419,12 @@ export default function ManageCreators() {
                   title="Fast = every 5 min (early replies + pushes); Hourly = cheap sweep"
                 >
                   Poll{arrow("fastPoll")}
+                </th>
+                <th
+                  className={th}
+                  title="News orgs never surface in the reply queue and aren't polled by the early feed"
+                >
+                  News
                 </th>
                 <th className={`${th} cursor-pointer`} onClick={() => setSort("active")}>
                   Active{arrow("active")}
@@ -462,6 +485,19 @@ export default function ManageCreators() {
                       title="Click to toggle"
                     >
                       {c.fastPoll !== false ? "fast" : "hourly"}
+                    </button>
+                  </td>
+                  <td className={td}>
+                    <button
+                      onClick={() => inlinePatch(c, { newsOrg: !c.newsOrg })}
+                      className={`text-xs font-semibold rounded px-2 py-0.5 border ${
+                        c.newsOrg
+                          ? "text-red-700 bg-red-50 border-red-200"
+                          : "text-[var(--color-text-secondary)] bg-white border-[var(--color-border)] opacity-60"
+                      }`}
+                      title="News orgs never surface in the reply queue and aren't polled by the early feed. Click to toggle."
+                    >
+                      {c.newsOrg ? "news" : "—"}
                     </button>
                   </td>
                   <td className={td}>

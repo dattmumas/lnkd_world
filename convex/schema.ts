@@ -165,6 +165,9 @@ export default defineSchema({
     // targets). false = hourly sweep only (VC firms, outlets, low-priority).
     // undefined = fast, so existing rows keep their behavior.
     fastPoll: v.optional(v.boolean()),
+    // News orgs are not reply targets: the early feed never polls them and
+    // the engagement queue drops their tweets no matter which feed found them.
+    newsOrg: v.optional(v.boolean()),
   }).index("by_order", ["order"]),
 
   // "Creators" feed snapshots — rendered HTML from the daily refresh
