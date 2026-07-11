@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import SubscribeForm from "@/components/onlabel/subscribe-form";
 import LedgerMark from "@/components/ledger/mark";
+import TypeLine from "@/components/ledger/type-line";
 
 function issueDate(ms: number): string {
   return new Date(ms).toLocaleDateString([], {
@@ -24,10 +25,12 @@ export default function OnLabelHome() {
       {/* Masthead */}
       <div className="flex items-center gap-4">
         <LedgerMark size={48} className="shrink-0" interactive />
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">ON LABEL</h1>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight ol-misprint">
+          ON LABEL
+        </h1>
       </div>
       <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-3 uppercase">
-        Early-stage consumer health tech · Written weekly in Seattle
+        <TypeLine text="Early-stage consumer health tech · Written weekly in Seattle" />
         {site !== undefined && site.subscriberCount > 0 && (
           <> · Read by {site.subscriberCount.toLocaleString()} operators</>
         )}

@@ -6,6 +6,7 @@ import OnLabelSection from "@/components/onlabel-section";
 import OnLabelCards from "@/components/onlabel-cards";
 import LedgerMark from "@/components/ledger/mark";
 import Tear from "@/components/ledger/tear";
+import TypeLine from "@/components/ledger/type-line";
 
 /**
  * The landing IS a ledger: a masthead with the misregistered mark and a
@@ -22,10 +23,12 @@ export default function Home() {
           <div className="min-w-0">
             <div className="flex items-center gap-4">
               <LedgerMark size={52} className="shrink-0" interactive />
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">LNKD</h1>
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight ol-misprint">
+                LNKD
+              </h1>
             </div>
             <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-4 uppercase">
-              Matthew Dumas · Seattle WA · Operator&apos;s ledger
+              <TypeLine text="Matthew Dumas · Seattle WA · Operator's ledger" />
             </p>
             <p className="text-[17px] leading-relaxed mt-4">
               A place for me to write and design.

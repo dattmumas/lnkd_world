@@ -33,6 +33,40 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display), Helvetica, sans-serif;
   letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* The press flips: selecting text inverts ink and paper. */
+::selection {
+  background: var(--color-border);
+  color: var(--color-bg);
+}
+
+.bonds-terminal ::selection {
+  background: #fb8b1e;
+  color: #000000;
+}
+
+/* Misregistered display type — the red plate lands off behind the ink,
+   same press run as the mark. Display sizes only; it muddies body text. */
+.ol-misprint {
+  text-shadow: 0.045em 0.045em 0 var(--color-accent);
+}
+
+/* Essay typography: better rag, and a drop cap set like a ledger initial. */
+.ol-article p {
+  text-wrap: pretty;
+}
+
+.ol-article > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display), Helvetica, sans-serif;
+  font-weight: 700;
+  font-size: 3.1em;
+  line-height: 0.85;
+  padding: 0.04em 0.12em 0 0;
+  color: var(--color-text);
+  text-shadow: 0.05em 0.05em 0 var(--color-accent);
 }
 
 /* Ledger utilities — the receipt vocabulary used across public pages. */

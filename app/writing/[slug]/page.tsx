@@ -5,10 +5,15 @@ import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { Unauthenticated } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import dynamic from "next/dynamic";
 import Nav from "@/components/nav";
 import Footer from "@/components/footer";
-import Markdown from "@/components/markdown";
 import { Tags } from "@/components/tag-list";
+
+// Client-only: the markdown pipeline (KaTeX, highlight.js, rehype) is a big
+// module graph, and evaluating it during SSR blows the Workers CPU budget
+// (Cloudflare 1102). The content arrives client-side via Convex anyway.
+const Markdown = dynamic(() => import("@/components/markdown"), { ssr: false });
 import { readingTime } from "@/lib/reading-time";
 import Link from "next/link";
 
@@ -121,7 +126,7 @@ export default function PostPage() {
                 </div>
               </Unauthenticated>
             ) : (
-              <div className="border-t border-[var(--color-border)] pt-8">
+              <div className="border-t border-[var(--color-border)] pt-8 ol-article">
                 <Markdown content={post.content} />
               </div>
             )}
