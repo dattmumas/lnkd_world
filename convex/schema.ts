@@ -527,6 +527,14 @@ export default defineSchema({
     summary: v.string(),
     companyDesc: v.optional(v.string()), // 1-line what-the-company-does
     leadDesc: v.optional(v.string()), // 1-line who-the-lead-VC-is
+    // Capture-time enrichment (extraction provides these when the item states them)
+    founders: v.optional(
+      v.array(v.object({ name: v.string(), xHandle: v.optional(v.string()) })),
+    ),
+    hqCountry: v.optional(v.string()), // short name: "US", "UK", "India"
+    website: v.optional(v.string()),
+    valuationUsd: v.optional(v.number()),
+    totalRaisedUsd: v.optional(v.number()),
     sources: v.array(v.object({ name: v.string(), url: v.string() })),
     announcementTweetId: v.optional(v.string()),
     // On-demand AI research report (deals.deepDive action): Claude + web

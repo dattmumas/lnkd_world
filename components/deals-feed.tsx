@@ -484,6 +484,60 @@ export function DealsFeed() {
                             {d.company}
                           </div>
                           <p>{d.companyDesc ?? d.summary}</p>
+                          {(d.founders?.length || d.hqCountry || d.website) && (
+                            <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                              {d.founders?.length ? (
+                                <>
+                                  {d.founders.map((f, i) => (
+                                    <span key={f.name}>
+                                      {i > 0 && ", "}
+                                      {f.xHandle ? (
+                                        <a
+                                          href={`https://x.com/${f.xHandle}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-[var(--color-accent)] hover:underline"
+                                        >
+                                          {f.name} (@{f.xHandle})
+                                        </a>
+                                      ) : (
+                                        f.name
+                                      )}
+                                    </span>
+                                  ))}
+                                </>
+                              ) : null}
+                              {d.hqCountry && (
+                                <>{d.founders?.length ? " · " : ""}HQ: {d.hqCountry}</>
+                              )}
+                              {d.website && (
+                                <>
+                                  {" · "}
+                                  <a
+                                    href={d.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[var(--color-accent)] hover:underline"
+                                  >
+                                    {d.website.replace(/^https?:\/\/(www\.)?/, "")}
+                                  </a>
+                                </>
+                              )}
+                            </p>
+                          )}
+                          {(d.valuationUsd || d.totalRaisedUsd) && (
+                            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                              {d.valuationUsd
+                                ? `Valuation $${(d.valuationUsd / 1e6).toFixed(0)}M`
+                                : ""}
+                              {d.valuationUsd && d.totalRaisedUsd ? " · " : ""}
+                              {d.totalRaisedUsd
+                                ? `Total raised $${(d.totalRaisedUsd / 1e6).toFixed(0)}M`
+                                : ""}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <div className="gc-label mb-1">

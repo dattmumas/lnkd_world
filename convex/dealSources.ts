@@ -4,10 +4,14 @@ import { requireAdmin } from "./lib/auth";
 
 /** Admin-managed RSS sources for the Consumer Deal Radar (convex/dealsFeed.ts). */
 
-// Verified live 2026-07-04. Deliberately excluded: FinSMEs (Cloudflare-blocked
-// server-side) and StrictlyVC (feed is a stale 2019 archive since the
-// TechCrunch acquisition). AlleyWatch matters most — its daily funding roundup
-// carries many deals per item in <content:encoded>.
+// Verified live 2026-07-04; expansion batch verified 2026-07-10. Deliberately
+// excluded: FinSMEs + MobiHealthNews (Cloudflare-blocked server-side — FinSMEs
+// arrives via the Google News proxy feed instead), StrictlyVC (stale archive),
+// Fierce Healthcare (unparseable pubDate format). AlleyWatch matters most —
+// its daily funding roundup carries many deals per item in <content:encoded>.
+// The Google News query feeds are the volume workhorses (~70-95 items each,
+// aggregating hundreds of outlets); the regex prefilter keeps non-deal items
+// away from extraction, so broad feeds cost bandwidth only.
 const DEFAULTS: { name: string; url: string }[] = [
   { name: "TechCrunch Venture", url: "https://techcrunch.com/category/venture/feed/" },
   { name: "Crunchbase News", url: "https://news.crunchbase.com/feed/" },
@@ -18,6 +22,26 @@ const DEFAULTS: { name: string; url: string }[] = [
   { name: "GeekWire", url: "https://www.geekwire.com/feed/" },
   { name: "VentureBeat", url: "https://venturebeat.com/feed/" },
   { name: "Axios", url: "https://api.axios.com/feed/" },
+  // Google News query feeds (aggregate outlets we can't reach directly)
+  { name: "GNews FinSMEs", url: "https://news.google.com/rss/search?q=site:finsmes.com&hl=en-US&gl=US&ceid=US:en" },
+  { name: "GNews Funding", url: "https://news.google.com/rss/search?q=%22raises%22+%22Series%22+million+funding&hl=en-US&gl=US&ceid=US:en" },
+  { name: "GNews Seed", url: "https://news.google.com/rss/search?q=%22raises%22+%22seed+round%22&hl=en-US&gl=US&ceid=US:en" },
+  { name: "GNews Consumer Health", url: "https://news.google.com/rss/search?q=%22raises%22+(%22consumer+health%22+OR+wellness+OR+supplement)&hl=en-US&gl=US&ceid=US:en" },
+  // Direct feeds
+  { name: "TechFundingNews", url: "https://techfundingnews.com/feed/" },
+  { name: "EU-Startups", url: "https://www.eu-startups.com/feed/" },
+  { name: "Tech.eu", url: "https://tech.eu/feed/" },
+  { name: "Silicon Canals", url: "https://siliconcanals.com/feed/" },
+  { name: "BetaKit", url: "https://betakit.com/feed/" },
+  { name: "MedCity News", url: "https://medcitynews.com/feed/" },
+  { name: "BevNET", url: "https://www.bevnet.com/feed/" },
+  { name: "AgFunderNews", url: "https://agfundernews.com/feed" },
+  { name: "Fortune Term Sheet", url: "https://fortune.com/feed/fortune-feeds/?id=3230629" },
+  { name: "PE Hub", url: "https://www.pehub.com/feed/" },
+  { name: "HIT Consultant", url: "https://hitconsultant.net/feed/" },
+  { name: "Modern Retail", url: "https://www.modernretail.co/feed/" },
+  { name: "Glossy", url: "https://www.glossy.co/feed/" },
+  { name: "Food Dive", url: "https://www.fooddive.com/feeds/news/" },
 ];
 
 export const listAll = query({

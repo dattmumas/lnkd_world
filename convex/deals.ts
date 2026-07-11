@@ -66,6 +66,13 @@ const dealPayload = v.object({
   summary: v.string(),
   companyDesc: v.optional(v.string()),
   leadDesc: v.optional(v.string()),
+  founders: v.optional(
+    v.array(v.object({ name: v.string(), xHandle: v.optional(v.string()) })),
+  ),
+  hqCountry: v.optional(v.string()),
+  website: v.optional(v.string()),
+  valuationUsd: v.optional(v.number()),
+  totalRaisedUsd: v.optional(v.number()),
   sourceName: v.string(),
   sourceUrl: v.string(),
   announcedAt: v.optional(v.number()),
@@ -167,6 +174,28 @@ export const upsertDeals = internalMutation({
         if (!existing.leadInvestor && d.leadInvestor) patch.leadInvestor = d.leadInvestor;
         if (!existing.companyDesc && d.companyDesc) patch.companyDesc = d.companyDesc;
         if (!existing.leadDesc && d.leadDesc) patch.leadDesc = d.leadDesc;
+        if (!existing.hqCountry && d.hqCountry) patch.hqCountry = d.hqCountry;
+        if (!existing.website && d.website) patch.website = d.website;
+        if (!existing.valuationUsd && d.valuationUsd) patch.valuationUsd = d.valuationUsd;
+        if (!existing.totalRaisedUsd && d.totalRaisedUsd)
+          patch.totalRaisedUsd = d.totalRaisedUsd;
+        if (d.founders?.length) {
+          const have = new Set(
+            (existing.founders ?? []).map((f) => f.name.toLowerCase()),
+          );
+          const added = d.founders.filter((f) => !have.has(f.name.toLowerCase()));
+          // A telling that knows a founder's handle upgrades a name-only entry.
+          const upgraded = (existing.founders ?? []).map((f) => {
+            if (f.xHandle) return f;
+            const match = d.founders?.find(
+              (g) => g.xHandle && g.name.toLowerCase() === f.name.toLowerCase(),
+            );
+            return match ? { ...f, xHandle: match.xHandle } : f;
+          });
+          if (added.length > 0 || upgraded.some((f, i) => f !== (existing.founders ?? [])[i])) {
+            patch.founders = [...upgraded, ...added].slice(0, 6);
+          }
+        }
         if (!existing.announcementTweetId && d.tweetId) patch.announcementTweetId = d.tweetId;
         if (!existing.announcedAt && d.announcedAt) patch.announcedAt = d.announcedAt;
         if (d.confidence > existing.confidence) {
@@ -200,6 +229,11 @@ export const upsertDeals = internalMutation({
         summary: d.summary,
         companyDesc: d.companyDesc,
         leadDesc: d.leadDesc,
+        founders: d.founders?.length ? d.founders.slice(0, 6) : undefined,
+        hqCountry: d.hqCountry,
+        website: d.website,
+        valuationUsd: d.valuationUsd,
+        totalRaisedUsd: d.totalRaisedUsd,
         sources: [{ name: d.sourceName, url: d.sourceUrl }],
         announcementTweetId: d.tweetId,
         status: "new",

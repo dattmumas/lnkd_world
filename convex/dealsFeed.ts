@@ -39,7 +39,7 @@ import { inActiveHours, type GrowthSettings } from "./growthSettings";
 const RSS_WINDOW_MS = 48 * 3_600_000; // survives a day of failed runs; dealSeen dedups
 const X_WINDOW_MS = 3 * 3_600_000;
 const SWEEP_WINDOW_MS = 2 * 3_600_000;
-const MAX_CANDIDATES_PER_RUN = 60;
+const MAX_CANDIDATES_PER_RUN = 120;
 const EXTRACT_CHUNK = 20;
 const NOTIFY_PER_RUN = 5; // individual pushes; the rest go in one digest
 const NOTIFY_MAX_AGE_MS = 24 * 3_600_000; // overnight flush window
@@ -51,10 +51,21 @@ const DEAL_VERB =
   /\brais(?:e[sd]?|ing)\b|\bfunding\b|\bfinanc(?:e[sd]?|ing)\b|\bseries\s+[a-e]\b|\bpre-?seed\b|\bseed\s+round\b|\bventure\s+round\b|\bled\s+(?:the|our|a)\s+(?:round|investment)\b|\bcloses?\s+\$|\bsecure[sd]?\s+\$/i;
 const MONEY = /[$€£]\s?\d|\b\d+(?:\.\d+)?\s?(?:million|billion|[mb]n?)\b/i;
 
-const SWEEP_FOUNDER =
-  '("we raised" OR "we\'ve raised" OR "we just raised" OR "raised our" OR "announcing our") ("pre-seed" OR seed OR "Series A" OR "Series B" OR round OR funding) -is:retweet -is:reply lang:en';
-const SWEEP_INVESTOR =
-  '("led our" OR "we led" OR "excited to lead" OR "proud to lead" OR "thrilled to lead" OR "co-led") (seed OR "Series A" OR "Series B" OR round OR investment) -is:retweet -is:reply lang:en';
+// Announcement sweeps, in the distinct voices deals are announced in. Shared
+// by the hourly refresh and the historical backfill. Each costs ~1-3 getXAPI
+// pages per run.
+const SWEEPS = [
+  // founders announcing their own raise
+  '("we raised" OR "we\'ve raised" OR "we just raised" OR "raised our" OR "announcing our") ("pre-seed" OR seed OR "Series A" OR "Series B" OR round OR funding) -is:retweet -is:reply lang:en',
+  // investors announcing rounds they led
+  '("led our" OR "we led" OR "excited to lead" OR "proud to lead" OR "thrilled to lead" OR "co-led") (seed OR "Series A" OR "Series B" OR round OR investment) -is:retweet -is:reply lang:en',
+  // the "excited to announce" register founders actually use
+  '("excited to announce" OR "thrilled to announce" OR "excited to share") ("seed round" OR "Series A" OR "Series B" OR "in funding" OR "our round") -is:retweet -is:reply lang:en',
+  // VCs welcoming a new portfolio company
+  '("welcome to the portfolio" OR "our newest investment" OR "our latest investment" OR "our investment in") -is:retweet -is:reply lang:en',
+  // closing language
+  '("just closed" OR "closed our" OR "officially closed") (round OR seed OR "Series A" OR "Series B") -is:retweet -is:reply lang:en',
+];
 
 const ROUNDS = new Set([
   "pre-seed", "seed", "series-a", "series-b", "series-c", "series-d",
@@ -84,6 +95,11 @@ interface ExtractedDeal {
   summary: string;
   companyDesc?: string;
   leadDesc?: string;
+  founders?: { name: string; xHandle?: string }[];
+  hqCountry?: string;
+  website?: string;
+  valuationUsd?: number;
+  totalRaisedUsd?: number;
   announcedDateMs?: number;
 }
 
@@ -103,9 +119,14 @@ For each deal:
 - companyDesc: one plain line on what the company does (from the item text), under 120 chars.
 - leadDesc: one plain line on who the lead investor is (stage/thesis/notable bets — general knowledge is fine, e.g. "Consumer-focused VC; early Hims and Glossier backer"), under 120 chars. null if you don't know the firm.
 - announcedDate: "YYYY-MM-DD" ONLY if the item explicitly states when the round was announced or closed ("announced Tuesday", "closed June 30"); null otherwise — never guess.
+- founders: founders/CEOs named in the item, each {"name":"...","x":"handle" or null}. Include the X handle only when it appears in the item — or, when the item is an X post written by a founder announcing their own company's raise, use the source handle from the item header. Empty array if none named.
+- hqCountry: the company's HQ country as a short name ("US", "UK", "India", "Germany"), only if stated or unambiguous from the item (city named, ".de" domain, etc.); null otherwise.
+- website: the company's own website ONLY if it appears in the item text; null otherwise — never guess domains.
+- valuationUsd: the round's valuation in USD as a plain number if stated; null otherwise.
+- totalRaisedUsd: total raised to date in USD as a plain number if stated; null otherwise.
 
 Return ONLY JSON, no prose:
-{"items":[{"n":<item number>,"deals":[{"company":"...","round":"seed","amountUsd":12000000,"amountNote":"€11M","investors":["..."],"lead":"...","category":"consumer-health","isConsumer":true,"confidence":0.9,"summary":"...","companyDesc":"...","leadDesc":"...","announcedDate":null}]}]}
+{"items":[{"n":<item number>,"deals":[{"company":"...","round":"seed","amountUsd":12000000,"amountNote":"€11M","investors":["..."],"lead":"...","category":"consumer-health","isConsumer":true,"confidence":0.9,"summary":"...","companyDesc":"...","leadDesc":"...","founders":[{"name":"...","x":null}],"hqCountry":null,"website":null,"valuationUsd":null,"totalRaisedUsd":null,"announcedDate":null}]}]}
 Include an entry for EVERY item number, with "deals":[] when none. Extract the same deal from each item it appears in (deduplication happens downstream).`;
 
 // Explicit announcement date from extraction, sanity-bounded: not in the
@@ -186,6 +207,11 @@ async function extractChunk(
           summary?: string;
           companyDesc?: string | null;
           leadDesc?: string | null;
+          founders?: { name?: string; x?: string | null }[];
+          hqCountry?: string | null;
+          website?: string | null;
+          valuationUsd?: number | null;
+          totalRaisedUsd?: number | null;
           announcedDate?: string | null;
         }[];
       }[];
@@ -209,6 +235,28 @@ async function extractChunk(
           summary: String(d.summary ?? "").slice(0, 160),
           companyDesc: d.companyDesc ? String(d.companyDesc).slice(0, 140) : undefined,
           leadDesc: d.leadDesc ? String(d.leadDesc).slice(0, 140) : undefined,
+          founders: (d.founders ?? [])
+            .filter((f) => f.name)
+            .slice(0, 6)
+            .map((f) => ({
+              name: String(f.name).slice(0, 80),
+              xHandle: f.x
+                ? String(f.x).replace(/^@/, "").slice(0, 30)
+                : undefined,
+            })),
+          hqCountry: d.hqCountry ? String(d.hqCountry).slice(0, 40) : undefined,
+          website:
+            d.website && /^https?:\/\/\S+$/.test(String(d.website))
+              ? String(d.website).slice(0, 200)
+              : undefined,
+          valuationUsd:
+            typeof d.valuationUsd === "number" && d.valuationUsd > 0
+              ? d.valuationUsd
+              : undefined,
+          totalRaisedUsd:
+            typeof d.totalRaisedUsd === "number" && d.totalRaisedUsd > 0
+              ? d.totalRaisedUsd
+              : undefined,
           announcedDateMs: parseAnnouncedDate(d.announcedDate),
         });
       }
@@ -344,7 +392,7 @@ export const refreshInternal = internalAction({
       const { items: rssItems, health } = await gatherRss(sources, nowMs, RSS_WINDOW_MS, {
         textCap: 6000,
         preferFullContent: true,
-        maxPerSource: 30,
+        maxPerSource: 60, // Google News query feeds carry 70-95 items
       });
 
       let candidates: Candidate[] = rssItems.map((it) => ({
@@ -379,8 +427,8 @@ export const refreshInternal = internalAction({
             isPost: true,
           });
         }
-        // Founder/investor announcement sweeps.
-        for (const q of [SWEEP_FOUNDER, SWEEP_INVESTOR]) {
+        // Announcement sweeps.
+        for (const q of SWEEPS) {
           try {
             const { tweets, users } = await gxSearch(q, {
               product: "Latest",
@@ -421,18 +469,23 @@ export const refreshInternal = internalAction({
       const fresh = candidates.filter((c) => !seenSet.has(c.externalId));
 
       // ---- prefilter + cap ----
-      const survivors = fresh
+      const prefiltered = fresh
         .filter((c) => {
           const blob = `${c.title} ${c.text}`;
           return c.isPost
             ? DEAL_VERB.test(blob)
             : DEAL_VERB.test(blob) && MONEY.test(blob);
         })
-        .sort((a, b) => b.dateMs - a.dateMs)
-        .slice(0, MAX_CANDIDATES_PER_RUN);
+        .sort((a, b) => b.dateMs - a.dateMs);
+      const survivors = prefiltered.slice(0, MAX_CANDIDATES_PER_RUN);
+      // Prefilter-passers beyond the cap must NOT be marked seen — they wait,
+      // unburned, for the next run (source bursts would otherwise drop deals).
+      const overflow = new Set(
+        prefiltered.slice(MAX_CANDIDATES_PER_RUN).map((c) => c.externalId),
+      );
 
       console.log(
-        `dealRadar: rss=${rssItems.length} candidates=${candidates.length} fresh=${fresh.length} survivors=${survivors.length}`,
+        `dealRadar: rss=${rssItems.length} candidates=${candidates.length} fresh=${fresh.length} survivors=${survivors.length} overflow=${overflow.size}`,
       );
 
       // ---- extract (chunked; a failed chunk never sinks the run) ----
@@ -473,9 +526,12 @@ export const refreshInternal = internalAction({
         : { inserted: 0, merged: 0, newConsumer: [] };
 
       // Mark fresh candidates as processed (prefiltered-out ones too) — EXCEPT
-      // survivors whose extract chunk failed, so they retry while still inside
-      // the gather windows instead of being burned by an Anthropic outage.
-      const processed = fresh.filter((c) => !failedExtract.has(c.externalId));
+      // survivors whose extract chunk failed, and overflow beyond the cap, so
+      // they retry while still inside the gather windows instead of being
+      // burned by an Anthropic outage or a source burst.
+      const processed = fresh.filter(
+        (c) => !failedExtract.has(c.externalId) && !overflow.has(c.externalId),
+      );
       if (processed.length > 0) {
         await ctx.runMutation(internal.dealsFeed.markSeenCandidates, {
           externalIds: processed.map((c) => c.externalId),
@@ -634,7 +690,7 @@ export const backfillInternal = internalAction({
       const until = day(nowMs - w * 7 * 86_400_000);
       const since = day(nowMs - (w + 1) * 7 * 86_400_000);
       const candidates: Candidate[] = [];
-      for (const base of [SWEEP_FOUNDER, SWEEP_INVESTOR]) {
+      for (const base of SWEEPS) {
         try {
           const { tweets, users } = await gxSearch(
             `${base} since:${since} until:${until}`,
