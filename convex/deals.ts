@@ -23,11 +23,19 @@ const SEEN_RETENTION_DAYS = 14;
 // Window inside which an unknown-round telling is assumed to be the same deal
 // as a known-round one for the same company (and vice versa).
 const ROUND_RECONCILE_MS = 14 * 86_400_000;
+// An exact amount match is a much stronger fingerprint — late re-tellings
+// (roundup articles, old-round tweets) arrive weeks after the announcement,
+// and two distinct rounds with identical amounts inside six weeks don't
+// really happen.
+const AMOUNT_RECONCILE_MS = 45 * 86_400_000;
 
 // Trailing corporate suffixes that outlets append inconsistently.
 const SUFFIXES = new Set([
   "inc", "llc", "ltd", "co", "corp", "corporation", "company", "labs", "lab",
   "app", "hq", "technologies", "technology", "tech", "ai", "health", "group",
+  // Outlets drop these inconsistently ("8090 Solutions" vs "8090",
+  // "Anduril Industries" vs "Anduril", "SambaNova Systems" vs "SambaNova").
+  "solutions", "systems", "industries",
 ]);
 
 /** Normalize a company name for dedup: "Glow Labs, Inc." → "glow". */
@@ -147,15 +155,31 @@ export const upsertDeals = internalMutation({
         // (announcement-date distance, not insert time — backfills insert
         // months of deals in one run and must not merge across months).
         const incomingAt = d.announcedAt ?? now;
+        const distance = (r: (typeof sameCompany)[number]) =>
+          Math.abs((r.announcedAt ?? r.firstSeenAt) - incomingAt);
         const recent = sameCompany.filter(
-          (r) =>
-            Math.abs((r.announcedAt ?? r.firstSeenAt) - incomingAt) <
-            ROUND_RECONCILE_MS,
+          (r) => distance(r) < ROUND_RECONCILE_MS,
         );
         if (d.round !== "unknown") {
           existing = recent.find((r) => r.round === "unknown") ?? null;
           if (existing) {
             await ctx.db.patch(existing._id, { round: d.round, dedupKey });
+          }
+          // Outlets mislabel stages ("growth" vs "series-a") — the same
+          // company raising the same amount IS the same deal, and late
+          // re-tellings get the wider amount window. The higher-confidence
+          // telling names the round.
+          if (!existing && d.amountUsd != null) {
+            existing =
+              sameCompany.find(
+                (r) =>
+                  r.amountUsd === d.amountUsd &&
+                  r.round !== d.round &&
+                  distance(r) < AMOUNT_RECONCILE_MS,
+              ) ?? null;
+            if (existing && d.confidence > existing.confidence) {
+              await ctx.db.patch(existing._id, { round: d.round, dedupKey });
+            }
           }
         } else {
           existing = recent[0] ?? null;
@@ -576,6 +600,96 @@ export const cleanupInternal = internalMutation({
       dismissed++;
     }
     return { renamed, dismissed };
+  },
+});
+
+/**
+ * Maintenance (CLI): re-key every deal with the current normalizeCompanyKey
+ * rules, then merge duplicate tellings of the same deal — same company, same
+ * announcement window, and (equal amounts | matching rounds | one side
+ * unknown). The higher-confidence row survives; sources and investors union.
+ *   npx convex run deals:dedupePassInternal '{}' --prod
+ */
+export const dedupePassInternal = internalMutation({
+  args: { dryRun: v.optional(v.boolean()) },
+  returns: v.object({ rekeyed: v.number(), merged: v.number() }),
+  handler: async (ctx, { dryRun }) => {
+    const all = await ctx.db.query("deals").collect();
+    let rekeyed = 0;
+
+    // Pass 1: recompute keys under the current suffix rules.
+    for (const r of all) {
+      const key = normalizeCompanyKey(r.company);
+      if (key && key !== r.companyKey) {
+        rekeyed++;
+        r.companyKey = key;
+        r.dedupKey = `${key}|${r.round}`;
+        if (!dryRun) {
+          await ctx.db.patch(r._id, { companyKey: key, dedupKey: r.dedupKey });
+        }
+      }
+    }
+
+    // Pass 2: merge same-deal rows within each company group.
+    const byKey = new Map<string, typeof all>();
+    for (const r of all) {
+      if (r.status === "dismissed" || !r.companyKey) continue;
+      const g = byKey.get(r.companyKey) ?? [];
+      g.push(r);
+      byKey.set(r.companyKey, g);
+    }
+    let merged = 0;
+    for (const group of byKey.values()) {
+      if (group.length < 2) continue;
+      group.sort((a, b) => b.confidence - a.confidence);
+      const survivors: typeof group = [];
+      for (const row of group) {
+        const at = row.announcedAt ?? row.firstSeenAt;
+        const host = survivors.find((s) => {
+          const gap = Math.abs((s.announcedAt ?? s.firstSeenAt) - at);
+          const amountsMatch =
+            s.amountUsd != null && s.amountUsd === row.amountUsd;
+          const roundsCompatible =
+            s.round === row.round || s.round === "unknown" || row.round === "unknown";
+          return (
+            (amountsMatch && gap < AMOUNT_RECONCILE_MS) ||
+            (roundsCompatible && gap < ROUND_RECONCILE_MS)
+          );
+        });
+        if (!host) {
+          survivors.push(row);
+          continue;
+        }
+        merged++;
+        if (dryRun) continue;
+        const mergedSources = [...host.sources];
+        for (const s of row.sources) {
+          if (!mergedSources.some((m) => m.url === s.url)) mergedSources.push(s);
+        }
+        await ctx.db.patch(host._id, {
+          round: host.round === "unknown" ? row.round : host.round,
+          dedupKey: `${host.companyKey}|${host.round === "unknown" ? row.round : host.round}`,
+          investors: unionInvestors(host.investors, row.investors),
+          sources: mergedSources.slice(0, 10),
+          amountUsd: host.amountUsd ?? row.amountUsd,
+          amountNote: host.amountNote ?? row.amountNote,
+          leadInvestor: host.leadInvestor ?? row.leadInvestor,
+          companyDesc: host.companyDesc ?? row.companyDesc,
+          leadDesc: host.leadDesc ?? row.leadDesc,
+          founders: host.founders?.length ? host.founders : row.founders,
+          hqCountry: host.hqCountry ?? row.hqCountry,
+          website: host.website ?? row.website,
+          valuationUsd: host.valuationUsd ?? row.valuationUsd,
+          totalRaisedUsd: host.totalRaisedUsd ?? row.totalRaisedUsd,
+          announcementTweetId: host.announcementTweetId ?? row.announcementTweetId,
+          announcedAt: host.announcedAt ?? row.announcedAt,
+          firstSeenAt: Math.min(host.firstSeenAt, row.firstSeenAt),
+          lastSeenAt: Math.max(host.lastSeenAt, row.lastSeenAt),
+        });
+        await ctx.db.delete(row._id);
+      }
+    }
+    return { rekeyed, merged };
   },
 });
 
