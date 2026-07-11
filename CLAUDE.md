@@ -39,6 +39,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 | `/reading` | Public | Reading log (books/articles/papers, ratings, tags) |
 | `/bookmarks` | Public | Curated links |
 | `/bonds` | Public | Bond-market terminal (snapshots pushed from an external Python pipeline) |
+| `/deals` | Public | Deal Radar ledger on AG-Grid (`deals.publicList` — dataset minus operator surface) |
 | `/resources` | Subscriber+ | Gated resources |
 | `/subscribe`, `/forgot-password` | Public | Auth flows |
 | `/growth` | — | Redirects to `/admin/growth` (preserves tab hash) |
@@ -73,14 +74,14 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 - `weeklyReviews` — Claude-written Sunday summaries; `growthSettings` — active-hours window, Telegram + AI-draft toggles (single row)
 - `networkRuns`, `seedFollows` — follower-web runs + cached following lists (TTL)
 
-**Deals**: `deals` — one row per (company, round), fused from RSS + X, Claude-extracted, status new/seen/dismissed
+**Deals**: `deals` — one row per (company, round), fused from RSS + X, Claude-extracted, status new/seen/dismissed; capture-time enrichment (founders + X handles, hqCountry, website, valuationUsd, totalRaisedUsd). `dealsBlocks` — weekly "WHO RAISED" newsletter HTML (last 8 kept)
 
 **Infra**: `cronHealth` (per-cron last run/error, Telegram alerting), `bondsSnapshots` (JSON-stringified dashboard data)
 
 ## Convex Modules
 
 - **Content**: `posts.ts`, `readings.ts`, `bookmarks.ts`, `resources.ts`, `projects.ts`, `now.ts`, `versions.ts`, `graph.ts`/`graphLayout.ts`, `seed.ts`, `stats.ts`
-- **Feeds/queue**: `feedItems.ts` (upsertBatch + prune), `queue.ts` (getQueue/act/decayAffinities), `earlyFeed.ts` (5-min watchlist poll), `xTrends.ts`, `creators_feed.ts`, `scienceFeed.ts` (science+business columns, Sonnet-ranked), `dealsFeed.ts` + `deals.ts` (deal radar)
+- **Feeds/queue**: `feedItems.ts` (upsertBatch + prune), `queue.ts` (getQueue/act/decayAffinities), `earlyFeed.ts` (5-min watchlist poll), `xTrends.ts`, `creators_feed.ts`, `scienceFeed.ts` (science+business columns, Sonnet-ranked), `dealsFeed.ts` + `deals.ts` (deal radar), `dealsBlock.ts` (weekly "WHO RAISED" newsletter block → Beehiiv Weekly Signal template's htmlSnippet, pushed via MCP or copied from the Deals tab)
 - **Growth**: `growth.ts` (follower snapshots), `xPosts.ts` (pipeline + `draftWithClaude`), `xPoster.ts` (auto-poster), `xMetrics.ts`, `ownReplies.ts`, `voiceProfile.ts`, `weeklyReview.ts`, `attribution.ts`, `growthSettings.ts`, `network.ts`, `creators.ts` (watchlist + follow sync), `beehiiv.ts` (newsletter→ideas; also the public-site layer: `beehiivSite` archive/subscriber cache refreshed by the daily pull, public `archive` query + `subscribe` action for the landing and /onlabel)
 - **Infra**: `crons.ts`, `cronHealth.ts`, `http.ts` (POST `/api/bonds/ingest`, SYNC_SECRET bearer), `auth.ts`, `users.ts`, `bonds.ts` (ingest + GitHub Actions dispatch trigger)
 - **lib/**: `queueScore.ts` (decay + affinity math), `getxapi.ts` (gxSearch/gxUserTweets/gxFollowers — ~$0.001/call), `xoauth.ts` (postTweet/getTweets, OAuth 1.0a via Web Crypto), `xvoice.ts` (pillars, draft prompts, reply suggestions, curation), `rss.ts`, `telegram.ts`, `auth.ts`, `cronReport.ts`
@@ -90,7 +91,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 - Every 5 min: `refresh-early` (active hours ONLY — off-hours ticks are no-ops; fast tier ~2 queries/cycle, full-watchlist sweep every 2h), `fire-scheduled-posts`
 - Hourly: `deal-radar` (:20; RSS-only overnight), `track-own-replies`
 - Daily: `prune-feed-items` 10:00, `decay-affinities` 10:15, `prune-deals` 10:05, `pull-beehiiv` 11:00, `growth-snapshot` 12:00, `pull-x-metrics` 12:30, `sync-follows` 12:45, `refresh-x-trends` 13:00, `refresh-creators` 13:30, `refresh-voice-profiles` 14:30; `refresh-science` 3×/day (11,17,23 UTC)
-- Weekly: `weekly-review` Sunday 15:00 UTC
+- Weekly: `weekly-deals-block` Sunday 14:45 UTC, `weekly-review` Sunday 15:00 UTC
 
 All crons report to `cronHealth` via `lib/cronReport.ts`; failures alert through Telegram (throttled). Cron times are staggered to avoid concurrent getXAPI calls.
 

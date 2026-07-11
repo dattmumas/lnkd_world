@@ -116,6 +116,14 @@ crons.daily(
   {}, // no pillar arg = refresh all three
 );
 
+// Weekly "WHO RAISED" block — the newsletter-ready HTML of the week's
+// consumer deals, rendered before the review so Sunday delivers both.
+crons.weekly(
+  "weekly-deals-block",
+  { dayOfWeek: "sunday", hourUTC: 14, minuteUTC: 45 },
+  internal.dealsBlock.generateInternal,
+);
+
 // Weekly review — Claude-written Sunday summary of the week's growth, after
 // that day's follower snapshot and metrics pull have landed.
 crons.weekly(

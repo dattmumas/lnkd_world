@@ -238,6 +238,56 @@ function DeepDive({ deal }: { deal: Deal }) {
  * announcements (convex/dealsFeed.ts), one row per (company, round). New
  * deals are accented until marked seen.
  */
+/** The Sunday-rendered "WHO RAISED" newsletter block: preview + copy. */
+function WeeklyBlock() {
+  const block = useQuery(api.dealsBlock.latest);
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (!block) return null;
+  const copy = () => {
+    void navigator.clipboard.writeText(block.html).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="border border-[var(--color-border)] rounded bg-white mb-4">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <button
+          onClick={() => setOpen(!open)}
+          className="gc-label text-left flex items-center gap-2"
+        >
+          <span>{open ? "▾" : "▸"}</span> Weekly newsletter block
+        </button>
+        <span className="text-xs text-[var(--color-text-secondary)]">
+          {block.dealCount} deals ·{" "}
+          {new Date(block.generatedAt).toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+          })}
+        </span>
+        <button
+          onClick={copy}
+          className="text-sm border border-[var(--color-border)] rounded px-3 py-1 bg-white hover:bg-[var(--color-border)]/30 ml-auto shrink-0"
+        >
+          {copied ? "Copied ✓" : "Copy HTML"}
+        </button>
+      </div>
+      {open && (
+        <div className="border-t border-[var(--color-border)] p-4 max-w-2xl">
+          <div dangerouslySetInnerHTML={{ __html: block.html }} />
+          <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+            Paste into an HTML-snippet block in the Beehiiv draft, or ask Claude
+            to push it into the Weekly Signal template.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DealsFeed() {
   const [days, setDays] = useState(30);
   const deals = useQuery(api.deals.list, { days });
@@ -286,6 +336,7 @@ export function DealsFeed() {
 
   return (
     <div>
+      <WeeklyBlock />
       <div className="flex items-center gap-3 flex-wrap mb-4">
         <p className="text-sm text-[var(--color-text-secondary)]">
           Venture deals detected from deal digests and X announcements, deduped

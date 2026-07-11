@@ -574,6 +574,14 @@ export default defineSchema({
     .index("by_externalId", ["externalId"])
     .index("by_createdAt", ["createdAt"]),
 
+  // Weekly "WHO RAISED" newsletter block, rendered from deals every Sunday
+  // (convex/dealsBlock.ts). Working buffer — last 8 weeks kept.
+  dealsBlocks: defineTable({
+    html: v.string(),
+    dealCount: v.number(),
+    generatedAt: v.number(),
+  }).index("by_generatedAt", ["generatedAt"]),
+
   // Creators explicitly removed by the admin (convex/creators.ts) — the follow
   // sync must not resurrect them. Re-adding by hand clears the tombstone.
   creatorTombstones: defineTable({
