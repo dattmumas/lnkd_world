@@ -105,6 +105,27 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 6px 6px 0 0 var(--color-border-soft);
 }
 
+/* The page's single loudest weight: ink frame, vermilion plate behind.
+   One instance per page — it's where the eye should land. */
+.ol-panel-anchor {
+  border: 2px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: 8px 8px 0 0 var(--color-accent);
+}
+
+/* Header strip anchored to the top of a box — exhibit labels live on their
+   boxes, not floating above them. */
+.ol-box-head {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-fill-tan);
+}
+
 /* Press-in button: an offset red plate behind ink; pressing seats the plates. */
 .ol-btn-press {
   box-shadow: 4px 4px 0 0 var(--color-accent);

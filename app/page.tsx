@@ -3,7 +3,6 @@ import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 import AppsLedger from "@/components/apps-ledger";
 import OnLabelSection from "@/components/onlabel-section";
-import OnLabelCards from "@/components/onlabel-cards";
 import LedgerMark from "@/components/ledger/mark";
 import Tear from "@/components/ledger/tear";
 import TypeLine from "@/components/ledger/type-line";
@@ -54,44 +53,44 @@ export default function Home() {
             <OnLabelSection />
           </div>
 
-          {/* Margin notes — beside the entry, as margin notes should be */}
-          <section className="mt-10 xl:col-start-1 xl:row-start-2">
-            <p className="ol-label">
-              <span className="text-[var(--color-text)]">MARGIN NOTES</span>
+          {/* Margin notes — the lightest thing on the page, as marginalia
+              should be: no box, small, grey, behind a dashed rule. */}
+          <section className="mt-8 xl:col-start-1 xl:row-start-2">
+            <hr className="ol-rule-dashed" />
+            <p className="ol-mono text-[11px] font-bold uppercase tracking-widest text-[var(--color-text-secondary)] mt-3">
+              Margin notes
             </p>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2 space-y-1">
               <li>
                 <Link href="/notes" className="ol-leader-row group">
-                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  <span className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)]">
                     NOTES
                   </span>
                   <span className="ol-leader" />
-                  <span className="text-sm text-[var(--color-text-secondary)]">essays, unfiled</span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">essays, unfiled</span>
                 </Link>
               </li>
               <li>
                 <Link href="/reading" className="ol-leader-row group">
-                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  <span className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)]">
                     READING
                   </span>
                   <span className="ol-leader" />
-                  <span className="text-sm text-[var(--color-text-secondary)]">the log, rated</span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">the log, rated</span>
                 </Link>
               </li>
               <li>
                 <Link href="/bookmarks" className="ol-leader-row group">
-                  <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
+                  <span className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)]">
                     BOOKMARKS
                   </span>
                   <span className="ol-leader" />
-                  <span className="text-sm text-[var(--color-text-secondary)]">curated links</span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">curated links</span>
                 </Link>
               </li>
             </ul>
           </section>
         </div>
-
-        <OnLabelCards />
       </main>
       <Footer />
     </div>
