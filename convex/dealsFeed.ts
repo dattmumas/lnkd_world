@@ -77,6 +77,42 @@ const ROUNDS = new Set([
   "series-e", "growth", "unknown",
 ]);
 
+// Stage order for the retrospective guard (unknown ranks lowest).
+const ROUND_ORDER = [
+  "pre-seed", "seed", "series-a", "series-b", "series-c", "series-d",
+  "series-e", "growth",
+];
+
+/**
+ * One item yielding several rounds for the SAME company is a funding-history
+ * recap, not a roundup — legitimate roundups cover different companies. Keep
+ * only the latest-stage telling (the news the item exists for); the prompt
+ * discourages recap extraction, this catches what slips through.
+ */
+function dropHistoricalRecaps(deals: ExtractedDeal[]): ExtractedDeal[] {
+  const byCompany = new Map<string, ExtractedDeal[]>();
+  for (const d of deals) {
+    const key = d.company.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const g = byCompany.get(key) ?? [];
+    g.push(d);
+    byCompany.set(key, g);
+  }
+  const out: ExtractedDeal[] = [];
+  for (const g of byCompany.values()) {
+    if (g.length === 1) {
+      out.push(g[0]);
+      continue;
+    }
+    g.sort(
+      (a, b) =>
+        ROUND_ORDER.indexOf(b.round) - ROUND_ORDER.indexOf(a.round) ||
+        (b.amountUsd ?? 0) - (a.amountUsd ?? 0),
+    );
+    out.push(g[0]);
+  }
+  return out;
+}
+
 interface Candidate {
   externalId: string;
   title: string;
@@ -111,6 +147,8 @@ interface ExtractedDeal {
 const EXTRACT_SYSTEM = `You extract venture funding deals from news items and X posts. Items are numbered; roundup posts (e.g. "The AlleyWatch Startup Daily Funding Report") contain MANY deals — extract every one. Regular articles usually contain one. Some items contain none (rumors about public companies, VC firms raising their own funds, M&A, IPOs) — return an empty deals array for those.
 
 Only extract a deal when the startup is actually NAMED in the item. If the item only describes it ("a Bellevue AI startup", "Europe's newest defence unicorn", "an unnamed company") — omit that deal entirely; never invent a descriptive placeholder or write "unknown" as the company.
+
+Some items recount one company's FUNDING HISTORY (retrospectives, IPO or valuation coverage, "how they got here" threads listing seed through Series D). Past rounds are not news: omit any round described with a past date or year ("raised $47M in Nov 2020"). Extract only a round the item presents as new or current; if every round is historical, return no deals for that item.
 
 For each deal:
 - company: the startup's name as written (never the investor).
@@ -522,7 +560,7 @@ export const refreshInternal = internalAction({
       for (const [n, deals] of extractedByIndex) {
         const cand = survivors[n];
         if (!cand) continue;
-        for (const d of deals) {
+        for (const d of dropHistoricalRecaps(deals)) {
           if (d.confidence < 0.3) continue; // rumor floor
           const { announcedDateMs, ...deal } = d;
           payloads.push({
@@ -763,7 +801,7 @@ export const backfillInternal = internalAction({
       for (const [n, deals] of extractedByIndex) {
         const cand = survivors[n];
         if (!cand) continue;
-        for (const d of deals) {
+        for (const d of dropHistoricalRecaps(deals)) {
           if (d.confidence < 0.3) continue;
           const { announcedDateMs, ...deal } = d;
           payloads.push({
