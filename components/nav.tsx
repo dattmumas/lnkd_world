@@ -39,16 +39,16 @@ export default function Nav() {
       <Authenticated>
         <AdminBar />
       </Authenticated>
-      <header className="flex justify-between items-center py-5 border-b-2 border-[var(--color-border)]">
+      <header className="flex justify-between items-center gap-4 py-5 border-b-2 border-[var(--color-border)]">
         <Link
           href="/"
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--color-text)] hover:text-[var(--color-accent)]"
+          className="flex items-center gap-2 shrink-0 text-lg font-bold tracking-tight text-[var(--color-text)] hover:text-[var(--color-accent)]"
           style={{ fontFamily: "var(--font-display), Helvetica, sans-serif" }}
         >
           <LedgerMark size={18} />
           LNKD
         </Link>
-        <nav className="flex gap-3 md:gap-5 items-center overflow-x-auto">
+        <nav className="flex flex-wrap justify-end gap-x-3 gap-y-1.5 md:gap-x-5 items-center">
           <Link href="/onlabel" className={`${navLink} text-[var(--color-accent)]`}>
             On Label
           </Link>

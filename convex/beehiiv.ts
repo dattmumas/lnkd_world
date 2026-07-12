@@ -27,6 +27,7 @@ interface BeehiivPost {
   subtitle?: string;
   preview_text?: string;
   web_url?: string;
+  thumbnail_url?: string;
   publish_date?: number; // unix seconds
   status?: string;
 }
@@ -103,6 +104,7 @@ export interface SitePost {
   title: string;
   subtitle: string;
   url: string;
+  thumbnail?: string;
   publishedAt: number; // ms
 }
 
@@ -127,6 +129,7 @@ async function fetchArchive(key: string, pubId: string): Promise<SitePost[]> {
         title: p.title.slice(0, 200),
         subtitle: (p.subtitle || p.preview_text || "").slice(0, 300),
         url: p.web_url,
+        thumbnail: p.thumbnail_url || undefined,
         publishedAt: (p.publish_date ?? 0) * 1000,
       });
     }
@@ -170,6 +173,7 @@ export const archive = query({
         title: v.string(),
         subtitle: v.string(),
         url: v.string(),
+        thumbnail: v.optional(v.string()),
         publishedAt: v.number(),
       }),
     ),

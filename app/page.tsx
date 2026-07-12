@@ -27,7 +27,7 @@ export default function Home() {
               </h1>
             </div>
             <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-4 uppercase">
-              <TypeLine text="Matthew Dumas · Seattle WA · Operator's ledger" />
+              <TypeLine text="Matthew Dumas · Seattle WA" />
             </p>
             <p className="text-[17px] leading-relaxed mt-4">
               A place for me to write and design.
