@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
@@ -50,6 +50,92 @@ const ledgerTheme = themeQuartz.withParams({
   rowHoverColor: "#EDE7DA",
   spacing: 6,
 });
+
+/** Ledger-styled multi-select: mono chip, ink dropdown, counts per option. */
+function LedgerMultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+  format = (v) => v.toUpperCase(),
+}: {
+  label: string;
+  options: { value: string; count: number }[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  format?: (v: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const toggle = (v: string) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    onChange(next);
+  };
+
+  const summary =
+    selected.size === 0
+      ? label
+      : selected.size === 1
+        ? format([...selected][0])
+        : `${label} ×${selected.size}`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`ol-mono text-xs font-bold uppercase bg-transparent border-2 px-3 py-2 flex items-center gap-2 ${
+          selected.size > 0
+            ? "border-[var(--color-accent)] text-[var(--color-accent)]"
+            : "border-[var(--color-border)]"
+        }`}
+      >
+        <span className="max-w-40 truncate">{summary}</span>
+        <span aria-hidden>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 min-w-full w-max max-h-80 overflow-y-auto border-2 border-[var(--color-border)] bg-[var(--color-bg)] ol-panel">
+          {selected.size > 0 && (
+            <button
+              onClick={() => onChange(new Set())}
+              className="w-full text-left ol-mono text-[11px] font-bold uppercase px-3 py-2 text-[var(--color-accent)] border-b border-dashed border-[var(--color-border)] hover:bg-[var(--color-fill-tan)]"
+            >
+              Clear ×{selected.size}
+            </button>
+          )}
+          {options.map((o) => (
+            <label
+              key={o.value}
+              className="flex items-baseline gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--color-fill-tan)] whitespace-nowrap"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(o.value)}
+                onChange={() => toggle(o.value)}
+                className="accent-[var(--color-accent)] translate-y-px"
+              />
+              <span className="ol-mono text-xs font-bold">{format(o.value)}</span>
+              <span className="ol-mono text-[10px] text-[var(--color-text-secondary)] ml-auto pl-3">
+                {o.count}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function fmtUsd(n: number | null | undefined, note?: string): string {
   if (note) return note;
@@ -168,7 +254,6 @@ const COLUMNS: ColDef<Deal>[] = [
     headerName: "COMPANY",
     flex: 1.6,
     minWidth: 160,
-    filter: true,
     tooltipValueGetter: (p) => p.data?.companyDesc ?? p.data?.summary,
     cellStyle: { fontWeight: 700 },
   },
@@ -176,24 +261,21 @@ const COLUMNS: ColDef<Deal>[] = [
     field: "round",
     headerName: "ROUND",
     width: 110,
-    filter: true,
     valueFormatter: (p) => (p.value === "unknown" ? "—" : String(p.value ?? "")),
   },
   {
     field: "amountUsd",
     headerName: "AMOUNT",
     width: 110,
-    filter: "agNumberColumnFilter",
     valueFormatter: (p) => fmtUsd(p.value, p.data?.amountNote),
     type: "rightAligned",
   },
-  { field: "category", headerName: "CATEGORY", width: 150, filter: true },
+  { field: "category", headerName: "CATEGORY", width: 150 },
   {
     colId: "leadInvestor",
     headerName: "LEAD",
     flex: 1.1,
     minWidth: 130,
-    filter: true,
     tooltipValueGetter: (p) => p.data?.leadDesc,
     // No lead identified ≠ no investors — fall back to the first participant.
     valueGetter: (p) => {
@@ -220,14 +302,12 @@ const COLUMNS: ColDef<Deal>[] = [
     field: "hqCountry",
     headerName: "HQ",
     width: 90,
-    filter: true,
     valueFormatter: (p) => p.value ?? "—",
   },
   {
     field: "valuationUsd",
     headerName: "VALUATION",
     width: 115,
-    filter: "agNumberColumnFilter",
     valueFormatter: (p) => fmtUsd(p.value),
     type: "rightAligned",
   },
@@ -236,7 +316,6 @@ const COLUMNS: ColDef<Deal>[] = [
     headerName: "DATE",
     width: 115,
     sort: "desc",
-    filter: "agDateColumnFilter",
     valueFormatter: (p) =>
       p.value
         ? new Date(p.value).toLocaleDateString([], {
@@ -259,16 +338,53 @@ export default function DealsGrid() {
   const deals = useQuery(api.deals.publicList);
   const [quick, setQuick] = useState("");
   const [consumerOnly, setConsumerOnly] = useState(false);
+  const [rounds, setRounds] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<Set<string>>(new Set());
+  const [hqs, setHqs] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const ROUND_ORDER = [
+    "pre-seed", "seed", "series-a", "series-b", "series-c", "series-d",
+    "series-e", "growth", "unknown",
+  ];
+  const count = (vals: (string | undefined | null)[]) => {
+    const m = new Map<string, number>();
+    for (const v of vals) if (v) m.set(v, (m.get(v) ?? 0) + 1);
+    return m;
+  };
+  const roundOptions = useMemo(() => {
+    const m = count((deals ?? []).map((d) => d.round));
+    return ROUND_ORDER.filter((r) => m.has(r)).map((r) => ({
+      value: r,
+      count: m.get(r)!,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deals]);
+  const categoryOptions = useMemo(() => {
+    const m = count((deals ?? []).map((d) => d.category));
+    return [...m.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, c]) => ({ value, count: c }));
+  }, [deals]);
+  const hqOptions = useMemo(() => {
+    const m = count((deals ?? []).map((d) => d.hqCountry));
+    return [...m.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, c]) => ({ value, count: c }));
+  }, [deals]);
 
   const rows = useMemo<GridRow[]>(() => {
     const out: GridRow[] = [];
-    for (const d of (deals ?? []).filter((d) => !consumerOnly || d.isConsumer)) {
+    for (const d of deals ?? []) {
+      if (consumerOnly && !d.isConsumer) continue;
+      if (rounds.size > 0 && !rounds.has(d.round)) continue;
+      if (categories.size > 0 && !categories.has(d.category)) continue;
+      if (hqs.size > 0 && !(d.hqCountry && hqs.has(d.hqCountry))) continue;
       out.push(d);
       if (expanded.has(d.id)) out.push({ detailFor: d });
     }
     return out;
-  }, [deals, consumerOnly, expanded]);
+  }, [deals, consumerOnly, rounds, categories, hqs, expanded]);
 
   const onRowClicked = (e: RowClickedEvent<GridRow>) => {
     if (!e.data || isDetail(e.data)) return;
@@ -292,6 +408,25 @@ export default function DealsGrid() {
           onChange={(e) => setQuick(e.target.value)}
           placeholder="SEARCH THE LEDGER…"
           className="ol-mono text-xs font-bold uppercase bg-transparent border-2 border-[var(--color-border)] px-3 py-2 w-64 max-w-full placeholder:text-[var(--color-leader)] focus:outline-none focus:border-[var(--color-accent)]"
+        />
+        <LedgerMultiSelect
+          label="Round"
+          options={roundOptions}
+          selected={rounds}
+          onChange={setRounds}
+          format={(v) => (v === "unknown" ? "UNSTATED" : v.replace("-", " ").toUpperCase())}
+        />
+        <LedgerMultiSelect
+          label="Category"
+          options={categoryOptions}
+          selected={categories}
+          onChange={setCategories}
+        />
+        <LedgerMultiSelect
+          label="HQ"
+          options={hqOptions}
+          selected={hqs}
+          onChange={setHqs}
         />
         <label className="ol-mono text-xs font-bold uppercase flex items-center gap-2 cursor-pointer select-none">
           <input
