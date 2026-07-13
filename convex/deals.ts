@@ -1,5 +1,6 @@
 import {
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   mutation,
@@ -727,7 +728,9 @@ export const setDeepDive = internalMutation({
   },
 });
 
-const DEEP_DIVE_SYSTEM = `You are a sharp venture analyst writing a company deep-dive for an investor/operator who just spotted this funding round on their deal radar. Research the company with web search, then write a markdown report.
+const DEEP_DIVE_SYSTEM = `You are a sharp venture analyst writing a company deep-dive for an investor/operator who just spotted this funding round on their deal radar. Research the company, then write a markdown report.
+
+Research strategy: START by fetching the known URLs (the company website and coverage links below) with web_fetch — early-stage companies are barely indexed, so their own site is the richest source and search often misses them entirely. Then use web search to corroborate and fill gaps; when the company name is ambiguous (short, common word), qualify searches with the category, investors, or founder names. Founder X profiles can be fetched directly.
 
 Structure (use ### headings, skip a section if nothing substantive was found):
 ### What they do — product, business model, who pays
@@ -751,9 +754,15 @@ async function runDeepDive(key: string, deal: Doc<"deals">): Promise<string> {
       : (deal.amountNote ?? "undisclosed");
   const facts = [
     `Company: ${deal.company}`,
+    deal.website ? `Company website: ${deal.website}` : "",
     deal.companyDesc ? `Known description: ${deal.companyDesc}` : "",
     `Round: ${deal.round}, ${amount}${deal.leadInvestor ? `, led by ${deal.leadInvestor}` : ""}`,
     deal.investors.length ? `Investors: ${deal.investors.join(", ")}` : "",
+    deal.founders?.length
+      ? `Founders: ${deal.founders
+          .map((f) => (f.xHandle ? `${f.name} (https://x.com/${f.xHandle})` : f.name))
+          .join(", ")}`
+      : "",
     `Category: ${deal.category}`,
     `Radar summary: ${deal.summary}`,
     deal.announcedAt
@@ -772,7 +781,7 @@ async function runDeepDive(key: string, deal: Doc<"deals">): Promise<string> {
 
   // Server-side web search runs in a server loop that can pause (stop_reason
   // "pause_turn") — re-send the conversation to resume, bounded.
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 6; round++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -785,7 +794,10 @@ async function runDeepDive(key: string, deal: Doc<"deals">): Promise<string> {
         max_tokens: 8000,
         thinking: { type: "adaptive" },
         system: DEEP_DIVE_SYSTEM,
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
+        tools: [
+          { type: "web_search_20260209", name: "web_search", max_uses: 8 },
+          { type: "web_fetch_20260209", name: "web_fetch", max_uses: 8 },
+        ],
         messages,
       }),
     });
@@ -808,10 +820,56 @@ async function runDeepDive(key: string, deal: Doc<"deals">): Promise<string> {
     if (!text) {
       throw new Error(`Deep dive came back empty (stop_reason=${json.stop_reason ?? "?"}).`);
     }
-    return text;
+    // Interleaved tool use leaves research narration before the report proper.
+    const start = text.indexOf("###");
+    return start > 0 ? text.slice(start) : text;
   }
-  throw new Error("Deep dive did not finish after 4 continuation rounds.");
+  throw new Error("Deep dive did not finish after 6 continuation rounds.");
 }
+
+/**
+ * Maintenance (CLI): run a deep dive without the admin-session gate, and
+ * optionally set the website first (feeds the researcher its richest source).
+ *   npx convex run deals:deepDiveInternal '{"id": "...", "website": "https://..."}' --prod
+ */
+export const deepDiveInternal = internalAction({
+  args: { id: v.id("deals"), website: v.optional(v.string()) },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, { id, website }) => {
+    if (website) {
+      await ctx.runMutation(internal.deals.setWebsiteInternal, { id, website });
+    }
+    const deal: Doc<"deals"> | null = await ctx.runQuery(internal.deals.getInternal, {
+      id,
+    });
+    if (!deal) throw new Error("Deal not found.");
+    const key = process.env.anthropic_api_key;
+    if (!key) throw new Error("anthropic_api_key is not set on this deployment.");
+    await ctx.runMutation(internal.deals.setDeepDive, { id, status: "running" });
+    try {
+      const report = await runDeepDive(key, deal);
+      await ctx.runMutation(internal.deals.setDeepDive, { id, status: "ok", report });
+      return { ok: true };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await ctx.runMutation(internal.deals.setDeepDive, {
+        id,
+        status: "error",
+        error: message.slice(0, 500),
+      });
+      throw new Error(`Deep dive failed: ${message}`);
+    }
+  },
+});
+
+export const setWebsiteInternal = internalMutation({
+  args: { id: v.id("deals"), website: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { id, website }) => {
+    await ctx.db.patch(id, { website });
+    return null;
+  },
+});
 
 /** Admin: research one deal with Claude + web search (takes ~1-2 min). */
 export const deepDive = action({
