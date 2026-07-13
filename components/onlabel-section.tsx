@@ -39,7 +39,7 @@ export default function OnLabelSection() {
             ON LABEL
           </h2>
           <p className="text-[15px] leading-relaxed mt-2 max-w-xl">
-            A weekly letter on early-stage consumer health companies. Who
+            A weekly letter on all things consumer — CPG, health, and technology. Who
             raised, what they&apos;re actually selling, and whether the numbers
             work.
           </p>

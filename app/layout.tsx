@@ -10,7 +10,7 @@ export const viewport: Viewport = {
 };
 
 const DESCRIPTION =
-  "The operator's ledger of Matthew Dumas — applications, writing, and On Label, a weekly letter on early-stage consumer health tech.";
+  "The operator's ledger of Matthew Dumas — applications, writing, and On Label, a weekly letter on all things consumer — CPG, health, and tech.";
 
 export const metadata: Metadata = {
   title: "LNKD",

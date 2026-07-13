@@ -36,7 +36,7 @@ export default function OnLabelHome() {
             </h1>
           </div>
           <p className="ol-mono text-xs font-bold text-[var(--color-text-secondary)] mt-4 uppercase">
-            <TypeLine text="Early-stage consumer health tech · Written weekly in Seattle" />
+            <TypeLine text="All things consumer — CPG · health · tech · Written weekly in Seattle" />
             {site !== undefined && site.subscriberCount > 0 && (
               <> · Read by {site.subscriberCount.toLocaleString()} operators</>
             )}
@@ -68,7 +68,7 @@ export default function OnLabelHome() {
           <div className="px-5 py-5 grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-x-12 lg:items-center">
             <div className="space-y-3 text-[15px] leading-relaxed max-w-xl">
               <p>
-                I write about early-stage consumer health companies. Who
+                I write about consumer companies — CPG, health, and technology. Who
                 raised, what they&apos;re actually selling, and whether the
                 numbers work.
               </p>

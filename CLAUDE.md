@@ -2,7 +2,7 @@
 
 Personal site + private growth-operations system. Branding is **LNKD**. Two halves:
 
-1. **Public site** — a ledger-style landing for applications + **On Label** (the Beehiiv newsletter, headless: lnkd.world is the front door, Beehiiv keeps only platform utilities — post pages, subscribe/unsub/preferences, referral attribution). Plus writing, reading log, bookmarks, resources, and the bond-market dashboard. Content is authored in Obsidian and synced to Convex.
+1. **Public site** — a ledger-style landing for applications + **On Label** (the Beehiiv newsletter, headless: lnkd.world is the front door, Beehiiv keeps only platform utilities — post pages, subscribe/unsub/preferences, referral attribution). On Label's beat is **all things consumer — CPG, health, and technology** (not just consumer health). Plus writing, reading log, bookmarks, resources, and the bond-market dashboard. Content is authored in Obsidian and synced to Convex.
 2. **Growth system (admin-only)** — an X (Twitter) audience-growth machine: curated feeds, a unified engagement queue, AI-drafted posts/replies, an auto-poster, follower attribution, and a consumer deal radar. Runs on ~16 Convex crons.
 
 **Public identity ("ledger")**: paper `#F7F4EE`, ink `#141210`, vermilion `#C7331D`, tan `#EDE7DA`; Space Grotesk display / Space Mono data / Georgia body; zero border-radius. Tokens live in `app/globals.css` (`--color-*`, `ol-*` utilities) and match the On Label email template. Admin keeps its scoped `gc-*` theme; /bonds keeps its dark terminal theme. The old 3D knowledge-graph hero is parked (components + `pnpm graph:layout` kept, unreferenced by the home page).

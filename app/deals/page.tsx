@@ -6,7 +6,7 @@ import DealsGridLoader from "@/components/deals-grid-loader";
 export const metadata: Metadata = {
   title: "Deal Radar — LNKD",
   description:
-    "A live ledger of venture funding deals — consumer health, CPG, and the rest of the tape. Company, round, amount, lead, founders.",
+    "A live ledger of venture funding deals — consumer CPG, health, tech, and the rest of the tape. Company, round, amount, lead, founders.",
 };
 
 export default function DealsPage() {

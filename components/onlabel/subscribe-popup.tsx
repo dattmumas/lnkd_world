@@ -82,7 +82,7 @@ export default function SubscribePopup() {
       </div>
 
       <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed mt-2">
-        Early-stage consumer health companies. Who raised, what they&apos;re
+        Consumer companies — CPG, health, tech. Who raised, what they&apos;re
         actually selling, and whether the numbers work.
       </p>
 
