@@ -21,6 +21,9 @@ import { reportCron } from "./lib/cronReport";
 
 const WEEK_MS = 7 * 86_400_000;
 const MAX_ROWS = 12;
+// Email height budget: only the top entries get the full treatment
+// (description + founders); the rest collapse to one-line ledger rows.
+const FEATURED_ROWS = 4;
 // Core beat first, then the consumer-adjacent rest.
 const CATEGORY_RANK: Record<string, number> = {
   "consumer-health": 0,
@@ -82,7 +85,10 @@ function weekRange(nowMs: number): string {
 
 /** Render the block. Table layout + inline styles only — this travels by email. */
 export function renderBlock(deals: BlockDeal[], nowMs: number): string {
-  const rows = deals
+  const featured = deals.slice(0, FEATURED_ROWS);
+  const rest = deals.slice(FEATURED_ROWS);
+
+  const featuredRows = featured
     .map((d, i) => {
       const founders = (d.founders ?? [])
         .map((f) =>
@@ -99,18 +105,42 @@ export function renderBlock(deals: BlockDeal[], nowMs: number): string {
         .filter(Boolean)
         .join(" · ");
       return `<tr>
-<td style="padding:14px 18px 12px;border-top:${i === 0 ? "none" : `1px dashed ${INK}`};">
+<td style="padding:10px 18px 9px;border-top:${i === 0 ? "none" : `1px dashed ${INK}`};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td style="font-family:${MONO};font-size:14px;font-weight:700;color:${INK};"><a href="${esc(d.sourceUrl)}" style="color:${INK};text-decoration:none;">${esc(d.company.toUpperCase())}</a></td>
 <td align="right" style="font-family:${MONO};font-size:14px;font-weight:700;color:${VERMILION};white-space:nowrap;">${esc(fmtAmount(d.amountUsd, d.amountNote))}</td>
 </tr></table>
-${meta ? `<div style="font-family:${MONO};font-size:10px;color:${FADE};letter-spacing:0.5px;margin-top:2px;">${meta}</div>` : ""}
-<div style="font-family:Georgia,serif;font-size:14px;line-height:1.45;color:${INK};margin-top:4px;">${esc(d.companyDesc ?? d.summary)}</div>
-${founders ? `<div style="font-family:${MONO};font-size:11px;color:${FADE};margin-top:3px;">FOUNDERS: ${founders}</div>` : ""}
+${meta ? `<div style="font-family:${MONO};font-size:10px;color:${FADE};letter-spacing:0.5px;margin-top:1px;">${meta}</div>` : ""}
+<div style="font-family:Georgia,serif;font-size:13px;line-height:1.4;color:${INK};margin-top:3px;">${esc(d.companyDesc ?? d.summary)}</div>
+${founders ? `<div style="font-family:${MONO};font-size:11px;color:${FADE};margin-top:2px;">FOUNDERS: ${founders}</div>` : ""}
 </td>
 </tr>`;
     })
     .join("\n");
+
+  // The rest of the tape: one line per deal — company · round/lead ····· amount.
+  const restRows = rest
+    .map((d) => {
+      const meta = [fmtRound(d.round), d.leadInvestor ? esc(d.leadInvestor.toUpperCase()) : ""]
+        .filter(Boolean)
+        .join(" · ");
+      return `<tr>
+<td style="padding:5px 18px;border-top:1px dashed ${TAN};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-family:${MONO};font-size:12px;font-weight:700;color:${INK};white-space:nowrap;"><a href="${esc(d.sourceUrl)}" style="color:${INK};text-decoration:none;">${esc(d.company.toUpperCase())}</a></td>
+<td style="font-family:${MONO};font-size:10px;color:${FADE};padding-left:10px;">${meta}</td>
+<td align="right" style="font-family:${MONO};font-size:12px;font-weight:700;color:${VERMILION};white-space:nowrap;padding-left:10px;">${esc(fmtAmount(d.amountUsd, d.amountNote))}</td>
+</tr></table>
+</td>
+</tr>`;
+    })
+    .join("\n");
+
+  const rows =
+    featuredRows +
+    (rest.length > 0
+      ? `\n<tr><td style="padding:6px 18px 3px;border-top:1px dashed ${INK};font-family:${MONO};font-size:9px;font-weight:700;color:${FADE};letter-spacing:1px;">THE REST OF THE TAPE</td></tr>\n${restRows}`
+      : "");
 
   return `<!-- WHO RAISED · generated ${new Date(nowMs).toISOString().slice(0, 10)} by the Deal Radar -->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${PAPER};border:2px solid ${INK};margin:8px 0;">
