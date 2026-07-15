@@ -549,11 +549,26 @@ export const refreshInternal = internalAction({
       // ---- extract (chunked; a failed chunk never sinks the run) ----
       const extractedByIndex = new Map<number, ExtractedDeal[]>();
       const failedExtract = new Set<string>(); // externalIds to retry next run
+      let chunksTried = 0;
+      let chunksFailed = 0;
       for (let i = 0; i < survivors.length; i += EXTRACT_CHUNK) {
         const chunk = survivors.slice(i, i + EXTRACT_CHUNK);
+        chunksTried++;
         const { ok, byIndex } = await extractChunk(chunk, i);
-        if (!ok) for (const c of chunk) failedExtract.add(c.externalId);
+        if (!ok) {
+          chunksFailed++;
+          for (const c of chunk) failedExtract.add(c.externalId);
+        }
         for (const [n, deals] of byIndex) extractedByIndex.set(n, deals);
+      }
+      // Every chunk failing is an OUTAGE (dead API key, exhausted usage cap),
+      // not a healthy run — surface it so cronHealth flips and Telegram
+      // alerts, instead of reporting ok with cand=N new=0 for days.
+      // Candidates stay unmarked and retry next run either way.
+      if (chunksTried > 0 && chunksFailed === chunksTried) {
+        throw new Error(
+          `All ${chunksTried} extraction chunks failed — Anthropic API down or usage cap hit; ${survivors.length} candidates preserved for retry.`,
+        );
       }
 
       const payloads = [];
