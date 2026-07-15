@@ -10,11 +10,6 @@ import { requireAdmin } from "./lib/auth";
 import { type RankedPost, type XUser } from "./lib/xfeed";
 import { gxSearch } from "./lib/getxapi";
 import { earlyBaseScore, externalIdFor, HALF_LIFE_HOURS } from "./lib/queueScore";
-import {
-  suggestReplyGrounded,
-  type Pillar,
-  type VoiceProfileData,
-} from "./lib/xvoice";
 import { escapeHtml, sendTelegram, siteUrl, telegramConfigured } from "./lib/telegram";
 import { reportCron } from "./lib/cronReport";
 import { inActiveHours, type GrowthSettings } from "./growthSettings";
@@ -23,8 +18,7 @@ import { inActiveHours, type GrowthSettings } from "./growthSettings";
  * "Early Engagement" — the newest posts from your Creators watchlist, polled
  * fast (5-min cron via `tick`, active hours ONLY — off-hours ticks are skipped
  * entirely) so you can reply early: the most reliable organic-reach lever
- * on X. During active hours, fresh posts get a voice-grounded reply draft and
- * the hottest new ones push to Telegram. Served by feed.getPage for "early".
+ * on X. During active hours the hottest new posts push to Telegram.
  *
  * getXAPI budget: this feed is the system's dominant API spend. Fast tier is
  * kept to ~30 high-affinity accounts (creators.retierFastPollInternal); the
@@ -35,8 +29,6 @@ const WINDOW_MIN = 120; // surface posts from the last 2 hours
 const MAX_AGE_MS = WINDOW_MIN * 60 * 1000;
 const HANDLES_PER_QUERY = 15; // keep the `from:` query under the length limit
 const TOP_N = 40;
-const DRAFT_MAX_AGE_MIN = 45; // only draft replies for posts still in the window
-const DRAFTS_PER_RUN = 8; // Anthropic cost cap per refresh
 const NOTIFY_PER_RUN = 3; // Telegram anti-spam cap
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -47,18 +39,16 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 export const refreshInternal = internalAction({
   args: {
-    drafts: v.optional(v.boolean()), // generate reply drafts for fresh items
     notify: v.optional(v.boolean()), // Telegram-push the hottest new items
     includeSlow: v.optional(v.boolean()), // hourly sweep: poll slow-tier accounts too
   },
   returns: v.object({ status: v.string(), count: v.number() }),
-  handler: async (ctx, { drafts, notify, includeSlow }) => {
+  handler: async (ctx, { notify, includeSlow }) => {
     const generatedAt = new Date().toISOString();
     const nowMs = Date.now();
     try {
       const creatorList: {
         handle: string;
-        pillar?: Pillar;
         fastPoll?: boolean;
         newsOrg?: boolean;
       }[] = (await ctx.runQuery(internal.creators.activeCreators, {}))
@@ -71,9 +61,6 @@ export const refreshInternal = internalAction({
         ? creatorList
         : creatorList.filter((c) => c.fastPoll !== false);
       const handles = polled.map((c) => c.handle);
-      const pillarByHandle = new Map(
-        creatorList.map((c) => [c.handle, c.pillar ?? ("health" as Pillar)]),
-      );
       console.log(
         `earlyFeed poll: ${handles.length}/${creatorList.length} accounts (${includeSlow ? "full sweep" : "fast tier"})`,
       );
@@ -172,53 +159,6 @@ export const refreshInternal = internalAction({
       const isNew = (c: (typeof cards)[number]) => !seenSet.has(c.tweetId);
       const newCards = cards.filter(isNew);
 
-      // Voice-grounded reply drafts for the freshest NEW items (best-effort).
-      const draftByTweetId = new Map<string, string>();
-      if (drafts) {
-        try {
-          const candidates = newCards
-            .filter(
-              (c) =>
-                nowMs - (Date.parse(c.createdAt) || 0) < DRAFT_MAX_AGE_MIN * 60_000,
-            )
-            .sort((a, b) => b.followers - a.followers)
-            .slice(0, DRAFTS_PER_RUN);
-
-          // Load each needed pillar profile once (no inline refresh — the
-          // daily cron keeps them warm; missing profile just means no anchor).
-          const profileByPillar = new Map<Pillar, VoiceProfileData | null>();
-          for (const c of candidates) {
-            const pillar = pillarByHandle.get(c.username.toLowerCase()) ?? "health";
-            if (!profileByPillar.has(pillar)) {
-              const row: { dataJson: string } | null = await ctx.runQuery(
-                internal.voiceProfile.getInternal,
-                { pillar },
-              );
-              profileByPillar.set(
-                pillar,
-                row ? (JSON.parse(row.dataJson) as VoiceProfileData) : null,
-              );
-            }
-          }
-
-          await Promise.all(
-            candidates.map(async (c) => {
-              const pillar = pillarByHandle.get(c.username.toLowerCase()) ?? "health";
-              const reply = await suggestReplyGrounded(
-                c.text,
-                { username: c.username, followers: c.followers },
-                profileByPillar.get(pillar) ?? null,
-              );
-              if (reply) draftByTweetId.set(c.tweetId, reply);
-            }),
-          );
-        } catch (err) {
-          console.error(
-            `Early draft generation failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
-      }
-
       // Emit into the unified queue (best-effort — never sinks the feed).
       // Only NEW items each cycle; known items get their metrics refreshed on
       // the every-2-hours full sweep — re-emitting all 40 every 5 minutes was
@@ -243,8 +183,6 @@ export const refreshInternal = internalAction({
             reposts: c.reposts,
             likes: c.likes,
             views: c.views,
-            draft: draftByTweetId.get(c.tweetId),
-            draftKind: draftByTweetId.has(c.tweetId) ? ("reply" as const) : undefined,
             baseScore: earlyBaseScore(c.followers),
             halfLifeHours: HALF_LIFE_HOURS.early,
             scoreReason: `Fresh from @${c.username} — reply window open`,
@@ -277,12 +215,10 @@ export const refreshInternal = internalAction({
               Math.round((nowMs - (Date.parse(c.createdAt) || nowMs)) / 60_000),
               1,
             );
-            const draft = draftByTweetId.get(c.tweetId);
             const dash = siteUrl();
             const lines = [
               `🎯 <b>@${escapeHtml(c.username)}</b> · ${c.followers.toLocaleString()} followers · ${ageMin}m ago`,
               escapeHtml(c.text.slice(0, 300)),
-              draft ? `\n💬 <i>${escapeHtml(draft.slice(0, 300))}</i>` : "",
               `\n<a href="${c.permalink}">Open on X</a>${dash ? ` · <a href="${dash}/admin/growth#queue">Queue</a>` : ""}`,
             ].filter(Boolean);
             await sendTelegram(lines.join("\n"));
@@ -350,7 +286,7 @@ export const markSeenTweets = internalMutation({
 });
 
 /**
- * The 5-min cron entry: refresh fast (with drafts + notifications) inside the
+ * The 5-min cron entry: refresh fast (with notifications) inside the
  * configured active hours; outside them (or with no settings row) the tick is
  * a no-op. Off-hours polling was ~1,000 getXAPI calls/day for posts whose 2h
  * reply window would be dead before morning — posts from the 2h before the
@@ -368,7 +304,6 @@ export const tick = internalAction({
     const active: boolean = settings != null && inActiveHours(settings, nowMs);
     if (!active) return { ran: false, active };
     const notifyEnabled = settings?.notifyEnabled !== false;
-    const draftReplies = settings?.draftReplies === true; // opt-in (Anthropic spend)
     // Slow-tier accounts join a full sweep every 2 hours (the first tick of
     // even UTC hours). The early window is 2h, so back-to-back sweeps still
     // see every post; halving sweep frequency halves the biggest search bill.
@@ -376,7 +311,7 @@ export const tick = internalAction({
     const includeSlow = now.getUTCMinutes() < 5 && now.getUTCHours() % 2 === 0;
     const _result: { status: string; count: number } = await ctx.runAction(
       internal.earlyFeed.refreshInternal,
-      { drafts: draftReplies, notify: notifyEnabled, includeSlow },
+      { notify: notifyEnabled, includeSlow },
     );
     return { ran: true, active };
   },
@@ -433,13 +368,9 @@ export const refresh = action({
   returns: v.object({ ok: v.boolean(), status: v.string(), count: v.number() }),
   handler: async (ctx) => {
     const _admin: null = await ctx.runQuery(internal.earlyFeed._assertAdmin, {});
-    const settings: GrowthSettings | null = await ctx.runQuery(
-      internal.growthSettings.getInternal,
-      {},
-    );
     const result: { status: string; count: number } = await ctx.runAction(
       internal.earlyFeed.refreshInternal,
-      { drafts: settings?.draftReplies === true, notify: false, includeSlow: true },
+      { notify: false, includeSlow: true },
     );
     return { ok: true, status: result.status, count: result.count };
   },

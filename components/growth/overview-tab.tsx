@@ -209,14 +209,14 @@ function SettingsCard() {
       </label>
       <label
         className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]"
-        title="Claude drafts a suggested reply for fresh watchlist and trending posts. Costs ~$0.50–1/day in API spend."
+        title="Claude drafts a suggested reply for trending posts (daily refresh). The early feed no longer drafts."
       >
         <input
           type="checkbox"
           checked={cur.draftReplies}
           onChange={(e) => setDraftReplies(e.target.checked)}
         />
-        AI reply drafts (off = no Anthropic spend on replies)
+        AI reply drafts on trending (off = no Anthropic spend on replies)
       </label>
       <button
         onClick={() => void onSave()}
