@@ -217,7 +217,9 @@ async function extractChunk(
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 8000,
+        // A dense 20-candidate chunk (roundup articles, enrichment fields)
+        // can exceed 8k output tokens; truncated JSON fails the whole chunk.
+        max_tokens: 16000,
         thinking: { type: "disabled" },
         system: EXTRACT_SYSTEM,
         messages: [{ role: "user", content: list }],
@@ -229,7 +231,14 @@ async function extractChunk(
     }
     const json = (await res.json()) as {
       content?: { type: string; text?: string }[];
+      stop_reason?: string;
     };
+    if (json.stop_reason === "max_tokens") {
+      console.error(
+        `Deal extract chunk truncated at max_tokens (${candidates.length} candidates) — raise max_tokens or shrink EXTRACT_CHUNK`,
+      );
+      return { ok: false, byIndex: out };
+    }
     const text = (json.content ?? [])
       .filter((b) => b.type === "text")
       .map((b) => b.text ?? "")
@@ -567,7 +576,7 @@ export const refreshInternal = internalAction({
       // Candidates stay unmarked and retry next run either way.
       if (chunksTried > 0 && chunksFailed === chunksTried) {
         throw new Error(
-          `All ${chunksTried} extraction chunks failed — Anthropic API down or usage cap hit; ${survivors.length} candidates preserved for retry.`,
+          `All ${chunksTried} extraction chunks failed — see logs for cause (API error, usage cap, or truncated/unparseable output); ${survivors.length} candidates preserved for retry.`,
         );
       }
 
