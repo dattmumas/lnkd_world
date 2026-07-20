@@ -16,7 +16,7 @@ const td = "px-3 py-2 text-sm";
 const field =
   "border border-[var(--color-border)] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]";
 
-function fmtAmount(d: Deal): string {
+export function fmtAmount(d: { amountUsd: number | null }): string {
   if (d.amountUsd == null) return "—";
   if (d.amountUsd >= 1_000_000_000) return `$${(d.amountUsd / 1_000_000_000).toFixed(1)}B`;
   if (d.amountUsd >= 1_000_000) return `$${Math.round(d.amountUsd / 1_000_000)}M`;

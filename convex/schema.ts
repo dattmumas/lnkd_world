@@ -48,7 +48,10 @@ export default defineSchema({
     backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
-    .index("by_published", ["published"]),
+    .index("by_published", ["published"])
+    // Landing `latest` queries: newest by publication date straight off the
+    // index — take()-by-_creationTime drops re-published old docs.
+    .index("by_published_and_publishedAt", ["published", "publishedAt"]),
 
   readings: defineTable({
     title: v.string(),
@@ -70,7 +73,8 @@ export default defineSchema({
     backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
-    .index("by_published", ["published"]),
+    .index("by_published", ["published"])
+    .index("by_published_and_publishedAt", ["published", "publishedAt"]),
 
   now: defineTable({
     content: v.string(),
@@ -93,7 +97,8 @@ export default defineSchema({
     backlinks: v.optional(v.array(v.string())),
   })
     .index("by_slug", ["slug"])
-    .index("by_published", ["published"]),
+    .index("by_published", ["published"])
+    .index("by_published_and_publishedAt", ["published", "publishedAt"]),
 
   versions: defineTable({
     slug: v.string(),

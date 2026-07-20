@@ -14,6 +14,26 @@ export const list = query({
   },
 });
 
+/** Landing widgets: the n most recent published bookmarks by publication
+ * date, straight off the index — see posts.latest for why not a
+ * take()-by-_creationTime window. */
+export const latest = query({
+  args: { n: v.optional(v.number()) },
+  handler: async (ctx, { n }) => {
+    const rows = await ctx.db
+      .query("bookmarks")
+      .withIndex("by_published_and_publishedAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(n ?? 3);
+    return rows.map((b) => ({
+        _id: b._id,
+        title: b.title,
+        url: b.url,
+        publishedAt: b.publishedAt,
+      }));
+  },
+});
+
 export const listAll = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);

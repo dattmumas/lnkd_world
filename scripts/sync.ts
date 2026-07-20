@@ -115,6 +115,15 @@ function readMarkdownFiles(dir: string): { slug: string; frontmatter: Record<str
     });
 }
 
+/** YAML parses unquoted frontmatter dates to Date objects; String() would
+ * store "Sun Mar 22 2026 17:00:00 GMT-0700 …", which lexicographically
+ * outranks every ISO date and pins the entry to the top of every
+ * publishedAt sort. Always store "YYYY-MM-DD". */
+function isoDate(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  return String(value);
+}
+
 // ─── Sync Functions ─────────────────────────────────────────
 
 interface SyncStats {
@@ -162,7 +171,7 @@ async function syncContent(
         published: (file.frontmatter.published as boolean) ?? false,
         gated: (file.frontmatter.gated as boolean) ?? undefined,
         publishedAt: file.frontmatter.publishedAt
-          ? String(file.frontmatter.publishedAt)
+          ? isoDate(file.frontmatter.publishedAt)
           : undefined,
         wikilinksRaw: raw,
         wikilinksResolved: resolved,

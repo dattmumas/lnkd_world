@@ -32,7 +32,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 | Route | Access | Purpose |
 |---|---|---|
-| `/` | Public | Ledger landing: applications (bonds + `projects` table rows) and the On Label section (subscribe + latest issues) |
+| `/` | Public | Broadsheet landing: masthead (plate-register wordmark), live wire ticker (`bonds.tenors` + `deals.landingSummary` + `readings.latest`), then The Lead (On Label) / The Wire (bonds + `projects` rows) / Markets (deal-flow column) band, and a Second Section of editorial columns (`posts`/`readings`/`bookmarks.latest`). Landing reads purpose-built small queries, never the full content lists |
 | `/onlabel`, `/onlabel/archive` | Public | On Label front door + full issue archive (reads `beehiiv.archive` cache; issue links open Beehiiv post pages) |
 | `/writing`, `/writing/[slug]` | Public (posts can be gated) | Blog posts, markdown w/ wikilinks + backlinks |
 | `/writing/[slug]/history` | Subscriber+ | Version-diff timeline for a post |

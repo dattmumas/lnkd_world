@@ -12,21 +12,21 @@ function cardDate(ms: number): string {
 }
 
 /**
- * EXHIBIT B — the page's anchor. Ink header bar, tan body, the one vermilion
- * shadow on the page. The latest issues nest inside it: they're FROM the
- * letter, so they live in the letter's box.
+ * THE LEAD — the front page's anchor story. Ink header bar, tan body, the one
+ * vermilion shadow on the page. The latest issues nest inside it: they're
+ * FROM the letter, so they live in the letter's box.
  */
 export default function OnLabelSection() {
   const site = useQuery(api.beehiiv.archive);
   const latest = (site?.posts ?? []).slice(0, 2);
 
   return (
-    <section className="mt-10">
-      <div className="ol-panel-anchor bg-[var(--color-fill-tan)]">
+    <section className="h-full">
+      <div className="ol-panel-anchor bg-[var(--color-fill-tan)] h-full">
         {/* Header bar — ink, the loudest label on the page */}
         <div className="flex items-baseline justify-between gap-4 bg-[var(--color-text)] text-[var(--color-bg)] px-5 py-2.5">
           <p className="ol-mono text-xs font-bold uppercase tracking-widest">
-            Exhibit B&nbsp;&nbsp;·&nbsp;&nbsp;The Weekly Letter
+            The Lead&nbsp;&nbsp;·&nbsp;&nbsp;The Weekly Letter
           </p>
           <span className="text-[var(--color-accent)] leading-none select-none">■</span>
         </div>

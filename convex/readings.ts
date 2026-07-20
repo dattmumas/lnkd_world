@@ -14,6 +14,30 @@ export const list = query({
   },
 });
 
+/**
+ * Landing widgets: the n most recent published readings by publication date,
+ * as a small bounded payload (the full list .collect()s a table Readwise
+ * sync grows unboundedly). Ordered by the index, not a take()-by-
+ * _creationTime window — see posts.latest.
+ */
+export const latest = query({
+  args: { n: v.optional(v.number()) },
+  handler: async (ctx, { n }) => {
+    const rows = await ctx.db
+      .query("readings")
+      .withIndex("by_published_and_publishedAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(n ?? 3);
+    return rows.map((r) => ({
+        _id: r._id,
+        title: r.title,
+        author: r.author,
+        rating: r.rating,
+        publishedAt: r.publishedAt,
+      }));
+  },
+});
+
 export const listAll = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);

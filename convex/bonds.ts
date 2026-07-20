@@ -34,6 +34,33 @@ export const latest = query({
 });
 
 /**
+ * Landing wire: just the current tenors of the latest snapshot — the full
+ * dashboard blob is for /bonds, not the front-page ticker.
+ */
+export const tenors = query({
+  args: {},
+  handler: async (ctx) => {
+    const snapshot = await ctx.db
+      .query("bondsSnapshots")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .first();
+    if (!snapshot) return null;
+    try {
+      const parsed = JSON.parse(snapshot.data) as {
+        yield_curve?: { current?: Record<string, number> };
+      };
+      return {
+        tenors: parsed.yield_curve?.current ?? {},
+        generatedAt: snapshot.generatedAt,
+      };
+    } catch {
+      return null;
+    }
+  },
+});
+
+/**
  * Get snapshot history (last N snapshots, metadata only — no data blob).
  */
 export const history = query({

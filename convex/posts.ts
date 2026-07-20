@@ -14,6 +14,29 @@ export const list = query({
   },
 });
 
+/** Landing widgets: the n most recent published posts by publication date,
+ * straight off the index — a take()-by-_creationTime window would drop an
+ * old doc whose publishedAt was just set to today (upsertBySlug patches in
+ * place, so _creationTime never moves). */
+export const latest = query({
+  args: { n: v.optional(v.number()) },
+  handler: async (ctx, { n }) => {
+    const rows = await ctx.db
+      .query("posts")
+      .withIndex("by_published_and_publishedAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(n ?? 3);
+    return rows.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        slug: p.slug,
+        description: p.description,
+        publishedAt: p.publishedAt,
+        gated: p.gated,
+      }));
+  },
+});
+
 export const listAll = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);

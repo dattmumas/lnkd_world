@@ -424,6 +424,82 @@ export const publicList = query({
   },
 });
 
+/**
+ * Public read for the landing's Markets column + wire ticker: a small,
+ * purpose-built payload instead of subscribing every visitor to the full
+ * publicList table. Latest filings BY ANNOUNCEMENT DATE (not capture order —
+ * backfills never top the front page), a 7-day histogram, and the week's
+ * count. Buckets are UTC calendar days, matching announcedAt's UTC-midnight
+ * convention from dealsFeed.parseAnnouncedDate. Reads only the last 7 days
+ * of captures — anything announced in the window was captured in it too.
+ *
+ * The client passes its UTC day start: Convex caches results until a deals
+ * write invalidates them, so a server-side wall clock goes stale across UTC
+ * midnight (overnight the radar is RSS-only and may not write for hours).
+ * A fresh load after midnight is a new cache key instead.
+ */
+export const landingSummary = query({
+  args: { todayStartMs: v.optional(v.number()) },
+  handler: async (ctx, { todayStartMs }) => {
+    const DAY = 86_400_000;
+    const now = new Date();
+    const todayStart =
+      todayStartMs !== undefined
+        ? Math.floor(todayStartMs / DAY) * DAY // snap to a UTC day boundary
+        : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const windowStart = todayStart - 6 * DAY;
+    const windowEnd = todayStart + DAY;
+
+    const rows = await ctx.db
+      .query("deals")
+      .withIndex("by_firstSeenAt", (q) => q.gt("firstSeenAt", windowStart))
+      .order("desc")
+      .take(400);
+
+    // One announcement-date window feeds the list, the count, AND the
+    // histogram — a deal appears in all three or none, so the column can't
+    // list filings over an all-zero chart. Backfills (announced before the
+    // window, captured inside it) are excluded; a tomorrow-dated announcedAt
+    // (parseAnnouncedDate's +1-day timezone tolerance) clamps into today's
+    // bucket instead of falling past the last one.
+    const live = rows
+      .filter((d) => d.status !== "dismissed")
+      .map((d) => ({
+        d,
+        at: Math.min(d.announcedAt ?? d.firstSeenAt, windowEnd - 1),
+      }))
+      .filter((r) => r.at >= windowStart)
+      .sort((a, b) => b.at - a.at);
+
+    const dayCounts: { label: string; count: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const start = windowStart + i * DAY;
+      const end = start + DAY;
+      dayCounts.push({
+        label: new Date(start).toLocaleDateString("en-US", {
+          weekday: "narrow",
+          timeZone: "UTC",
+        }),
+        count: live.filter((r) => r.at >= start && r.at < end).length,
+      });
+    }
+
+    return {
+      latest: live.slice(0, 5).map((r) => ({
+        id: r.d._id,
+        company: r.d.company,
+        round: r.d.round,
+        amountUsd: r.d.amountUsd,
+        amountNote: r.d.amountNote,
+        leadInvestor: r.d.leadInvestor,
+        announcedAt: r.at,
+      })),
+      weekCount: dayCounts.reduce((n, d) => n + d.count, 0),
+      dayCounts,
+    };
+  },
+});
+
 export const list = query({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) => {
