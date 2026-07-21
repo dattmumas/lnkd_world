@@ -17,16 +17,17 @@ const INKS = [
 export default function Footer() {
   return (
     <footer className="mt-auto">
-      {/* The carved slab. The wordmark is cropped at the cap line: only the
-          lower two-thirds of the letters clear the stone. */}
+      {/* The carved slab. The full wordmark is engraved, seated on the slab's
+          bottom edge; the crop box trims only the line-box whitespace above
+          the caps and below the baseline. */}
       <div className="ol-stone-field -mx-6 lg:-mx-12 px-6 lg:px-12 pt-10 md:pt-16 border-t-2 border-[var(--color-border)] overflow-hidden">
         <div
           aria-hidden
           className="select-none text-[clamp(6rem,22vw,20rem)]"
           style={{ fontFamily: "var(--font-display), Helvetica, sans-serif" }}
         >
-          <div className="h-[0.62em] overflow-hidden">
-            <span className="ol-carved block font-bold leading-none tracking-tight -translate-y-[0.32em]">
+          <div className="h-[0.72em] overflow-hidden">
+            <span className="ol-carved block font-bold leading-none tracking-tight -translate-y-[0.1em]">
               LNKD
             </span>
           </div>
