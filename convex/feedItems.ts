@@ -41,8 +41,6 @@ const itemPayload = v.object({
   quotes: v.optional(v.number()),
   bookmarkCount: v.optional(v.number()),
   views: v.optional(v.number()),
-  draft: v.optional(v.string()),
-  draftKind: v.optional(v.union(v.literal("reply"), v.literal("post"))),
   angle: v.optional(v.string()),
   baseScore: v.number(),
   halfLifeHours: v.number(),
@@ -93,10 +91,6 @@ export const upsertBatch = internalMutation({
           if (incoming != null && incoming !== existing[key]) patch[key] = incoming;
         }
         if (!existing.imageUrl && it.imageUrl) patch.imageUrl = it.imageUrl;
-        if (!existing.draft && it.draft) {
-          patch.draft = it.draft;
-          patch.draftKind = it.draftKind;
-        }
         if (!existing.angle && it.angle) patch.angle = it.angle;
         if (incomingWins) {
           patch.primaryFeed = feed;

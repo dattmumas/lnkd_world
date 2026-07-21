@@ -161,8 +161,8 @@ export default defineSchema({
     note: v.optional(v.string()),
     order: v.number(),
     active: v.optional(v.boolean()),
-    // Which pillar this account belongs to — reply drafts ground in this
-    // pillar's voice profile; attribution groups by it. undefined = health.
+    // Which pillar this account belongs to — attribution groups by it.
+    // undefined = health.
     pillar: v.optional(
       v.union(v.literal("health"), v.literal("finance"), v.literal("startup")),
     ),
@@ -277,8 +277,6 @@ export default defineSchema({
     bookmarkCount: v.optional(v.number()),
     views: v.optional(v.number()),
 
-    draft: v.optional(v.string()), // drafted tweet or reply from the models
-    draftKind: v.optional(v.union(v.literal("reply"), v.literal("post"))),
     angle: v.optional(v.string()), // "why share" line (science feed)
 
     // priority = baseScore × 2^(−age/halfLife) × affinityMult (lib/queueScore.ts)
@@ -308,7 +306,6 @@ export default defineSchema({
     externalId: v.string(),
     action: v.union(
       v.literal("open"),
-      v.literal("copy_draft"),
       v.literal("engaged"),
       v.literal("skipped"),
       v.literal("captured"), // turned into a pipeline idea (item stays queued)
@@ -449,7 +446,6 @@ export default defineSchema({
     tzOffsetMinutes: v.number(), // -new Date().getTimezoneOffset(), rewritten on save
     notifyEnabled: v.optional(v.boolean()), // default true
     notifyMinFollowers: v.optional(v.number()), // default 0 (whole watchlist)
-    draftReplies: v.optional(v.boolean()), // AI reply drafts (early + trending); default OFF
     updatedAt: v.number(),
   }),
 
@@ -609,16 +605,6 @@ export default defineSchema({
     subscriberCount: v.number(),
     updatedAt: v.number(),
   }),
-
-  // Real-tweet voice grounding for post drafting (convex/voiceProfile.ts):
-  // per pillar, the account's own top posts + the niche's current winners,
-  // refreshed daily. draftWithClaude builds its prompt from these instead of
-  // hand-written style rules.
-  voiceProfiles: defineTable({
-    pillar: v.string(),
-    dataJson: v.string(), // { ownPosts: [...], nicheWinners: [...] }
-    refreshedAt: v.number(),
-  }).index("by_pillar", ["pillar"]),
 
   // Compact daily follower counts for the growth chart (convex/growth.ts).
   // followerSnapshots rows carry the full follower list JSON (hundreds of KB),

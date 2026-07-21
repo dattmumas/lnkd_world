@@ -71,8 +71,6 @@ export const getQueue = query({
         reposts: r.reposts,
         likes: r.likes,
         views: r.views,
-        draft: r.draft,
-        draftKind: r.draftKind,
         angle: r.angle,
         baseScore: r.baseScore,
         halfLifeHours: r.halfLifeHours,
@@ -98,7 +96,6 @@ export const act = mutation({
     itemId: v.id("feedItems"),
     action: v.union(
       v.literal("open"),
-      v.literal("copy_draft"),
       v.literal("engaged"),
       v.literal("skipped"),
     ),
@@ -125,7 +122,7 @@ export const act = mutation({
       await ctx.db.patch(itemId, { status: action });
     }
 
-    // open/copy_draft both count as "opened" — interest short of engagement.
+    // "open" counts as "opened" — interest short of engagement.
     const counter =
       action === "engaged" ? "engaged" : action === "skipped" ? "skipped" : "opened";
     const subjects: ["author" | "source", string][] = [];

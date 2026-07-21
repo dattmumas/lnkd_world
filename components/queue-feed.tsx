@@ -59,7 +59,6 @@ export function QueueFeed() {
   };
 
   const [removed, setRemoved] = useState<Set<string>>(new Set());
-  const [copied, setCopied] = useState<string | null>(null);
   const [captured, setCaptured] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
 
@@ -94,14 +93,6 @@ export function QueueFeed() {
         return next;
       });
     });
-  };
-
-  const copyDraft = (item: QueueItem) => {
-    if (!item.draft) return;
-    navigator.clipboard?.writeText(item.draft).catch(() => {});
-    setCopied(item.id);
-    setTimeout(() => setCopied((c) => (c === item.id ? null : c)), 1500);
-    void act({ itemId: item.id, action: "copy_draft" }).catch(() => {});
   };
 
   const card = (r: QueueItem) => {
@@ -204,22 +195,6 @@ export function QueueFeed() {
             <p className="text-xs mt-2 text-[var(--color-text-secondary)] italic">
               {r.angle}
             </p>
-          )}
-          {r.draft && (
-            <details className="mt-3 border border-[var(--color-border)] rounded-lg bg-[var(--color-bg)]">
-              <summary className="px-3 py-2 gc-label cursor-pointer select-none">
-                Draft {r.draftKind === "reply" ? "reply" : "tweet"}
-              </summary>
-              <div className="px-3 pb-3">
-                <p className="text-sm whitespace-pre-wrap">{r.draft}</p>
-                <button
-                  onClick={() => copyDraft(r)}
-                  className="text-xs mt-2 border border-[var(--color-border)] rounded px-2.5 py-1 bg-white hover:bg-[var(--color-border)]/30"
-                >
-                  {copied === r.id ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </details>
           )}
           <div className="flex items-center gap-4 mt-3 text-sm">
             <a

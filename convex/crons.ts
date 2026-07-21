@@ -107,15 +107,6 @@ crons.interval(
   internal.ownReplies.trackInternal,
 );
 
-// Voice profiles — refresh the real-tweet grounding for post drafting (own top
-// posts + per-pillar niche winners).
-crons.daily(
-  "refresh-voice-profiles",
-  { hourUTC: 14, minuteUTC: 30 },
-  internal.voiceProfile.refreshInternal,
-  {}, // no pillar arg = refresh all three
-);
-
 // Weekly "WHO RAISED" block — the newsletter-ready HTML of the week's
 // consumer deals, rendered before the review so Sunday delivers both.
 crons.weekly(

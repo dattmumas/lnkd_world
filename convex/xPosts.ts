@@ -1,20 +1,12 @@
 import {
-  action,
   internalQuery,
   mutation,
   query,
 } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { requireAdmin } from "./lib/auth";
 import { tweetIdFromLink } from "./lib/queueScore";
-import {
-  draftSystemPrompt,
-  type Pillar,
-  type VoiceProfileData,
-} from "./lib/xvoice";
-import { STALE_MS } from "./voiceProfile";
 
 /**
  * The content pipeline for the tracked X account (growth dashboard, Pipeline
@@ -305,7 +297,7 @@ export const captureFromQueue = mutation({
       source: item.source,
       createdAt: now,
     });
-    // Interest short of engagement — same treatment as open/copy_draft.
+    // Interest short of engagement — same treatment as a queue "open".
     const subjects: ["author" | "source", string][] = [];
     if (item.authorUsername) subjects.push(["author", item.authorUsername.toLowerCase()]);
     subjects.push(["source", item.source.toLowerCase()]);
@@ -333,31 +325,6 @@ export const captureFromQueue = mutation({
   },
 });
 
-/** Internal: best posted bodies per pillar, for drafting few-shot. */
-export const topPerformersInternal = internalQuery({
-  args: { pillar: pillarValidator },
-  returns: v.array(v.string()),
-  handler: async (ctx, { pillar }) => {
-    const posted = await ctx.db
-      .query("xPosts")
-      .withIndex("by_pillar_status", (q) =>
-        q.eq("pillar", pillar).eq("status", "posted"),
-      )
-      .take(50);
-    const score = (p: (typeof posted)[number]) =>
-      27 * (p.latestReplies ?? 0) +
-      15 * (p.latestQuotes ?? 0) +
-      2 * (p.latestReposts ?? 0) +
-      2 * (p.latestBookmarks ?? 0) +
-      (p.latestLikes ?? 0);
-    return posted
-      .filter((p) => score(p) > 0)
-      .sort((a, b) => score(b) - score(a))
-      .slice(0, 3)
-      .map((p) => p.body);
-  },
-});
-
 /** Internal: posted-with-tweetId posts newer than `sinceMs`, for the metrics cron. */
 export const recentPostedInternal = internalQuery({
   args: { sinceMs: v.number() },
@@ -375,113 +342,3 @@ export const recentPostedInternal = internalQuery({
   },
 });
 
-/**
- * Draft a post with Claude in the pillar's voice, few-shot on the account's own
- * best performers once there are any. Returns the draft for the composer — the
- * human reviews and saves; nothing is inserted here.
- */
-export const draftWithClaude = action({
-  args: {
-    pillar: pillarValidator,
-    kind: kindValidator,
-    topic: v.string(),
-    sourceMaterial: v.optional(v.string()),
-  },
-  returns: v.union(
-    v.object({
-      body: v.string(),
-      threadParts: v.optional(v.array(v.string())),
-      altHooks: v.optional(v.array(v.string())),
-    }),
-    v.null(),
-  ),
-  handler: async (ctx, { pillar, kind, topic, sourceMaterial }) => {
-    await ctx.runQuery(internal.growth._assertAdmin, {});
-    const key = process.env.anthropic_api_key;
-    if (!key) throw new Error("anthropic_api_key is not set.");
-
-    // Real-tweet grounding: refresh the pillar's voice profile when missing or
-    // stale, then build the prompt from it (convex/voiceProfile.ts).
-    let profileRow: { dataJson: string; refreshedAt: number } | null =
-      await ctx.runQuery(internal.voiceProfile.getInternal, { pillar });
-    if (!profileRow || Date.now() - profileRow.refreshedAt > STALE_MS) {
-      try {
-        await ctx.runAction(internal.voiceProfile.refreshInternal, { pillar });
-        profileRow = await ctx.runQuery(internal.voiceProfile.getInternal, {
-          pillar,
-        });
-      } catch (e) {
-        console.error(
-          `Voice refresh failed, drafting with stale/no profile: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      }
-    }
-    const profile: VoiceProfileData | null = profileRow
-      ? (JSON.parse(profileRow.dataJson) as VoiceProfileData)
-      : null;
-
-    const topPerformers: string[] = await ctx.runQuery(
-      internal.xPosts.topPerformersInternal,
-      { pillar },
-    );
-    const system = draftSystemPrompt(pillar as Pillar, profile, topPerformers);
-    const user = [
-      kind === "thread"
-        ? "Draft a THREAD (4-7 parts)."
-        : "Draft a SINGLE post.",
-      `Topic / angle: ${topic}`,
-      sourceMaterial ? `Source material:\n"""${sourceMaterial}"""` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 3000,
-        thinking: { type: "adaptive" },
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    }
-    const json = (await res.json()) as {
-      content?: { type: string; text?: string }[];
-    };
-    const text = (json.content ?? [])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("");
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      const parsed = JSON.parse(match[0]) as {
-        body?: string;
-        threadParts?: string[];
-        altHooks?: string[];
-      };
-      if (!parsed.body) return null;
-      const altHooks = Array.isArray(parsed.altHooks)
-        ? parsed.altHooks.map(String).filter((h) => h.length > 0 && h.length <= 280).slice(0, 3)
-        : [];
-      return {
-        body: parsed.body,
-        threadParts:
-          Array.isArray(parsed.threadParts) && parsed.threadParts.length > 0
-            ? parsed.threadParts.map(String)
-            : undefined,
-        altHooks: altHooks.length > 0 ? altHooks : undefined,
-      };
-    } catch {
-      return null;
-    }
-  },
-});

@@ -3,9 +3,9 @@
 Personal site + private growth-operations system. Branding is **LNKD**. Two halves:
 
 1. **Public site** — a ledger-style landing for applications + **On Label** (the Beehiiv newsletter, headless: lnkd.world is the front door, Beehiiv keeps only platform utilities — post pages, subscribe/unsub/preferences, referral attribution). On Label's beat is **all things consumer — CPG, health, and technology** (not just consumer health). Plus writing, reading log, bookmarks, resources, and the bond-market dashboard. Content is authored in Obsidian and synced to Convex.
-2. **Growth system (admin-only)** — an X (Twitter) audience-growth machine: curated feeds, a unified engagement queue, AI-drafted posts/replies, an auto-poster, follower attribution, and a consumer deal radar. Runs on ~16 Convex crons.
+2. **Growth system (admin-only)** — an X (Twitter) audience-growth machine: curated feeds, a unified engagement queue, an auto-poster, follower attribution, and a consumer deal radar. Runs on ~15 Convex crons. NO AI tweet/reply drafting anywhere — it was removed 2026-07-21 at the owner's request (never spend on drafting tweets); don't reintroduce it.
 
-**Public identity ("ledger")**: paper `#F7F4EE`, ink `#141210`, vermilion `#C7331D`, tan `#EDE7DA`; Space Grotesk display / Space Mono data / Georgia body; zero border-radius. Tokens live in `app/globals.css` (`--color-*`, `ol-*` utilities) and match the On Label email template. Admin keeps its scoped `gc-*` theme; /bonds keeps its dark terminal theme. The old 3D knowledge-graph hero is parked (components + `pnpm graph:layout` kept, unreferenced by the home page).
+**Public identity ("stone register")**: bone `#F3F0E9`, ink `#141210`, stone mid-tones (`--color-stone*`), vermilion `#C7331D` demoted to an interaction/live signal only (link hovers, LIVE chips, live-data markers — never structure); Space Grotesk display / Space Mono data / Georgia body; zero border-radius. The one engraved surface is the footer's stone slab with the carved `LNKD` wordmark (`.ol-stone-field` / `.ol-carved`); the rest of the sheet stays flat. Tokens live in `app/globals.css` (`--color-*`, `ol-*` utilities). The On Label email template (`convex/dealsBlock.ts`) keeps its vermilion as the surviving brand thread. Admin keeps its scoped `gc-*` theme; /bonds keeps its dark terminal theme. The old 3D knowledge-graph hero is parked (components + `pnpm graph:layout` kept, unreferenced by the home page).
 
 ## Stack
 
@@ -32,7 +32,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 | Route | Access | Purpose |
 |---|---|---|
-| `/` | Public | Broadsheet landing: masthead (plate-register wordmark), live wire ticker (`bonds.tenors` + `deals.landingSummary` + `readings.latest`), then The Lead (On Label) / The Wire (bonds + `projects` rows) / Markets (deal-flow column) band, and a Second Section of editorial columns (`posts`/`readings`/`bookmarks.latest`). Landing reads purpose-built small queries, never the full content lists |
+| `/` | Public | Broadsheet landing: masthead (plain-ink wordmark), live wire ticker (`bonds.tenors` + `deals.landingSummary` + `readings.latest`), then The Lead (On Label) / The Wire (bonds + `projects` rows) / Markets (deal-flow column) band, and a Second Section of editorial columns (`posts`/`readings`/`bookmarks.latest`); footer is the carved stone slab. Landing reads purpose-built small queries, never the full content lists |
 | `/onlabel`, `/onlabel/archive` | Public | On Label front door + full issue archive (reads `beehiiv.archive` cache; issue links open Beehiiv post pages) |
 | `/writing`, `/writing/[slug]` | Public (posts can be gated) | Blog posts, markdown w/ wikilinks + backlinks |
 | `/writing/[slug]/history` | Subscriber+ | Version-diff timeline for a post |
@@ -70,8 +70,7 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 - `xPostMetrics` — daily metric snapshots per posted tweet (~14d tracked, 90d retained)
 - `growthConfig` (tracked handle), `followerSnapshots` (full follower JSON), `followerCounts` (compact daily counts for the chart), `followerGains` (per-follower attribution rows)
 - `ownReplies` — ground truth of every reply posted on X (hourly cron), feeds reply ROI + attribution
-- `voiceProfiles` — per-pillar real-tweet grounding (own top posts + niche winners) for drafting
-- `weeklyReviews` — Claude-written Sunday summaries; `growthSettings` — active-hours window, Telegram + AI-draft toggles (single row)
+- `weeklyReviews` — Claude-written Sunday summaries; `growthSettings` — active-hours window + Telegram toggles (single row)
 - `networkRuns`, `seedFollows` — follower-web runs + cached following lists (TTL)
 
 **Deals**: `deals` — one row per (company, round), fused from RSS + X, Claude-extracted, status new/seen/dismissed; capture-time enrichment (founders + X handles, hqCountry, website, valuationUsd, totalRaisedUsd). `dealsBlocks` — weekly "WHO RAISED" newsletter HTML (last 8 kept)
@@ -82,15 +81,15 @@ Personal site + private growth-operations system. Branding is **LNKD**. Two halv
 
 - **Content**: `posts.ts`, `readings.ts`, `bookmarks.ts`, `resources.ts`, `projects.ts`, `now.ts`, `versions.ts`, `graph.ts`/`graphLayout.ts`, `seed.ts`, `stats.ts`
 - **Feeds/queue**: `feedItems.ts` (upsertBatch + prune), `queue.ts` (getQueue/act/decayAffinities), `earlyFeed.ts` (5-min watchlist poll), `xTrends.ts`, `creators_feed.ts`, `scienceFeed.ts` (science+business columns, Sonnet-ranked), `dealsFeed.ts` + `deals.ts` (deal radar), `dealsBlock.ts` (weekly "WHO RAISED" newsletter block → Beehiiv Weekly Signal template's htmlSnippet, pushed via MCP or copied from the Deals tab)
-- **Growth**: `growth.ts` (follower snapshots), `xPosts.ts` (pipeline + `draftWithClaude`), `xPoster.ts` (auto-poster), `xMetrics.ts`, `ownReplies.ts`, `voiceProfile.ts`, `weeklyReview.ts`, `attribution.ts`, `growthSettings.ts`, `network.ts`, `creators.ts` (watchlist + follow sync), `beehiiv.ts` (newsletter→ideas; also the public-site layer: `beehiivSite` archive/subscriber cache refreshed by the daily pull, public `archive` query + `subscribe` action for the landing and /onlabel)
+- **Growth**: `growth.ts` (follower snapshots), `xPosts.ts` (pipeline), `xPoster.ts` (auto-poster), `xMetrics.ts`, `ownReplies.ts`, `weeklyReview.ts`, `attribution.ts`, `growthSettings.ts`, `network.ts`, `creators.ts` (watchlist + follow sync), `beehiiv.ts` (newsletter→ideas; also the public-site layer: `beehiivSite` archive/subscriber cache refreshed by the daily pull, public `archive` query + `subscribe` action for the landing and /onlabel)
 - **Infra**: `crons.ts`, `cronHealth.ts`, `http.ts` (POST `/api/bonds/ingest`, SYNC_SECRET bearer), `auth.ts`, `users.ts`, `bonds.ts` (ingest + GitHub Actions dispatch trigger)
-- **lib/**: `queueScore.ts` (decay + affinity math), `getxapi.ts` (gxSearch/gxUserTweets/gxFollowers — ~$0.001/call), `xoauth.ts` (postTweet/getTweets, OAuth 1.0a via Web Crypto), `xvoice.ts` (pillars, draft prompts, curation), `rss.ts`, `telegram.ts`, `auth.ts`, `cronReport.ts`
+- **lib/**: `queueScore.ts` (decay + affinity math), `getxapi.ts` (gxSearch/gxUserTweets/gxFollowers — ~$0.001/call), `xoauth.ts` (postTweet/getTweets, OAuth 1.0a via Web Crypto), `xvoice.ts` (pillars + weekly-review prompt), `rss.ts`, `telegram.ts`, `auth.ts`, `cronReport.ts`
 
 ## Crons (convex/crons.ts)
 
 - Every 5 min: `refresh-early` (active hours ONLY — off-hours ticks are no-ops; fast tier ~2 queries/cycle, full-watchlist sweep every 2h), `fire-scheduled-posts`
 - Hourly: `deal-radar` (:20; RSS-only overnight), `track-own-replies`
-- Daily: `prune-feed-items` 10:00, `decay-affinities` 10:15, `prune-deals` 10:05, `pull-beehiiv` 11:00, `growth-snapshot` 12:00, `pull-x-metrics` 12:30, `sync-follows` 12:45, `refresh-x-trends` 13:00, `refresh-creators` 13:30, `refresh-voice-profiles` 14:30; `refresh-science` 3×/day (11,17,23 UTC)
+- Daily: `prune-feed-items` 10:00, `decay-affinities` 10:15, `prune-deals` 10:05, `pull-beehiiv` 11:00, `growth-snapshot` 12:00, `pull-x-metrics` 12:30, `sync-follows` 12:45, `refresh-x-trends` 13:00, `refresh-creators` 13:30; `refresh-science` 3×/day (11,17,23 UTC)
 - Weekly: `weekly-deals-block` Sunday 14:45 UTC, `weekly-review` Sunday 15:00 UTC
 
 All crons report to `cronHealth` via `lib/cronReport.ts`; failures alert through Telegram (throttled). Cron times are staggered to avoid concurrent getXAPI calls.

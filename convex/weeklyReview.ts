@@ -123,27 +123,6 @@ export const statsInternal = internalQuery({
       .slice(0, 25)
       .map((g) => ({ username: g.username, name: g.name, followers: g.followers }));
 
-    // Niche pulse: the current top performers cached by the voice profiles.
-    const nicheNow: { pillar: string; text: string; author: string | null; likes: number }[] = [];
-    for (const pillar of PILLARS) {
-      const row = await ctx.db
-        .query("voiceProfiles")
-        .withIndex("by_pillar", (q) => q.eq("pillar", pillar))
-        .unique();
-      if (!row) continue;
-      const data = JSON.parse(row.dataJson) as {
-        nicheWinners?: { text: string; author?: string; likes: number }[];
-      };
-      for (const w of (data.nicheWinners ?? []).slice(0, 3)) {
-        nicheNow.push({
-          pillar,
-          text: w.text.replace(/\s+/g, " ").slice(0, 140),
-          author: w.author ?? null,
-          likes: w.likes,
-        });
-      }
-    }
-
     return {
       followerSeries,
       pipelinePosts: posts,
@@ -151,7 +130,6 @@ export const statsInternal = internalQuery({
       repliesPerDay,
       repliesDetail,
       gainedFollowers,
-      nicheNow,
     };
   },
 });
@@ -190,7 +168,6 @@ export const generateInternal = internalAction({
       repliesPerDay: Record<string, number>;
       repliesDetail: unknown[];
       gainedFollowers: unknown[];
-      nicheNow: unknown[];
     } = await ctx.runQuery(internal.weeklyReview.statsInternal, { nowMs });
 
     // What ACTUALLY went out on X this week — the account's real timeline, not

@@ -86,7 +86,6 @@ const CRON_EXPECTED_MS: Record<string, number> = {
   "x-poster": 15 * 60_000,
   "x-metrics": 26 * 3_600_000,
   "growth-snapshot": 26 * 3_600_000,
-  "voice-profiles": 26 * 3_600_000,
   "science-feed": 8 * 3_600_000, // 3×/day cadence
   "weekly-review": 8 * 86_400_000,
   beehiiv: 26 * 3_600_000,
@@ -138,7 +137,6 @@ function SettingsCard() {
   const [end, setEnd] = useState<number | null>(null);
   const [notify, setNotify] = useState<boolean | null>(null);
   const [minFollowers, setMinFollowers] = useState<string | null>(null);
-  const [draftReplies, setDraftReplies] = useState<boolean | null>(null);
   const [saved, setSaved] = useState(false);
 
   const cur = {
@@ -146,7 +144,6 @@ function SettingsCard() {
     end: end ?? settings?.activeEndHour ?? 23,
     notify: notify ?? settings?.notifyEnabled !== false,
     minFollowers: minFollowers ?? String(settings?.notifyMinFollowers ?? 0),
-    draftReplies: draftReplies ?? settings?.draftReplies === true,
   };
 
   const hourOptions = Array.from({ length: 24 }, (_, h) => (
@@ -162,7 +159,6 @@ function SettingsCard() {
       tzOffsetMinutes: -new Date().getTimezoneOffset(),
       notifyEnabled: cur.notify,
       notifyMinFollowers: Number(cur.minFollowers) || 0,
-      draftReplies: cur.draftReplies,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
@@ -207,17 +203,6 @@ function SettingsCard() {
         />
         followers
       </label>
-      <label
-        className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]"
-        title="Claude drafts a suggested reply for trending posts (daily refresh). The early feed no longer drafts."
-      >
-        <input
-          type="checkbox"
-          checked={cur.draftReplies}
-          onChange={(e) => setDraftReplies(e.target.checked)}
-        />
-        AI reply drafts on trending (off = no Anthropic spend on replies)
-      </label>
       <button
         onClick={() => void onSave()}
         className="text-sm bg-[var(--color-accent)] text-white rounded px-3 py-1.5 hover:bg-[var(--color-accent-hover)] w-full"
@@ -225,8 +210,8 @@ function SettingsCard() {
         {saved ? "Saved" : "Save"}
       </button>
       <p className="text-xs text-[var(--color-text-secondary)]">
-        Inside these hours the watchlist polls every 5 minutes with reply drafts
-        and pushes; outside, every ~20 minutes. Saving captures your timezone.
+        Inside these hours the watchlist polls every 5 minutes with pushes;
+        outside, every ~20 minutes. Saving captures your timezone.
       </p>
     </div>
   );

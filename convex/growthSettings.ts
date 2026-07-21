@@ -14,7 +14,6 @@ export interface GrowthSettings {
   tzOffsetMinutes: number;
   notifyEnabled?: boolean;
   notifyMinFollowers?: number;
-  draftReplies?: boolean; // opt-in — reply drafting costs Anthropic spend per fresh post
 }
 
 /** Is `nowMs` inside the configured active window? Handles overnight spans. */
@@ -43,7 +42,6 @@ export const set = mutation({
     tzOffsetMinutes: v.number(),
     notifyEnabled: v.optional(v.boolean()),
     notifyMinFollowers: v.optional(v.number()),
-    draftReplies: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

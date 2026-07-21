@@ -55,7 +55,6 @@ import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 import type * as versions from "../versions.js";
-import type * as voiceProfile from "../voiceProfile.js";
 import type * as weeklyReview from "../weeklyReview.js";
 import type * as xMetrics from "../xMetrics.js";
 import type * as xPoster from "../xPoster.js";
@@ -116,7 +115,6 @@ declare const fullApi: ApiFromModules<{
   stats: typeof stats;
   users: typeof users;
   versions: typeof versions;
-  voiceProfile: typeof voiceProfile;
   weeklyReview: typeof weeklyReview;
   xMetrics: typeof xMetrics;
   xPoster: typeof xPoster;

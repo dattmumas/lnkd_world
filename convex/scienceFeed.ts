@@ -26,7 +26,7 @@ import {
  *  - Business: the biggest business news, blended from general-business RSS
  *    (convex/bizSources.ts) and posts from business X accounts (convex/bizAccounts.ts).
  * Every recent article in each column is ranked by importance by Sonnet 4.6
- * (best-first) with a one-line angle; the top few also get a suggested tweet.
+ * (best-first) with a one-line angle for the top few.
  * Rendered to HTML stored in `scienceSnapshots`.
  */
 
@@ -35,7 +35,7 @@ const BIZ_WINDOW_DAYS = 3; // business moves fast
 const SCI_MAX_AGE_MS = SCI_WINDOW_DAYS * 24 * 3600 * 1000;
 const BIZ_MAX_AGE_MS = BIZ_WINDOW_DAYS * 24 * 3600 * 1000;
 const MAX_CANDIDATES = 150; // ~all recent articles per column, ranked in full
-const TWEET_TOP_N = 10; // only the top N ranked items get a drafted tweet
+const QUEUE_TOP_N = 10; // only the top N ranked items reach the queue (with an angle)
 const HANDLES_PER_QUERY = 15;
 
 const ON_LABEL =
@@ -88,22 +88,20 @@ async function fetchPosts(handles: string[]): Promise<FeedItem[]> {
 interface TopPick {
   n: number;
   angle: string;
-  tweet: string;
 }
 interface RankResult {
   order: number[]; // every item index, most important first
-  top: TopPick[]; // angle + tweet for the top TWEET_TOP_N only
+  top: TopPick[]; // angle for the top QUEUE_TOP_N only
 }
 interface Picked {
   item: FeedItem;
   angle: string;
-  tweet: string;
 }
 
 function prompt(topic: "science" | "business"): string {
   // Several outlets covering one story must not fill the top of the briefing —
   // exactly one telling ranks on merit, the rest sink.
-  const dedupe = `CRITICAL — one story, one slot: when several items cover the SAME story or event (different outlets, same news), rank ONLY the single best-reported item on its merits and place every other telling of that story in the bottom third. The top ${TWEET_TOP_N} positions must be ${TWEET_TOP_N} DIFFERENT stories.`;
+  const dedupe = `CRITICAL — one story, one slot: when several items cover the SAME story or event (different outlets, same news), rank ONLY the single best-reported item on its merits and place every other telling of that story in the bottom third. The top ${QUEUE_TOP_N} positions must be ${QUEUE_TOP_N} DIFFERENT stories.`;
   if (topic === "science") {
     return `You curate a "science news worth sharing" briefing. ${ON_LABEL}
 
@@ -119,8 +117,8 @@ ${dedupe}`;
 }
 
 // Ask the model for a full importance ordering (just index numbers — cheap to
-// emit even for 150 items) plus an angle + tweet for only the top few. Prose for
-// the long tail isn't rendered (compact rows show none), so we don't pay to
+// emit even for 150 items) plus an angle for only the top few. Prose for the
+// long tail isn't rendered (compact rows show none), so we don't pay to
 // generate it — this keeps the call fast enough to run on every refresh.
 async function rank(items: FeedItem[], topic: "science" | "business"): Promise<RankResult | null> {
   const key = process.env.anthropic_api_key;
@@ -131,8 +129,8 @@ async function rank(items: FeedItem[], topic: "science" | "business"): Promise<R
   const system = `${prompt(topic)}
 
 Return ONLY a JSON object, no prose:
-{"order": [<every item number, most important first>], "top": [{"n": <item number>, "angle": "<one short line on why it's worth sharing>", "tweet": "<casual, punchy tweet, 2-4 short lines, no hashtags, no em-dashes>"}]}
-"order" must list all ${items.length} item numbers exactly once. "top" gives an angle + tweet for ONLY the ${TWEET_TOP_N} most important items (the first ${TWEET_TOP_N} of "order").`;
+{"order": [<every item number, most important first>], "top": [{"n": <item number>, "angle": "<one short line on why it's worth sharing>"}]}
+"order" must list all ${items.length} item numbers exactly once. "top" gives an angle for ONLY the ${QUEUE_TOP_N} most important items (the first ${QUEUE_TOP_N} of "order").`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -218,17 +216,17 @@ function demoteDuplicates(ordered: Picked[]): Picked[] {
   return [...kept, ...dupes];
 }
 
-// Order all candidates best-first from the model's ranking, attaching angle +
-// tweet to the top items. Any indices the model omits are appended in date order
+// Order all candidates best-first from the model's ranking, attaching an angle
+// to the top items. Any indices the model omits are appended in date order
 // so nothing is dropped; on failure everything shows in date order.
 async function pick(candidates: FeedItem[], topic: "science" | "business"): Promise<Picked[]> {
   const ranked = await rank(candidates, topic);
   if (!ranked) {
-    return candidates.map((item) => ({ item, angle: "", tweet: "" }));
+    return candidates.map((item) => ({ item, angle: "" }));
   }
-  const extras = new Map<number, { angle: string; tweet: string }>();
+  const extras = new Map<number, { angle: string }>();
   for (const t of ranked.top) {
-    extras.set(t.n, { angle: t.angle ?? "", tweet: t.tweet ?? "" });
+    extras.set(t.n, { angle: t.angle ?? "" });
   }
   const used = new Set<number>();
   const out: Picked[] = [];
@@ -236,10 +234,10 @@ async function pick(candidates: FeedItem[], topic: "science" | "business"): Prom
     if (used.has(n)) continue;
     used.add(n);
     const extra = extras.get(n);
-    out.push({ item: candidates[n], angle: extra?.angle ?? "", tweet: extra?.tweet ?? "" });
+    out.push({ item: candidates[n], angle: extra?.angle ?? "" });
   }
   candidates.forEach((item, i) => {
-    if (!used.has(i)) out.push({ item, angle: "", tweet: "" });
+    if (!used.has(i)) out.push({ item, angle: "" });
   });
   return demoteDuplicates(out);
 }
@@ -251,7 +249,7 @@ async function pick(candidates: FeedItem[], topic: "science" | "business"): Prom
 
 function queueItems(picks: Picked[], feed: "science" | "biz"): QueueItemPayload[] {
   const label = feed === "science" ? "science" : "business";
-  return picks.slice(0, TWEET_TOP_N).map((p, i) => {
+  return picks.slice(0, QUEUE_TOP_N).map((p, i) => {
     const tweetId = p.item.kind === "post" ? tweetIdFromLink(p.item.link) : null;
     const kind = tweetId ? ("x-post" as const) : ("article" as const);
     return {
@@ -268,8 +266,6 @@ function queueItems(picks: Picked[], feed: "science" | "biz"): QueueItemPayload[
       authorUsername: p.item.source.startsWith("@")
         ? p.item.source.slice(1).toLowerCase()
         : undefined,
-      draft: p.tweet || undefined,
-      draftKind: p.tweet ? ("post" as const) : undefined,
       angle: p.angle || undefined,
       baseScore: newsBaseScore(i + 1),
       halfLifeHours: HALF_LIFE_HOURS[feed],

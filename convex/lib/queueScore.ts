@@ -171,8 +171,6 @@ export interface QueueItemPayload {
   quotes?: number;
   bookmarkCount?: number;
   views?: number;
-  draft?: string;
-  draftKind?: "reply" | "post";
   angle?: string;
   baseScore: number;
   halfLifeHours: number;
@@ -210,8 +208,6 @@ export function itemFromRankedPost(
     quotes: m.quote_count,
     bookmarkCount: m.bookmark_count,
     views: m.impression_count,
-    draft: p.reply,
-    draftKind: p.reply ? "reply" : undefined,
     baseScore: scoring.baseScore,
     halfLifeHours: HALF_LIFE_HOURS[feed],
     scoreReason: scoring.scoreReason,

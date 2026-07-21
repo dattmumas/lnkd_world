@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { computeBestWindows, DEFAULT_WINDOW_NOTE } from "./best-times";
@@ -29,9 +29,9 @@ function CharCount({ text }: { text: string }) {
 }
 
 /**
- * The post composer (growth dashboard, Pipeline tab): write or Claude-draft a
- * single post or thread, tag its pillar, optionally schedule it. Editing an
- * existing card reuses the same form.
+ * The post composer (growth dashboard, Pipeline tab): write a single post or
+ * thread, tag its pillar, optionally schedule it. Editing an existing card
+ * reuses the same form.
  */
 export function Composer({
   editing,
@@ -43,9 +43,6 @@ export function Composer({
   const create = useMutation(api.xPosts.create);
   const update = useMutation(api.xPosts.update);
   const schedule = useMutation(api.xPosts.schedule);
-  const draftWithClaude = useAction(api.xPosts.draftWithClaude);
-  const voiceStatus = useQuery(api.voiceProfile.status);
-  const refreshVoice = useAction(api.voiceProfile.refresh);
   const board = useQuery(api.xPosts.board); // deduped with the pipeline's subscription
 
   const [pillar, setPillar] = useState<Pillar>(editing?.pillar ?? "health");
@@ -55,48 +52,12 @@ export function Composer({
   const [evergreen, setEvergreen] = useState(editing?.isEvergreen ?? false);
   const [when, setWhen] = useState(""); // datetime-local value
   const [autoPost, setAutoPost] = useState(editing?.autoPost !== false);
-  const [topic, setTopic] = useState("");
   const [sourceMaterial, setSourceMaterial] = useState(editing?.sourceText ?? "");
   const [showSource, setShowSource] = useState(!!editing?.sourceText);
-  const [altHooks, setAltHooks] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const voice = voiceStatus?.[pillar];
-
   const effectiveParts = kind === "thread" ? parts : [];
-
-  const onDraft = async () => {
-    if (!topic.trim()) {
-      setError("Give Claude a topic or angle first.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const result = await draftWithClaude({
-        pillar,
-        kind,
-        topic: topic.trim(),
-        sourceMaterial: sourceMaterial.trim() || undefined,
-      });
-      if (!result) {
-        setError("Claude returned nothing usable. Try rephrasing the topic.");
-      } else {
-        setBody(result.body);
-        setAltHooks(result.altHooks ?? []);
-        if (result.threadParts?.length) {
-          setKind("thread");
-          setParts(result.threadParts);
-        }
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const save = async (status: "idea" | "draft") => {
     if (!body.trim()) {
@@ -188,57 +149,21 @@ export function Composer({
         </label>
       </div>
 
-      {/* Claude drafting */}
-      <div className="border border-[var(--color-border)] rounded p-3 bg-[var(--color-bg)] space-y-2">
-        <div className="flex gap-2">
-          <input
-            placeholder="Topic or angle for Claude…"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className={`${field} flex-1`}
-          />
-          <button
-            onClick={() => void onDraft()}
-            disabled={busy}
-            className="text-sm border border-[var(--color-border)] rounded px-3 py-1.5 bg-white hover:bg-[var(--color-border)]/30 disabled:opacity-50 shrink-0"
-          >
-            {busy ? "Drafting…" : "Draft with Claude"}
-          </button>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => setShowSource((s) => !s)}
-            className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-          >
-            {showSource ? "− source material" : "+ paste source material"}
-          </button>
-          <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
-            {voice
-              ? `Voice: ${voice.ownPosts} of your posts + ${voice.nicheWinners} niche winners (${new Date(voice.refreshedAt).toLocaleDateString()})`
-              : "Voice: not grounded yet — refreshes on first draft"}
-          </span>
-          <button
-            onClick={() => {
-              setRefreshing(true);
-              refreshVoice({ pillar })
-                .catch((e) =>
-                  setError(e instanceof Error ? e.message : String(e)),
-                )
-                .finally(() => setRefreshing(false));
-            }}
-            disabled={refreshing}
-            className="text-xs text-[var(--color-accent)] hover:underline disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
+      {/* Source material notes */}
+      <div>
+        <button
+          onClick={() => setShowSource((s) => !s)}
+          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        >
+          {showSource ? "− source material" : "+ paste source material"}
+        </button>
         {showSource && (
           <textarea
-            placeholder="Article, notes, or data for Claude to ground the draft in…"
+            placeholder="Article, notes, or data this post draws from…"
             value={sourceMaterial}
             onChange={(e) => setSourceMaterial(e.target.value)}
             rows={4}
-            className={`${field} w-full`}
+            className={`${field} w-full mt-2`}
           />
         )}
       </div>
@@ -257,31 +182,6 @@ export function Composer({
           rows={3}
           className={`${field} w-full`}
         />
-        {altHooks.length > 0 && (
-          <div className="mt-2">
-            <span className="text-xs text-[var(--color-text-secondary)] mr-2">
-              Alternate hooks:
-            </span>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {altHooks.map((h, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    // Swap only the opening line; keep the rest of the body.
-                    const rest = body.includes("\n")
-                      ? body.slice(body.indexOf("\n"))
-                      : "";
-                    setBody(h + rest);
-                  }}
-                  className="text-xs text-left border border-[var(--color-border)] rounded px-2 py-1 bg-white hover:border-[var(--color-accent)] max-w-full truncate"
-                  title={h}
-                >
-                  {h}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
       {kind === "thread" && (
         <div className="space-y-3">
