@@ -1,14 +1,4 @@
 import Link from "next/link";
-import Barcode from "@/components/ledger/barcode";
-
-const INKS = [
-  { c: "#141210", label: "K" },
-  { c: "#55503F", label: "K70" },
-  { c: "#857C6D", label: "S70" },
-  { c: "#B3AA99", label: "S" },
-  { c: "#C7331D", label: "R" },
-  { c: "#E8E3D7", label: "T" },
-];
 
 // The paper's own section map: A = the Lead, B = the Second Section,
 // C = Markets. Page numbers navigate the same broadsheet the landing lays out.
@@ -23,10 +13,8 @@ const INDEX = [
 
 /**
  * The colophon. The account is ruled off (a ledger closes with a thin-over-
- * thick double rule), three columns file the paper's own record — how it's
- * set, its index, where it's filed from — and the sheet ends on the press
- * plate: the wordmark reversed out of an ink field, sliding off the bottom
- * edge. The masthead printed the impression; this is the plate that made it.
+ * thick double rule), then three columns file the paper's own record — how
+ * it's set, its index, and where it's filed from.
  */
 export default function Footer() {
   return (
@@ -87,47 +75,6 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* The plate: ink field, proof furniture, and the reversed wordmark
-          sliding off the bottom of the sheet. */}
-      <div className="bg-[var(--color-border)] -mx-6 lg:-mx-12 px-6 lg:px-12 pt-6 overflow-hidden">
-        <div className="flex items-end justify-between gap-6 flex-wrap">
-          <div>
-            <div className="flex" aria-hidden>
-              {INKS.map((ink) => (
-                <span
-                  key={ink.label}
-                  className="block w-7 h-7 border border-[rgba(243,240,233,0.3)] -ml-px first:ml-0"
-                  style={{ backgroundColor: ink.c }}
-                  title={ink.label}
-                />
-              ))}
-            </div>
-            <p className="ol-mono text-[10px] text-[rgba(243,240,233,0.55)] mt-1.5 tracking-widest uppercase">
-              Ink check · K·S·R·T calibrated
-            </p>
-          </div>
-
-          {/* A real Code 39 barcode — scan it */}
-          <div className="text-right">
-            <Barcode value="LNKD 2026" height={34} className="text-[var(--color-bg)] w-56" />
-            <p className="ol-mono text-[10px] text-[rgba(243,240,233,0.55)] mt-1.5 tracking-widest uppercase">
-              *LNKD 2026* · End of press run
-            </p>
-          </div>
-        </div>
-
-        <div
-          aria-hidden
-          className="select-none text-[clamp(4.5rem,15vw,13rem)] mt-5 md:mt-6"
-          style={{ fontFamily: "var(--font-display), Helvetica, sans-serif" }}
-        >
-          <div className="h-[0.5em] overflow-hidden">
-            <span className="block font-bold leading-none tracking-tight text-[var(--color-bg)] -translate-y-[0.07em]">
-              LNKD
-            </span>
-          </div>
-        </div>
-      </div>
     </footer>
   );
 }
