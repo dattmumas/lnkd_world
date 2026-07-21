@@ -22,8 +22,6 @@
   --color-paper-raised: #F8F5EE;
   --color-leader: #9A937F;
   --color-stone: #A79D8D;
-  --color-stone-field: #B3AA99;
-  --color-stone-deep: #857C6D;
 }
 
 body {
@@ -159,23 +157,6 @@ h1, h2, h3, h4, h5, h6 {
 /* ==========================================================================
    Broadsheet landing — the stone register.
    ========================================================================== */
-
-/* The carved slab: the site's one engraved surface. The page's texture
-   lives here alone — the rest of the sheet stays flat. */
-.ol-stone-field {
-  background-color: var(--color-stone-field);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-blend-mode: multiply;
-}
-
-/* Engraved display type: darker-stone groove, light on the lower lip,
-   shadow in the upper cut. Only reads on the stone field. */
-.ol-carved {
-  color: color-mix(in srgb, var(--color-stone-field) 38%, var(--color-stone-deep));
-  text-shadow:
-    0 1.5px 1px rgba(255, 255, 255, 0.5),
-    0 -1.5px 1px rgba(0, 0, 0, 0.35);
-}
 
 /* The wire: a seamless marquee. Content renders twice; the track slides one
    copy's width, so the loop never shows a seam. Hover pauses the run. */
