@@ -28,8 +28,8 @@ function filingMeta(now: Date): { date: string; edition: number } {
 
 /**
  * The masthead — the landing's loud register. The wordmark runs at newspaper
- * scale while its red plate visibly registers (ol-plate-register), and the
- * dateline row reads like a press docket: edition left, coordinates right.
+ * scale in plain ink, and the dateline row reads like a press docket:
+ * edition left, coordinates right.
  * The date and edition are computed at render so they exist in server HTML
  * (crawlers, previews, no-JS readers get a dated edition line, not a "———"
  * placeholder); the effect then re-files them in the visitor's local
@@ -55,7 +55,7 @@ export default function Masthead() {
             interactive
             className="shrink-0 mb-2 md:mb-3"
           />
-          <h1 className="ol-plate-register font-bold leading-[0.85] tracking-tight text-[clamp(4.5rem,13vw,11rem)] select-none">
+          <h1 className="font-bold leading-[0.85] tracking-tight text-[clamp(4.5rem,13vw,11rem)] select-none">
             LNKD
           </h1>
         </div>

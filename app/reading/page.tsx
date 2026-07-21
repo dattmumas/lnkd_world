@@ -121,7 +121,7 @@ function ReadingsList() {
                         </p>
                         <Link
                           href="/subscribe"
-                          className="text-sm text-[var(--color-accent)] hover:underline underline-offset-4"
+                          className="text-sm text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
                         >
                           Subscribe to read
                         </Link>
@@ -139,7 +139,7 @@ function ReadingsList() {
                       href={reading.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-[var(--color-accent)] hover:underline underline-offset-4 mt-2 inline-block"
+                      className="text-sm text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 mt-2 inline-block"
                     >
                       Source &rarr;
                     </a>

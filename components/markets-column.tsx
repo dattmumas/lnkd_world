@@ -35,7 +35,7 @@ export default function MarketsColumn() {
           </span>
           <Link
             href="/deals"
-            className="text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
+            className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
           >
             Radar →
           </Link>
@@ -59,7 +59,7 @@ export default function MarketsColumn() {
                       {d.company}
                     </span>
                     <span className="ol-leader" />
-                    <span className="ol-mono text-xs font-bold text-[var(--color-accent)] shrink-0">
+                    <span className="ol-mono text-xs font-bold text-[var(--color-text)] shrink-0">
                       {fmtAmount(d)}
                     </span>
                   </span>

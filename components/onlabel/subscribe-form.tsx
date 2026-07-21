@@ -79,7 +79,7 @@ export default function SubscribeForm({
       <button
         type="submit"
         disabled={state === "sending"}
-        className={`ol-mono text-sm font-bold bg-[var(--color-border)] text-[var(--color-bg)] px-5 py-2.5 ol-btn-press disabled:opacity-60 whitespace-nowrap ${stack ? "w-full" : ""}`}
+        className={`ol-mono text-sm font-bold bg-[var(--color-border)] text-[var(--color-bg)] px-5 py-2.5 ol-btn-press hover:bg-[var(--color-accent)] transition-colors disabled:opacity-60 whitespace-nowrap ${stack ? "w-full" : ""}`}
       >
         {state === "sending" ? "PRINTING…" : "SUBSCRIBE →"}
       </button>

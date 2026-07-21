@@ -8,16 +8,15 @@ import OnLabelSection from "@/components/onlabel-section";
 import SecondSection from "@/components/second-section";
 
 /**
- * The landing as the front page of a daily fresh off the press: a masthead
- * whose red plate visibly registers, a live wire ticker, then the broadsheet
- * band (The Lead = On Label, The Wire = applications, Markets = deal flow),
- * and the writing as editorials in the Second Section. Paper grain lies over
- * the whole sheet.
+ * The landing as the front page of a daily: a masthead at newspaper scale, a
+ * live wire ticker, then the broadsheet band (The Lead = On Label, The Wire =
+ * applications, Markets = deal flow), and the writing as editorials in the
+ * Second Section. The sheet stays flat — texture lives only in the footer's
+ * carved stone slab.
  */
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col w-full px-6 lg:px-12">
-      <div className="ol-grain" aria-hidden />
       <Nav />
       <main className="flex-1 py-10 md:py-14 ol-print-in">
         <Masthead />

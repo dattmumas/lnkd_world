@@ -83,7 +83,7 @@ export default function Ticker() {
       className="ol-ticker border-b-2 border-[var(--color-border)]"
     >
       <div className="flex items-stretch">
-        <span className="ol-mono text-[10px] font-bold uppercase tracking-widest bg-[var(--color-accent)] text-[var(--color-bg)] px-3 py-1.5 shrink-0 flex items-center select-none">
+        <span className="ol-mono text-[10px] font-bold uppercase tracking-widest bg-[var(--color-border)] text-[var(--color-bg)] px-3 py-1.5 shrink-0 flex items-center select-none">
           The Ledger
         </span>
         <div
@@ -118,7 +118,7 @@ export default function Ticker() {
                         >
                           {item}
                           <span
-                            className="text-[var(--color-accent)] px-4 select-none"
+                            className="text-[var(--color-stone)] px-4 select-none"
                             aria-hidden
                           >
                             {"//"}

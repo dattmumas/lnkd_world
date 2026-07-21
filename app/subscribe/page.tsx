@@ -18,7 +18,7 @@ function SignedInState() {
       <div className="flex gap-4">
         <Link
           href="/resources"
-          className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
         >
           View Resources
         </Link>

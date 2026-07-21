@@ -63,7 +63,7 @@ export default function PostPage() {
             <h1 className="text-2xl font-semibold mb-4">Post not found</h1>
             <Link
               href="/writing"
-              className="text-[var(--color-accent)] hover:underline underline-offset-4"
+              className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
             >
               Back to writing
             </Link>
@@ -119,7 +119,7 @@ export default function PostPage() {
                   </p>
                   <Link
                     href="/subscribe"
-                    className="text-[var(--color-accent)] hover:underline underline-offset-4 font-medium"
+                    className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 font-medium"
                   >
                     Subscribe to read
                   </Link>
@@ -142,7 +142,7 @@ export default function PostPage() {
                     <Link
                       key={bl}
                       href={`/writing/${bl}`}
-                      className="text-sm text-[var(--color-accent)] hover:underline underline-offset-4"
+                      className="text-sm text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
                     >
                       {bl}
                     </Link>

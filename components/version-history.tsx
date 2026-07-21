@@ -164,9 +164,9 @@ export default function VersionHistory({ versions }: { versions: VersionMeta[] }
             <div
               className={`absolute left-0 top-1.5 w-[15px] h-[15px] rounded-full border-2 ${
                 isSelected
-                  ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
+                  ? "bg-[var(--color-border)] border-[var(--color-border)]"
                   : i === 0
-                    ? "bg-[var(--color-accent)]/20 border-[var(--color-accent)]"
+                    ? "bg-[var(--color-stone)] border-[var(--color-border)]"
                     : "bg-[var(--color-bg)] border-[var(--color-border)]"
               }`}
             />

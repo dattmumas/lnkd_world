@@ -33,7 +33,7 @@ function HistoryContent() {
         <h1 className="text-2xl font-semibold mb-4">Post not found</h1>
         <Link
           href="/writing"
-          className="text-[var(--color-accent)] hover:underline underline-offset-4"
+          className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
         >
           Back to writing
         </Link>

@@ -12,7 +12,7 @@ function AdminBar() {
   if (!user || user.role !== "admin") return null;
 
   return (
-    <div className="bg-[#141210] text-[#F7F4EE] text-xs py-1.5 -mx-6 px-6 flex gap-4 items-center overflow-x-auto ol-mono">
+    <div className="bg-[var(--color-border)] text-[var(--color-bg)] text-xs py-1.5 -mx-6 px-6 flex gap-4 items-center overflow-x-auto ol-mono">
       <span className="font-bold shrink-0">ADMIN</span>
       <Link href="/admin" className="hover:underline underline-offset-2 shrink-0">Dashboard</Link>
       <Link href="/admin/posts" className="hover:underline underline-offset-2 shrink-0">Posts</Link>
@@ -49,7 +49,7 @@ export default function Nav() {
           LNKD
         </Link>
         <nav className="flex flex-wrap justify-end gap-x-3 gap-y-1.5 md:gap-x-5 items-center">
-          <Link href="/onlabel" className={`${navLink} text-[var(--color-accent)]`}>
+          <Link href="/onlabel" className={navLink}>
             On Label
           </Link>
           <Link href="/notes" className={navLink}>

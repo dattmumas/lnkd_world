@@ -18,7 +18,7 @@ export default function TagList({
       {activeTag && (
         <button
           onClick={() => router.push(basePath)}
-          className="text-xs px-2.5 py-1 rounded-full border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
+          className="text-xs px-2.5 py-1 rounded-full border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-border)] hover:text-[var(--color-bg)] transition-colors"
         >
           Clear filter
         </button>
@@ -29,7 +29,7 @@ export default function TagList({
           onClick={() => router.push(`${basePath}?tag=${encodeURIComponent(tag)}`)}
           className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
             activeTag === tag
-              ? "bg-[var(--color-accent)] text-white border-[var(--color-accent)]"
+              ? "bg-[var(--color-border)] text-[var(--color-bg)] border-[var(--color-border)]"
               : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
           }`}
         >

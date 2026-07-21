@@ -22,7 +22,7 @@ function ColumnHead({ title, href }: { title: string; href: string }) {
       </p>
       <Link
         href={href}
-        className="ol-mono text-[11px] font-bold text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
+        className="ol-mono text-[11px] font-bold text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
       >
         ALL →
       </Link>
@@ -118,7 +118,7 @@ export default function SecondSection() {
                         {filled !== null && (
                           <>
                             {" · "}
-                            <span className="text-[var(--color-accent)]">
+                            <span className="text-[var(--color-text)]">
                               {"●".repeat(filled)}
                             </span>
                             <span className="text-[var(--color-leader)]">
@@ -156,7 +156,7 @@ export default function SecondSection() {
                     className="group block"
                   >
                     <h3 className={serifTitle}>{b.title}</h3>
-                    <p className="ol-mono text-[10px] uppercase tracking-widest text-[var(--color-accent)] mt-1">
+                    <p className="ol-mono text-[10px] uppercase tracking-widest text-[var(--color-text-secondary)] group-hover:text-[var(--color-accent)] mt-1">
                       {hostname(b.url)} ↗
                     </p>
                   </a>

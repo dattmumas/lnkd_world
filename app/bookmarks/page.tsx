@@ -57,7 +57,7 @@ function BookmarksList() {
                   href={bookmark.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[var(--color-accent)] hover:underline underline-offset-4"
+                  className="font-medium text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
                 >
                   {bookmark.title}
                 </a>
@@ -81,7 +81,7 @@ function BookmarksList() {
                   <p className="text-sm text-[var(--color-text-secondary)] italic">
                     <Link
                       href="/subscribe"
-                      className="text-[var(--color-accent)] hover:underline underline-offset-4"
+                      className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4"
                     >
                       Subscribe
                     </Link>{" "}

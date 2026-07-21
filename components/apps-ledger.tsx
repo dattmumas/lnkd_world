@@ -5,16 +5,16 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 /**
- * THE WIRE — the applications as filings. Middle weight: a tan-headed box
- * with a vermilion plate-stripe down its left edge; each entry carries a
- * small misregistered plate-square, the same press run as the masthead mark.
+ * THE WIRE — the applications as filings. Middle weight: a tan-headed box;
+ * each entry is a ledger row with dot leaders, LIVE chips in vermilion (the
+ * live signal), the rest in ink.
  */
 export default function AppsLedger() {
   const projects = useQuery(api.projects.list);
 
   return (
     <section className="h-full">
-      <div className="ol-box border-l-4 border-l-[var(--color-accent)] h-full flex flex-col">
+      <div className="ol-box h-full flex flex-col">
         <div className="ol-box-head flex items-baseline justify-between gap-4">
           <span>
             The Wire
@@ -30,11 +30,7 @@ export default function AppsLedger() {
         <div className="px-5 py-4 flex-1 flex flex-col justify-between gap-4">
           <Link href="/bonds" className="block group">
             <span className="ol-leader-row">
-              <span className="flex items-center gap-2 min-w-0">
-                <span
-                  className="inline-block h-2.5 w-2.5 shrink-0 bg-[var(--color-border)] shadow-[2px_2px_0_0_var(--color-accent)]"
-                  aria-hidden
-                />
+              <span className="min-w-0">
                 <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
                   BONDS TERMINAL
                 </span>
@@ -49,11 +45,7 @@ export default function AppsLedger() {
 
           <Link href="/deals" className="block group">
             <span className="ol-leader-row">
-              <span className="flex items-center gap-2 min-w-0">
-                <span
-                  className="inline-block h-2.5 w-2.5 shrink-0 bg-[var(--color-border)] shadow-[2px_2px_0_0_var(--color-accent)]"
-                  aria-hidden
-                />
+              <span className="min-w-0">
                 <span className="ol-mono text-sm font-bold group-hover:text-[var(--color-accent)]">
                   DEAL RADAR
                 </span>
@@ -75,11 +67,7 @@ export default function AppsLedger() {
               className="block group"
             >
               <span className="ol-leader-row">
-                <span className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="inline-block h-2.5 w-2.5 shrink-0 bg-[var(--color-border)] shadow-[2px_2px_0_0_var(--color-accent)]"
-                    aria-hidden
-                  />
+                <span className="min-w-0">
                   <span className="ol-mono text-sm font-bold uppercase group-hover:text-[var(--color-accent)]">
                     {p.title}
                   </span>

@@ -31,7 +31,7 @@ function isDetail(row: GridRow): row is { detailFor: Deal } {
 
 // The grid wears the ledger: paper, ink rules, mono headers, zero radius.
 const ledgerTheme = themeQuartz.withParams({
-  backgroundColor: "#F7F4EE",
+  backgroundColor: "#F3F0E9",
   foregroundColor: "#141210",
   accentColor: "#C7331D",
   borderColor: "#DAD4C6",
@@ -41,13 +41,13 @@ const ledgerTheme = themeQuartz.withParams({
   wrapperBorderRadius: 0,
   fontFamily: "Georgia, serif",
   fontSize: 13,
-  headerBackgroundColor: "#EDE7DA",
+  headerBackgroundColor: "#E8E3D7",
   headerTextColor: "#141210",
   headerFontFamily: '"Space Mono", monospace',
   headerFontSize: 11,
   headerFontWeight: 700,
-  oddRowBackgroundColor: "#F3F0E8",
-  rowHoverColor: "#EDE7DA",
+  oddRowBackgroundColor: "#EFEBE2",
+  rowHoverColor: "#E8E3D7",
   spacing: 6,
 });
 
@@ -97,7 +97,7 @@ function LedgerMultiSelect({
         onClick={() => setOpen((o) => !o)}
         className={`ol-mono text-xs font-bold uppercase bg-transparent border-2 px-3 py-2 flex items-center gap-2 ${
           selected.size > 0
-            ? "border-[var(--color-accent)] text-[var(--color-accent)]"
+            ? "border-[var(--color-border)] bg-[var(--color-border)] text-[var(--color-bg)]"
             : "border-[var(--color-border)]"
         }`}
       >
@@ -109,7 +109,7 @@ function LedgerMultiSelect({
           {selected.size > 0 && (
             <button
               onClick={() => onChange(new Set())}
-              className="w-full text-left ol-mono text-[11px] font-bold uppercase px-3 py-2 text-[var(--color-accent)] border-b border-dashed border-[var(--color-border)] hover:bg-[var(--color-fill-tan)]"
+              className="w-full text-left ol-mono text-[11px] font-bold uppercase px-3 py-2 hover:text-[var(--color-accent)] border-b border-dashed border-[var(--color-border)] hover:bg-[var(--color-fill-tan)]"
             >
               Clear ×{selected.size}
             </button>
@@ -157,7 +157,7 @@ function FoundersCell({ data }: ICellRendererParams<Deal>) {
               href={`https://x.com/${f.xHandle}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--color-accent)] hover:underline"
+              className="underline underline-offset-2 decoration-[var(--color-stone)] hover:text-[var(--color-accent)]"
             >
               {f.name}
             </a>
@@ -178,7 +178,7 @@ function SourceCell({ data }: ICellRendererParams<Deal>) {
       href={s.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-[var(--color-accent)] hover:underline"
+      className="underline underline-offset-2 decoration-[var(--color-stone)] hover:text-[var(--color-accent)]"
     >
       {s.name} ↗
     </a>
@@ -190,7 +190,7 @@ function DetailRow({ data }: ICellRendererParams<GridRow>) {
   if (!data || !isDetail(data)) return null;
   const d = data.detailFor;
   return (
-    <div className="h-full px-5 py-3 border-l-4 border-[var(--color-accent)] bg-[var(--color-fill-tan)] overflow-y-auto text-[13px] leading-relaxed">
+    <div className="h-full px-5 py-3 border-l-4 border-[var(--color-border)] bg-[var(--color-fill-tan)] overflow-y-auto text-[13px] leading-relaxed">
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-1">
         <div>
           <p className="ol-mono text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
@@ -208,7 +208,7 @@ function DetailRow({ data }: ICellRendererParams<GridRow>) {
                   href={d.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--color-accent)] hover:underline"
+                  className="underline underline-offset-2 decoration-[var(--color-stone)] hover:text-[var(--color-accent)]"
                 >
                   {d.website.replace(/^https?:\/\/(www\.)?/, "")}
                 </a>
@@ -238,7 +238,7 @@ function DetailRow({ data }: ICellRendererParams<GridRow>) {
             href={s.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-accent)] hover:underline mr-4"
+            className="underline underline-offset-2 decoration-[var(--color-stone)] hover:text-[var(--color-accent)] mr-4"
           >
             {s.name} ↗
           </a>

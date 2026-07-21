@@ -59,7 +59,7 @@ export default function SubscribePopup() {
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="ol-mono text-[10px] font-bold text-[var(--color-accent)] tracking-widest uppercase">
+        <p className="ol-mono text-[10px] font-bold tracking-widest uppercase">
           Subscription slip · Nº 001
         </p>
         <button

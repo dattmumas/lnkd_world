@@ -8,18 +8,22 @@
   --font-plexsans: var(--font-plex-sans);
   --font-plexmono: var(--font-plex-mono);
 
-  /* Ledger identity (shared with the On Label newsletter template):
-     paper ground, ink text, vermilion accent, tan fills, zero radius. */
-  --color-bg: #F7F4EE;
-  --color-text: #232019;
+  /* Stone-register identity: bone ground, ink text, stone mid-tones, zero
+     radius. Vermilion survives only as an interaction/live signal (hovers,
+     LIVE chips, live data markers) — never as structure. */
+  --color-bg: #F3F0E9;
+  --color-text: #1C1913;
   --color-text-secondary: #55503F;
   --color-accent: #C7331D;
   --color-accent-hover: #A32917;
   --color-border: #141210;
   --color-border-soft: #DAD4C6;
-  --color-fill-tan: #EDE7DA;
-  --color-paper-raised: #F9F6F0;
+  --color-fill-tan: #E8E3D7;
+  --color-paper-raised: #F8F5EE;
   --color-leader: #9A937F;
+  --color-stone: #A79D8D;
+  --color-stone-field: #B3AA99;
+  --color-stone-deep: #857C6D;
 }
 
 body {
@@ -47,12 +51,6 @@ h1, h2, h3, h4, h5, h6 {
   color: #000000;
 }
 
-/* Misregistered display type — the red plate lands off behind the ink,
-   same press run as the mark. Display sizes only; it muddies body text. */
-.ol-misprint {
-  text-shadow: 0.045em 0.045em 0 var(--color-accent);
-}
-
 /* Essay typography: better rag, and a drop cap set like a ledger initial. */
 .ol-article p {
   text-wrap: pretty;
@@ -66,7 +64,7 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 0.85;
   padding: 0.04em 0.12em 0 0;
   color: var(--color-text);
-  text-shadow: 0.05em 0.05em 0 var(--color-accent);
+  text-shadow: 0.05em 0.05em 0 var(--color-stone);
 }
 
 /* Ledger utilities — the receipt vocabulary used across public pages. */
@@ -105,12 +103,12 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 6px 6px 0 0 var(--color-border-soft);
 }
 
-/* The page's single loudest weight: ink frame, vermilion plate behind.
+/* The page's single loudest weight: ink frame, deep stone shadow behind.
    One instance per page — it's where the eye should land. */
 .ol-panel-anchor {
   border: 2px solid var(--color-border);
   border-radius: 0;
-  box-shadow: 8px 8px 0 0 var(--color-accent);
+  box-shadow: 8px 8px 0 0 var(--color-stone);
 }
 
 /* Header strip anchored to the top of a box — exhibit labels live on their
@@ -126,20 +124,20 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--color-fill-tan);
 }
 
-/* Press-in button: an offset red plate behind ink; pressing seats the plates. */
+/* Press-in button: an offset plate behind ink; pressing seats the plates. */
 .ol-btn-press {
-  box-shadow: 4px 4px 0 0 var(--color-accent);
+  box-shadow: 4px 4px 0 0 var(--color-border);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .ol-btn-press:hover {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 0 var(--color-accent);
+  box-shadow: 2px 2px 0 0 var(--color-border);
 }
 
 .ol-btn-press:active {
   transform: translate(4px, 4px);
-  box-shadow: 0 0 0 0 var(--color-accent);
+  box-shadow: 0 0 0 0 var(--color-border);
 }
 
 /* The page feeds out of the printer on load. */
@@ -159,43 +157,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   Broadsheet landing — the press-run surface details.
+   Broadsheet landing — the stone register.
    ========================================================================== */
 
-/* Paper grain: a fixed fractal-noise sheet laid over the page. Multiply keeps
-   it off the ink; opacity stays low enough that boxes still read flat. */
-.ol-grain {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: multiply;
+/* The carved slab: the site's one engraved surface. The page's texture
+   lives here alone — the rest of the sheet stays flat. */
+.ol-stone-field {
+  background-color: var(--color-stone-field);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-blend-mode: multiply;
 }
 
-/* The press calibrates on load: the red plate slides in from a coarse offset
-   and seats at the standard misprint. The resting shadow lives on the class
-   itself, so it survives after the animation ends. */
-.ol-plate-register {
-  text-shadow: 0.045em 0.045em 0 var(--color-accent);
-  animation: ol-plate-register 900ms cubic-bezier(0.22, 1, 0.36, 1) 250ms backwards;
-}
-
-@keyframes ol-plate-register {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-    text-shadow: 0.16em 0.16em 0 var(--color-accent);
-  }
-  45% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-    text-shadow: 0.045em 0.045em 0 var(--color-accent);
-  }
+/* Engraved display type: darker-stone groove, light on the lower lip,
+   shadow in the upper cut. Only reads on the stone field. */
+.ol-carved {
+  color: color-mix(in srgb, var(--color-stone-field) 38%, var(--color-stone-deep));
+  text-shadow:
+    0 1.5px 1px rgba(255, 255, 255, 0.5),
+    0 -1.5px 1px rgba(0, 0, 0, 0.35);
 }
 
 /* The wire: a seamless marquee. Content renders twice; the track slides one
@@ -286,9 +265,6 @@ h1, h2, h3, h4, h5, h6 {
   .ol-print-in {
     animation: none;
   }
-  .ol-plate-register {
-    animation: none;
-  }
   .ol-ticker-track {
     animation: none;
   }
@@ -338,8 +314,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Obsidian callouts */
 .callout {
   border-left: 3px solid var(--color-accent);
-  background: var(--color-border);
-  border-radius: 0.375rem;
+  background: var(--color-fill-tan);
+  border-radius: 0;
   padding: 0.75rem 1rem;
   margin: 1rem 0;
 }

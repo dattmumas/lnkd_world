@@ -137,7 +137,7 @@ export default function Markdown({
         a: ({ href, children }) => (
           <a
             href={href}
-            className="text-[var(--color-accent)] hover:underline underline-offset-4"
+            className="underline underline-offset-4 decoration-[var(--color-stone)] hover:text-[var(--color-accent)] hover:decoration-[var(--color-accent)]"
             target={href?.startsWith("http") ? "_blank" : undefined}
             rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
           >
@@ -145,7 +145,7 @@ export default function Markdown({
           </a>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-[var(--color-accent)] pl-4 my-4 italic text-[var(--color-text-secondary)]">
+          <blockquote className="border-l-2 border-[var(--color-stone)] pl-4 my-4 italic text-[var(--color-text-secondary)]">
             {children}
           </blockquote>
         ),

@@ -31,7 +31,7 @@ export default function OnLabelHome() {
         <div className="min-w-0">
           <div className="flex items-center gap-4">
             <LedgerMark size={48} className="shrink-0" interactive />
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight ol-misprint">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               ON LABEL
             </h1>
           </div>
@@ -62,7 +62,7 @@ export default function OnLabelHome() {
             <p className="ol-mono text-xs font-bold uppercase tracking-widest">
               The Weekly Letter
             </p>
-            <span className="text-[var(--color-accent)] leading-none select-none">■</span>
+            <span className="text-[var(--color-stone)] leading-none select-none">■</span>
           </div>
 
           <div className="px-5 py-5 grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-x-12 lg:items-center">
@@ -98,7 +98,7 @@ export default function OnLabelHome() {
             <span>Latest entries</span>
             <Link
               href="/onlabel/archive"
-              className="text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
+              className="text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
             >
               Full archive →
             </Link>
@@ -147,7 +147,7 @@ export default function OnLabelHome() {
                           {p.subtitle}
                         </span>
                       )}
-                      <span className="ol-mono text-xs font-bold text-[var(--color-accent)] mt-auto pt-3">
+                      <span className="ol-mono text-xs font-bold text-[var(--color-text)] group-hover:text-[var(--color-accent)] transition-colors mt-auto pt-3">
                         READ →
                       </span>
                     </span>

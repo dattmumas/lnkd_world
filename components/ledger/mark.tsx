@@ -18,7 +18,7 @@ interface Stroke {
   fading: boolean;
 }
 
-const PENCIL_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cpath d='M2 16 L3.2 11.8 L13 2 L16 5 L6.2 14.8 Z' fill='%23F7F4EE' stroke='%23141210' stroke-width='1.4'/%3E%3Cpath d='M2 16 L3.2 11.8 L6.2 14.8 Z' fill='%23C7331D'/%3E%3C/svg%3E") 1 16, crosshair`;
+const PENCIL_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cpath d='M2 16 L3.2 11.8 L13 2 L16 5 L6.2 14.8 Z' fill='%23F3F0E9' stroke='%23141210' stroke-width='1.4'/%3E%3Cpath d='M2 16 L3.2 11.8 L6.2 14.8 Z' fill='%23C7331D'/%3E%3C/svg%3E") 1 16, crosshair`;
 
 export default function LedgerMark({
   size = 40,
@@ -97,9 +97,9 @@ export default function LedgerMark({
       {/* ink plate */}
       <rect x="0" y="0" width="82" height="82" fill="#141210" />
       {/* knocked-out ledger lines */}
-      <rect x="14" y="24" width="54" height="7" fill="#F7F4EE" />
-      <rect x="14" y="39" width="40" height="7" fill="#F7F4EE" />
-      <rect x="14" y="54" width="47" height="7" fill="#F7F4EE" />
+      <rect x="14" y="24" width="54" height="7" fill="#F3F0E9" />
+      <rect x="14" y="39" width="40" height="7" fill="#F3F0E9" />
+      <rect x="14" y="54" width="47" height="7" fill="#F3F0E9" />
       {/* your handwriting, in red pencil */}
       {strokes.map((s) => (
         <path

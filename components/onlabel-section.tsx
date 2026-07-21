@@ -28,7 +28,7 @@ export default function OnLabelSection() {
           <p className="ol-mono text-xs font-bold uppercase tracking-widest">
             The Lead&nbsp;&nbsp;·&nbsp;&nbsp;The Weekly Letter
           </p>
-          <span className="text-[var(--color-accent)] leading-none select-none">■</span>
+          <span className="text-[var(--color-stone)] leading-none select-none">■</span>
         </div>
 
         <div className="px-5 py-5">
@@ -62,7 +62,7 @@ export default function OnLabelSection() {
               </p>
               <Link
                 href="/onlabel/archive"
-                className="ol-mono text-[11px] font-bold text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
+                className="ol-mono text-[11px] font-bold text-[var(--color-text)] hover:text-[var(--color-accent)] hover:underline underline-offset-4 shrink-0"
               >
                 FULL ARCHIVE →
               </Link>
@@ -90,7 +90,7 @@ export default function OnLabelSection() {
                       {post.subtitle}
                     </span>
                   )}
-                  <span className="ol-mono text-xs font-bold text-[var(--color-accent)] mt-auto pt-3">
+                  <span className="ol-mono text-xs font-bold text-[var(--color-text)] group-hover:text-[var(--color-accent)] transition-colors mt-auto pt-3">
                     READ →
                   </span>
                 </a>
