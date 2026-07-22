@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { priority } from "@/convex/lib/queueScore";
+import { priority, MIN_VISIBLE_PRIORITY, inReplyWindow } from "@/convex/lib/queueScore";
 import { decodeInline } from "@/convex/lib/rss";
 
 type QueueItem = FunctionReturnType<typeof api.queue.getQueue>[number];
@@ -67,10 +67,15 @@ export function QueueFeed() {
     return () => clearInterval(t);
   }, []);
 
+  // The server filters at query time, but Convex only re-runs the query on
+  // data changes — during quiet stretches items keep decaying while the
+  // result stands still. Re-apply the floor and the reply window on every
+  // tick so stale items drop off instead of sinking.
   const items = useMemo(() => {
     return (data ?? [])
       .filter((r) => !removed.has(r.id))
       .map((r) => ({ ...r, priority: priority(r, now) }))
+      .filter((r) => r.priority >= MIN_VISIBLE_PRIORITY && inReplyWindow(r, now))
       .sort((a, b) => b.priority - a.priority);
   }, [data, removed, now]);
 

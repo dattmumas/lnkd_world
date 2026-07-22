@@ -1,7 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireSubscriber } from "./lib/auth";
-import { priority, MIN_VISIBLE_PRIORITY } from "./lib/queueScore";
+import { priority, MIN_VISIBLE_PRIORITY, inReplyWindow } from "./lib/queueScore";
 
 /**
  * The unified engagement queue: cross-feed items (convex/feedItems.ts) served
@@ -79,7 +79,7 @@ export const getQueue = query({
         publishedAt: r.publishedAt,
         priority: priority(r, now),
       }))
-      .filter((r) => r.priority >= MIN_VISIBLE_PRIORITY)
+      .filter((r) => r.priority >= MIN_VISIBLE_PRIORITY && inReplyWindow(r, now))
       .sort((a, b) => b.priority - a.priority)
       .slice(0, PAGE);
   },

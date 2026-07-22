@@ -41,6 +41,24 @@ export const HALF_LIFE_HOURS: Record<string, number> = {
 /** Items below this decayed priority are invisible in the queue. */
 export const MIN_VISIBLE_PRIORITY = 3;
 
+/**
+ * Hard freshness cap for reply targets. Whatever a feed's ranking half-life
+ * says (trending 6h, deals 48h), a tweet outside the news columns is only
+ * worth REPLYING to while the conversation is live — after ~4h a reply lands
+ * in a dead thread. News-column posts (science/biz) are original-take
+ * material, not replies, so they keep their long windows.
+ */
+export const REPLY_WINDOW_HOURS = 4;
+
+export function inReplyWindow(
+  item: { kind: string; primaryFeed: string; publishedAt: number },
+  nowMs: number,
+): boolean {
+  if (item.kind !== "x-post") return true;
+  if (item.primaryFeed === "science" || item.primaryFeed === "biz") return true;
+  return nowMs - item.publishedAt <= REPLY_WINDOW_HOURS * 3_600_000;
+}
+
 /** Queued items older than this many half-lives get expired by the prune cron. */
 export const EXPIRE_HALF_LIVES = 8;
 
